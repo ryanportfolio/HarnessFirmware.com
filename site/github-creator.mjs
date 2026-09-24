@@ -68,8 +68,8 @@ export function mergeSkillOverrides(settingsText, disabledSkills) {
   return `${JSON.stringify(settings, null, 2)}\n`;
 }
 
-// Exact bytes of the template's removal record for these skills. The template's checks skip
-// folders listed here and still fail on any other missing skill folder.
+// Exact bytes of the template's removal record for these skills. The template's checks stay
+// quiet about folders listed here and warn about any other missing skill folder.
 export function removalRecordText(disabledSkills) {
   return `${JSON.stringify({ version: 1, removed: [...new Set(disabledSkills)].sort() }, null, 2)}\n`;
 }
