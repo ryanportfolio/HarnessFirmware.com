@@ -19,7 +19,8 @@ export const HARNESS_STATE_COOKIE = 'harness_github_state';
 export const HARNESS_OAUTH_COOKIE = 'harness_github_oauth';
 export const HARNESS_CANDIDATES_COOKIE = 'harness_github_candidates';
 export const HARNESS_COOKIE_PATH = '/api/harness/github';
-export const HARNESS_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// 180 days, matching the lifetime of GitHub's refresh token; access tokens refresh themselves within it.
+export const HARNESS_SESSION_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 export const HARNESS_CREATOR_PATH = '/new';
 
 const BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
@@ -394,7 +395,7 @@ async function readJson(req) {
 }
 
 function sessionCookie(reply, session, secret) {
-  reply.set(HARNESS_SESSION_COOKIE, encryptHarnessPayload(session, secret), 30 * 24 * 60 * 60);
+  reply.set(HARNESS_SESSION_COOKIE, encryptHarnessPayload(session, secret), HARNESS_SESSION_MAX_AGE_MS / 1000);
 }
 
 async function currentUserCredentials(session) {
