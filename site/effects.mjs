@@ -56,7 +56,7 @@ export function initializeMotion(preference) {
   const pagePath=path=>path.replace(/index\.html$/, '') || '/';
   document.addEventListener('click',event=>{
     const link=event.target.closest('a');
-    if(!link || link.origin!==location.origin || pagePath(link.pathname)!==pagePath(location.pathname) || !link.hash && link.getAttribute('href')!=='#')return;
+    if(!link || event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.origin!==location.origin || pagePath(link.pathname)!==pagePath(location.pathname) || !link.hash && link.getAttribute('href')!=='#')return;
     const target=link.hash?document.getElementById(decodeURIComponent(link.hash.slice(1))):document.querySelector('#main');
     if(!target)return;
     event.preventDefault();
