@@ -1,6 +1,6 @@
 {
   "repository": "ryanportfolio/Harness-Firmware",
-  "commit": "8988714aed01b09fe42a43f2e5574ddfaacb4bd1",
+  "commit": "ccac3996771af7023460ef16fdcb908438eb0c74",
   "claude": [
     "addskill",
     "adopt-repo",
@@ -76,5 +76,27 @@
     "unslop",
     "verify-this",
     "writing-skills"
-  ]
+  ],
+  "removal": {
+    "required": [
+      "external-review",
+      "init-project"
+    ],
+    "dependencies": {
+      "astra-fullreview": [
+        "codex-fullreview",
+        "impartial-review"
+      ],
+      "astra-review": [
+        "codex-review",
+        "external-review"
+      ],
+      "codex-fullreview": [
+        "impartial-review"
+      ],
+      "codex-review": [
+        "external-review"
+      ]
+    }
+  }
 }

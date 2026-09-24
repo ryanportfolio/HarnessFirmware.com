@@ -3,6 +3,8 @@
 // the two drift. Refresh the record with: node scripts/refresh-upstream-skills.mjs
 // runtime is omitted when a skill ships in both .claude/skills and .agents/skills; otherwise it
 // names the one runtime whose folder holds the skill.
+import { HARNESS_REQUIRED_SKILLS, HARNESS_SKILL_DEPENDENCIES } from './skill-rules.js';
+
 export const HARNESS_SKILL_GROUPS = Object.freeze([
   {
     id: 'core',
@@ -26,12 +28,11 @@ export const HARNESS_SKILL_RUNTIMES = Object.freeze({
   codex: { folder: '.agents/skills', label: 'Codex only' },
 });
 
-export const HARNESS_SKILL_CATALOG = Object.freeze([
+const SKILLS = [
   {
     name: 'init-project',
     label: 'Initialize project',
     group: 'core',
-    required: true,
     requiredLabel: 'Required later',
     description: 'Tune the Harness after adding your framework, scaffold, or first project files',
   },
@@ -160,7 +161,6 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     label: 'External review',
     group: 'discipline',
     runtime: 'codex',
-    required: true,
     recent: true,
     description: 'The single-reviewer pass that the Codex and Astra review commands run inside Codex',
   },
@@ -248,10 +248,73 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     group: 'specialist',
     description: 'Coordinate parallel sessions through one shared HTML hub file',
   },
-]);
+];
+
+// required comes from the template's removal rules (skill-rules.js), never from this list.
+export const HARNESS_SKILL_CATALOG = Object.freeze(SKILLS.map((skill) => Object.freeze({
+  ...skill,
+  required: HARNESS_REQUIRED_SKILLS.includes(skill.name),
+})));
 
 // Folders that hold a skill in a generated repository.
 export function harnessSkillFolders(skill) {
   const runtimes = skill.runtime ? [skill.runtime] : Object.keys(HARNESS_SKILL_RUNTIMES);
   return runtimes.map((runtime) => `${HARNESS_SKILL_RUNTIMES[runtime].folder}/${skill.name}`);
+}
+
+// Every skill a skill needs, directly or through another skill it needs.
+export function harnessSkillNeeds(name) {
+  const needs = new Set();
+  const pending = [...(HARNESS_SKILL_DEPENDENCIES[name] ?? [])];
+  while (pending.length) {
+    const next = pending.pop();
+    if (needs.has(next)) continue;
+    needs.add(next);
+    pending.push(...(HARNESS_SKILL_DEPENDENCIES[next] ?? []));
+  }
+  return needs;
+}
+
+// What is wrong with removing these skills: a required skill, or a skill that a kept skill needs.
+// Returns plain sentences; an empty list means the removal is allowed.
+export function harnessRemovalProblems(disabledSkills) {
+  const removed = new Set(disabledSkills);
+  const problems = HARNESS_REQUIRED_SKILLS
+    .filter((name) => removed.has(name))
+    .map((name) => `${name} is required and cannot be removed`);
+  for (const [name, needs] of Object.entries(HARNESS_SKILL_DEPENDENCIES)) {
+    if (removed.has(name)) continue;
+    for (const need of needs) {
+      if (removed.has(need)) problems.push(`${name} needs ${need}; keep ${need} or remove ${name} too`);
+    }
+  }
+  return problems;
+}
+
+// Picker rules for one checkbox. Unticking a skill that a ticked skill needs keeps it ticked;
+// ticking a skill also ticks what it needs. Returns the new enabled set and a short note.
+export function toggleHarnessSkill(enabledSkills, name, wanted) {
+  const enabled = new Set(enabledSkills);
+  if (!wanted) {
+    if (HARNESS_REQUIRED_SKILLS.includes(name)) return { enabled, note: 'Required' };
+    const dependents = SKILLS
+      .map((skill) => skill.name)
+      .filter((other) => other !== name && enabled.has(other) && harnessSkillNeeds(other).has(name));
+    if (dependents.length) {
+      return { enabled, note: `Kept: ${dependents.join(', ')} ${dependents.length > 1 ? 'need' : 'needs'} it` };
+    }
+    enabled.delete(name);
+    return { enabled, note: null };
+  }
+  enabled.add(name);
+  const added = [...harnessSkillNeeds(name)].filter((need) => !enabled.has(need)).sort();
+  for (const need of added) enabled.add(need);
+  return { enabled, note: added.length ? `Also on: ${added.join(', ')}` : null };
+}
+
+// Clear optional: only the required skills and whatever they need stay ticked.
+export function harnessMinimumSkills() {
+  const enabled = new Set(HARNESS_REQUIRED_SKILLS);
+  for (const name of HARNESS_REQUIRED_SKILLS) for (const need of harnessSkillNeeds(name)) enabled.add(need);
+  return enabled;
 }

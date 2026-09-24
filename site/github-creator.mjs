@@ -9,7 +9,7 @@ import {
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto';
-import { HARNESS_SKILL_CATALOG, harnessSkillFolders } from './new/skill-catalog.js';
+import { HARNESS_SKILL_CATALOG, harnessRemovalProblems, harnessSkillFolders } from './new/skill-catalog.js';
 
 export const HARNESS_TEMPLATE_OWNER = 'ryanportfolio';
 export const HARNESS_TEMPLATE_REPO = 'Harness-Firmware';
@@ -22,6 +22,7 @@ export const HARNESS_COOKIE_PATH = '/api/harness/github';
 // 180 days, matching the lifetime of GitHub's refresh token; access tokens refresh themselves within it.
 export const HARNESS_SESSION_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 export const HARNESS_CREATOR_PATH = '/new';
+export const HARNESS_REMOVAL_RECORD_PATH = '.agents/removed-skills.json';
 
 const BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
@@ -45,6 +46,7 @@ export function normalizeDisabledSkills(value) {
     }
     supplied.add(item);
   }
+  if (harnessRemovalProblems([...supplied]).length) return null;
   return HARNESS_SKILL_CATALOG.filter((skill) => supplied.has(skill.name)).map((skill) => skill.name);
 }
 
@@ -64,6 +66,21 @@ export function mergeSkillOverrides(settingsText, disabledSkills) {
   if (Object.keys(overrides).length > 0) settings.skillOverrides = overrides;
   else delete settings.skillOverrides;
   return `${JSON.stringify(settings, null, 2)}\n`;
+}
+
+// Exact bytes of the template's removal record for these skills. The template's checks stay
+// quiet about folders listed here and warn about any other missing skill folder.
+export function removalRecordText(disabledSkills) {
+  return `${JSON.stringify({ version: 1, removed: [...new Set(disabledSkills)].sort() }, null, 2)}\n`;
+}
+
+// Every file change one skill selection makes, for a single commit: files to write (settings,
+// plus the removal record when anything is removed) and tree entries deleting the skill folders.
+// With nothing removed the template's empty record stays as shipped.
+export function plannedSkillSelection(treeEntries, settingsText, disabledSkills) {
+  const writes = [{ path: '.claude/settings.json', content: mergeSkillOverrides(settingsText, disabledSkills) }];
+  if (disabledSkills.length > 0) writes.push({ path: HARNESS_REMOVAL_RECORD_PATH, content: removalRecordText(disabledSkills) });
+  return { writes, deletions: skillDeletionEntries(treeEntries, disabledSkills) };
 }
 
 // Tree entries that delete every file of the deselected skills, in each runtime folder the
@@ -257,12 +274,6 @@ export async function applyRepositorySkillSelection({
   }
 
   const currentSettings = Buffer.from(file.content.replaceAll(/\s/g, ''), 'base64').toString('utf8');
-  const updatedSettings = mergeSkillOverrides(currentSettings, selectedSkills);
-  const settingsBlob = await githubApi(`${repositoryPath}/git/blobs`, {
-    method: 'POST',
-    body: JSON.stringify({ content: Buffer.from(updatedSettings, 'utf8').toString('base64'), encoding: 'base64' }),
-  }, token);
-  if (!settingsBlob.sha) throw new Error('GitHub did not create the Harness settings blob');
 
   const encodedBranch = encodeURIComponent(branch);
   const reference = await githubApi(`${repositoryPath}/git/ref/heads/${encodedBranch}`, {}, token);
@@ -277,14 +288,21 @@ export async function applyRepositorySkillSelection({
     throw new Error('GitHub did not return the complete generated repository tree');
   }
 
-  const deletionEntries = skillDeletionEntries(baseTree.tree, selectedSkills);
+  // Settings, removal record, and folder deletions land in one commit.
+  const { writes, deletions } = plannedSkillSelection(baseTree.tree, currentSettings, selectedSkills);
+  const writeEntries = [];
+  for (const write of writes) {
+    const blob = await githubApi(`${repositoryPath}/git/blobs`, {
+      method: 'POST',
+      body: JSON.stringify({ content: Buffer.from(write.content, 'utf8').toString('base64'), encoding: 'base64' }),
+    }, token);
+    if (!blob.sha) throw new Error(`GitHub did not create the blob for ${write.path}`);
+    writeEntries.push({ path: write.path, mode: '100644', type: 'blob', sha: blob.sha });
+  }
 
   const tree = await githubApi(`${repositoryPath}/git/trees`, {
     method: 'POST',
-    body: JSON.stringify({
-      base_tree: headCommit.tree.sha,
-      tree: [{ path: '.claude/settings.json', mode: '100644', type: 'blob', sha: settingsBlob.sha }, ...deletionEntries],
-    }),
+    body: JSON.stringify({ base_tree: headCommit.tree.sha, tree: [...writeEntries, ...deletions] }),
   }, token);
   if (!tree.sha) throw new Error('GitHub did not create the customized repository tree');
 
@@ -592,6 +610,10 @@ const handlers = {
     if (!isValidRepositoryName(name)) return reply.json(422, { error: 'Use letters, digits, dot, dash, or underscore' });
     const description = typeof body.description === 'string' ? body.description.trim().slice(0, 350) : '';
     const makePrivate = body.private !== false;
+    // A selection that removes a required skill, or one a kept skill needs, is rejected, never repaired:
+    // the repository must hold exactly what the picker showed.
+    const removalProblems = Array.isArray(body.disabledSkills) ? harnessRemovalProblems(body.disabledSkills) : [];
+    if (removalProblems.length) return reply.json(400, { error: removalProblems.join('. ') });
     const disabledSkills = body.disabledSkills === undefined ? [] : normalizeDisabledSkills(body.disabledSkills);
     if (!disabledSkills) return reply.json(422, { error: 'Choose skills from the available list' });
 
