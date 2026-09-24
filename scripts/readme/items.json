@@ -3,7 +3,7 @@
     "caveman": "Replies drop filler and pleasantries and keep every technical detail, from the first message.",
     "recall": "Before unfamiliar work, the agent reads the project notes that apply and skips the rest.",
     "/dare": "Takes the problem apart from first principles in four fresh passes: break it down, test each assumption, rebuild, check the result against reality.",
-    "/arena": "Runs several attempts in parallel, keeps the strongest as the base, and folds in the best parts of the rest.",
+    "/arena": "Runs several attempts in parallel, has a blind judge pick the strongest as the base, and folds in the best parts of the rest.",
     "/lab": "Builds a live prototype with controls, so you tune motion and layout by feel before anything is final.",
     "/codex-review": "OpenAI's Codex, a different model family, reviews the diff. Each finding is checked against the code before anything changes.",
     "/impartial-review": "Fresh agents that never saw the work review it.",
@@ -14,6 +14,6 @@
     "/perf-loop": "Measures speed against a baseline, changes one thing, and measures again with an independent check.",
     "/long-horizon": "Splits work too big for one context window into rounds. A fresh agent builds each round, a separate auditor checks the real files, and only work that passes moves forward.",
     "/long-horizon-workflows": "Runs the same rounds through Claude Code's built-in workflows, with a fresh builder, an inspector and a panel of judges each round, written verdicts and a run journal.",
-    "/refine": "Traces the stumble to its cause and edits the skill, so the next run starts from the fix."
+    "/refine": "Traces the stumble to its cause and edits the skill, so the next run starts from the fix. Preferences you state become rules the same way."
   }
 }

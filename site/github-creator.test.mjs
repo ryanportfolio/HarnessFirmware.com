@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   createPkceChallenge,
@@ -11,26 +12,33 @@ import {
   normalizeDisabledSkills,
   sameOriginRequest,
   signHarnessPayload,
+  skillDeletionEntries,
   verifyHarnessPayload,
 } from './github-creator.mjs';
+import { HARNESS_SKILL_CATALOG, HARNESS_SKILL_GROUPS, harnessSkillFolders } from './new/skill-catalog.js';
+
+// Recorded upstream tree; refresh with node scripts/refresh-upstream-skills.mjs.
+const upstream = JSON.parse(readFileSync(new URL('./new/upstream-skills.json', import.meta.url), 'utf8'));
 
 test('skill selection accepts only unique optional catalog entries', () => {
-  assert.deepEqual(normalizeDisabledSkills(['lab', 'merge']), ['merge', 'lab']);
+  assert.deepEqual(normalizeDisabledSkills(['lab', 'refine']), ['refine', 'lab']);
   assert.deepEqual(normalizeDisabledSkills([]), []);
   assert.equal(normalizeDisabledSkills(['init-project']), null);
   assert.equal(normalizeDisabledSkills(['lab', 'lab']), null);
   assert.equal(normalizeDisabledSkills(['unknown-skill']), null);
+  assert.equal(normalizeDisabledSkills(['external-review']), null);
+  for (const retired of ['verify-this', 'automate-me', 'merge']) assert.equal(normalizeDisabledSkills([retired]), null);
   assert.equal(normalizeDisabledSkills('lab'), null);
 });
 
 test('skill overrides merge without disturbing repository settings', () => {
   const settings = JSON.stringify({
     hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'safe-command' }] }] },
-    skillOverrides: { humanizer: 'off', merge: 'on', 'team-local-skill': 'off' },
+    skillOverrides: { bro: 'off', refine: 'on', 'team-local-skill': 'off' },
   });
-  const merged = JSON.parse(mergeSkillOverrides(settings, ['merge', 'lab']));
+  const merged = JSON.parse(mergeSkillOverrides(settings, ['refine', 'lab']));
   assert.deepEqual(merged.hooks, { SessionStart: [{ hooks: [{ type: 'command', command: 'safe-command' }] }] });
-  assert.deepEqual(merged.skillOverrides, { merge: 'off', 'team-local-skill': 'off', lab: 'off' });
+  assert.deepEqual(merged.skillOverrides, { refine: 'off', 'team-local-skill': 'off', lab: 'off' });
   assert.equal(JSON.parse(mergeSkillOverrides('{}', [])).skillOverrides, undefined);
   assert.throws(() => mergeSkillOverrides('[]', []));
 });
@@ -81,4 +89,57 @@ test('write requests require an exact same origin', () => {
   assert.equal(sameOriginRequest('http://localhost:4347', url), false);
   assert.equal(sameOriginRequest(undefined, url), false);
   assert.equal(sameOriginRequest('garbage', url), false);
+});
+
+test('catalog lists exactly the skills a generated repository contains', () => {
+  const names = HARNESS_SKILL_CATALOG.map((skill) => skill.name);
+  assert.equal(new Set(names).size, names.length, 'duplicate catalog entry');
+  const upstreamNames = [...new Set([...upstream.claude, ...upstream.codex])].sort();
+  assert.deepEqual([...names].sort(), upstreamNames);
+  for (const skill of HARNESS_SKILL_CATALOG) {
+    const expected = [
+      upstream.claude.includes(skill.name) && `.claude/skills/${skill.name}`,
+      upstream.codex.includes(skill.name) && `.agents/skills/${skill.name}`,
+    ].filter(Boolean);
+    assert.deepEqual(harnessSkillFolders(skill), expected, `${skill.name} runtime folders`);
+  }
+});
+
+test('catalog names no retired skill', () => {
+  const names = new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name));
+  for (const retired of new Set([...upstream.retired, 'verify-this', 'automate-me', 'merge'])) {
+    assert.equal(names.has(retired), false, `${retired} is retired upstream`);
+  }
+});
+
+test('catalog entries are complete', () => {
+  const groups = new Set(HARNESS_SKILL_GROUPS.map((group) => group.id));
+  for (const skill of HARNESS_SKILL_CATALOG) {
+    assert.ok(groups.has(skill.group), `${skill.name} group`);
+    assert.ok(skill.label && skill.description, `${skill.name} copy`);
+    assert.doesNotMatch(skill.description, /[.—]$|—/, `${skill.name} description punctuation`);
+  }
+});
+
+test('deselecting a skill deletes its folders in every runtime that holds it', () => {
+  const tree = [];
+  for (const skill of HARNESS_SKILL_CATALOG) {
+    for (const folder of harnessSkillFolders(skill)) {
+      tree.push({ path: `${folder}/SKILL.md`, mode: '100644', type: 'blob', sha: 'a' });
+      tree.push({ path: `${folder}/references/notes.md`, mode: '100644', type: 'blob', sha: 'b' });
+    }
+  }
+  tree.push({ path: '.claude/skills/lab-extra/SKILL.md', mode: '100644', type: 'blob', sha: 'c' });
+  tree.push({ path: '.claude/skills/lab', mode: '040000', type: 'tree', sha: 'd' });
+
+  const paths = (skills) => skillDeletionEntries(tree, skills).map((entry) => entry.path).sort();
+  assert.deepEqual(paths(['lab']), [
+    '.agents/skills/lab/SKILL.md', '.agents/skills/lab/references/notes.md',
+    '.claude/skills/lab/SKILL.md', '.claude/skills/lab/references/notes.md',
+  ]);
+  assert.deepEqual(paths(['long-horizon-workflows']), [
+    '.claude/skills/long-horizon-workflows/SKILL.md', '.claude/skills/long-horizon-workflows/references/notes.md',
+  ]);
+  assert.ok(skillDeletionEntries(tree, ['lab']).every((entry) => entry.sha === null));
+  assert.throws(() => skillDeletionEntries(tree.filter((entry) => entry.path !== '.agents/skills/lab/SKILL.md'), ['lab']), /missing/);
 });

@@ -9,7 +9,7 @@ import {
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto';
-import { HARNESS_SKILL_CATALOG } from './new/skill-catalog.js';
+import { HARNESS_SKILL_CATALOG, harnessSkillFolders } from './new/skill-catalog.js';
 
 export const HARNESS_TEMPLATE_OWNER = 'ryanportfolio';
 export const HARNESS_TEMPLATE_REPO = 'Harness-Firmware';
@@ -64,6 +64,25 @@ export function mergeSkillOverrides(settingsText, disabledSkills) {
   if (Object.keys(overrides).length > 0) settings.skillOverrides = overrides;
   else delete settings.skillOverrides;
   return `${JSON.stringify(settings, null, 2)}\n`;
+}
+
+// Tree entries that delete every file of the deselected skills, in each runtime folder the
+// catalog says holds them. Throws when a folder the catalog promises has no SKILL.md.
+export function skillDeletionEntries(treeEntries, disabledSkills) {
+  const skills = HARNESS_SKILL_CATALOG.filter((skill) => disabledSkills.includes(skill.name));
+  const folders = skills.flatMap((skill) => harnessSkillFolders(skill));
+  const entries = treeEntries
+    .filter(({ path, mode, type }) => typeof path === 'string'
+      && type === 'blob'
+      && (mode === '100644' || mode === '100755' || mode === '120000')
+      && folders.some((folder) => path.startsWith(`${folder}/`)))
+    .map((entry) => ({ path: entry.path, mode: entry.mode, type: entry.type, sha: null }));
+  for (const folder of folders) {
+    if (!entries.some((entry) => entry.path === `${folder}/SKILL.md`)) {
+      throw new Error(`Harness skill files were missing for ${folder}`);
+    }
+  }
+  return entries;
 }
 
 export function githubAppConfigured(environment = process.env) {
@@ -258,22 +277,7 @@ export async function applyRepositorySkillSelection({
     throw new Error('GitHub did not return the complete generated repository tree');
   }
 
-  const skillPrefixes = selectedSkills.flatMap((skill) => [`.claude/skills/${skill}/`, `.agents/skills/${skill}/`]);
-  const deletionEntries = baseTree.tree
-    .filter((entry) => {
-      const { path, mode, type } = entry;
-      return typeof path === 'string'
-        && type === 'blob'
-        && (mode === '100644' || mode === '100755' || mode === '120000')
-        && skillPrefixes.some((prefix) => path.startsWith(prefix));
-    })
-    .map((entry) => ({ path: entry.path, mode: entry.mode, type: entry.type, sha: null }));
-
-  for (const skill of selectedSkills) {
-    if (!deletionEntries.some((entry) => entry.path === `.claude/skills/${skill}/SKILL.md`)) {
-      throw new Error(`Harness skill files were missing for ${skill}`);
-    }
-  }
+  const deletionEntries = skillDeletionEntries(baseTree.tree, selectedSkills);
 
   const tree = await githubApi(`${repositoryPath}/git/trees`, {
     method: 'POST',

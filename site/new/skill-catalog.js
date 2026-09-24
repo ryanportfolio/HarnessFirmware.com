@@ -1,3 +1,8 @@
+// Mirrors the skill folders in a repository generated from ryanportfolio/Harness-Firmware.
+// site/new/upstream-skills.json records that upstream tree, and github-creator.test.mjs fails when
+// the two drift. Refresh the record with: node scripts/refresh-upstream-skills.mjs
+// runtime is omitted when a skill ships in both .claude/skills and .agents/skills; otherwise it
+// names the one runtime whose folder holds the skill.
 export const HARNESS_SKILL_GROUPS = Object.freeze([
   {
     id: 'core',
@@ -16,31 +21,37 @@ export const HARNESS_SKILL_GROUPS = Object.freeze([
   },
 ]);
 
+export const HARNESS_SKILL_RUNTIMES = Object.freeze({
+  claude: { folder: '.claude/skills', label: 'Claude Code only' },
+  codex: { folder: '.agents/skills', label: 'Codex only' },
+});
+
 export const HARNESS_SKILL_CATALOG = Object.freeze([
   {
     name: 'init-project',
     label: 'Initialize project',
     group: 'core',
     required: true,
+    requiredLabel: 'Required later',
     description: 'Tune the Harness after adding your framework, scaffold, or first project files',
   },
   {
     name: 'recall',
     label: 'Project memory',
     group: 'core',
-    description: 'Read and save durable repository knowledge and pitfalls',
+    description: 'Read project decisions and pitfalls before unfamiliar work, and save lessons that cost a retry',
   },
   {
     name: 'addskill',
     label: 'Add skill',
     group: 'core',
-    description: 'Install or create repository-local skills for future sessions',
+    description: 'Create, import, update, or install skills for Claude Code and Codex',
   },
   {
     name: 'sync-starter',
     label: 'Sync starter',
     group: 'core',
-    description: 'Pull safe template improvements into an existing project',
+    description: 'Pull template improvements into a project, or send generic ones back',
   },
   {
     name: 'optimize-context',
@@ -52,20 +63,13 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     name: 'refine',
     label: 'Refine workflow',
     group: 'core',
-    description: 'Capture friction and improve the operating system after work',
+    description: 'Turn recurring friction and your stated preferences into narrow rule or skill changes',
   },
   {
-    name: 'merge',
-    label: 'Automatic merge mode',
+    name: 'adopt-repo',
+    label: 'Adopt repository',
     group: 'core',
-    description: 'Explicit session mode for commit, push, pull request, and merge automation',
-  },
-  {
-    name: 'automate-me',
-    label: 'Personal automation mode',
-    group: 'core',
-    recent: true,
-    description: 'Turn your project history and working preferences into a reusable personal mode',
+    description: 'Mirror an existing repository privately and add the Harness to it',
   },
   {
     name: 'brainstorming',
@@ -77,19 +81,25 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     name: 'writing-plans',
     label: 'Implementation plans',
     group: 'discipline',
-    description: 'Turn an approved design into a detailed executable plan',
+    description: 'Turn a clear task into ordered steps with dependencies and checks',
+  },
+  {
+    name: 'dare',
+    label: 'DARE',
+    group: 'discipline',
+    description: 'Question the problem in four fresh passes: decompose, audit, recombine, and test',
   },
   {
     name: 'impartial-review',
     label: 'Impartial review',
     group: 'discipline',
-    description: 'Use fresh independent agents to review recent code changes',
+    description: 'Fresh agents review recent changes; a strict mode also weighs the cost of the next change',
   },
   {
-    name: 'writing-skills',
-    label: 'Skill authoring',
+    name: 'perf-loop',
+    label: 'Performance loop',
     group: 'discipline',
-    description: 'Create, edit, and verify agent skills before deployment',
+    description: 'Measure, change one thing, and measure again for speed, loading, and resource use',
   },
   {
     name: 'long-horizon',
@@ -98,44 +108,85 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     description: 'Run work too large for one context window in verified rounds',
   },
   {
+    name: 'long-horizon-workflows',
+    label: 'Long horizon workflows',
+    group: 'discipline',
+    runtime: 'claude',
+    recent: true,
+    description: 'Run the same rounds through Claude Code workflows, with judges and a run journal',
+  },
+  {
     name: 'babysit-ci',
     label: 'Babysit CI',
     group: 'discipline',
-    recent: true,
-    description: 'Watch pull request checks, fix failures, and repeat until every check is green',
+    description: 'Watch pull request checks, or fix failures without merging; stops after three fix pushes',
   },
   {
     name: 'codex-review',
     label: 'Codex review',
     group: 'discipline',
-    recent: true,
-    description: 'Run a fresh Codex CLI review, then verify each finding before reporting it',
+    description: 'Codex CLI reviews a diff, then each finding is verified before it is reported',
   },
   {
-    name: 'verify-this',
-    label: 'Verify this',
+    name: 'astra-review',
+    label: 'Astra review',
     group: 'discipline',
+    description: 'The Codex review, run on gpt-6-astra at medium reasoning',
+  },
+  {
+    name: 'codex-fullreview',
+    label: 'Codex full review',
+    group: 'discipline',
+    runtime: 'claude',
     recent: true,
-    description: 'Test a specific claim with baseline, treatment, comparison, and a clear verdict',
+    description: 'Codex runs a multi-agent review with fresh sub-reviewers, then each finding is verified',
+  },
+  {
+    name: 'astra-fullreview',
+    label: 'Astra full review',
+    group: 'discipline',
+    runtime: 'claude',
+    recent: true,
+    description: 'The multi-agent Codex review, run on gpt-6-astra at medium reasoning',
+  },
+  {
+    name: 'claude-review',
+    label: 'Claude review',
+    group: 'discipline',
+    description: 'Claude CLI reviews code written in Codex, then each finding is verified',
+  },
+  {
+    name: 'external-review',
+    label: 'External review',
+    group: 'discipline',
+    runtime: 'codex',
+    required: true,
+    recent: true,
+    description: 'The single-reviewer pass that the Codex and Astra review commands run inside Codex',
   },
   {
     name: 'fable-mode',
     label: 'Fable mode',
     group: 'specialist',
-    description: 'Apply evidence gates to hard, layered, verification-sensitive work',
+    description: 'Evidence gates for hard work: each claim is checked at the layer it names',
   },
   {
     name: 'wow-loop',
     label: 'Wow loop',
     group: 'specialist',
-    description: 'Run a multi-agent critique loop for high-polish deliverables',
+    description: 'Review and repair one deliverable until independent critics pass it from their own captures',
+  },
+  {
+    name: 'showpiece',
+    label: 'Showpiece',
+    group: 'specialist',
+    description: 'Push a page, deck, or document past the generic look',
   },
   {
     name: 'arena',
     label: 'Arena',
     group: 'specialist',
-    recent: true,
-    description: 'Compare parallel candidate solutions, choose the strongest base, and combine the best parts',
+    description: 'Build parallel attempts, judge them blind, and graft the best ideas onto the strongest',
   },
   {
     name: 'lab',
@@ -147,7 +198,7 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     name: 'advocate',
     label: 'Change advocate',
     group: 'specialist',
-    description: 'Challenge a completed change from a fresh independent context',
+    description: 'Challenge a change just made, from a fresh context, before it lands',
   },
   {
     name: 'why',
@@ -159,25 +210,19 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     name: 'enhance-prompt',
     label: 'Prompt enhancer',
     group: 'specialist',
-    description: 'Rewrite a rough request into a polished prompt for another agent',
+    description: 'Rewrite a request into a copy-ready prompt for another agent or session',
   },
   {
     name: 'handoff-audit',
     label: 'Audit handoff',
     group: 'specialist',
-    description: 'Create a self-contained prompt for independent verification',
+    description: 'Draft a self-contained audit prompt, with exact scope and checks, for another session to run',
   },
   {
-    name: 'humanizer',
-    label: 'Humanizer',
+    name: 'writing',
+    label: 'Writing',
     group: 'specialist',
-    description: 'Remove machine-made prose patterns before publishing',
-  },
-  {
-    name: 'purposeful-writing',
-    label: 'Purposeful writing',
-    group: 'specialist',
-    description: 'Draft reader-focused emails, essays, reports, and product copy',
+    description: 'Write and clean up text that leaves the session: docs, site copy, emails, release notes',
   },
   {
     name: 'forge-repo-ui-skill',
@@ -189,20 +234,24 @@ export const HARNESS_SKILL_CATALOG = Object.freeze([
     name: 'caveman',
     label: 'Caveman prose',
     group: 'specialist',
-    description: 'Compress agent replies while preserving technical accuracy',
+    description: 'Short session replies with built-in cleanup; deliverables keep normal prose',
   },
   {
     name: 'bro',
     label: 'Plain English',
     group: 'specialist',
-    recent: true,
-    description: 'Restate the last answer in plain language without dropping facts or caveats',
+    description: 'Explain the last reply in plain words, or rewrite a draft plainly, keeping every fact',
   },
   {
-    name: 'unslop',
-    label: 'Unslop',
+    name: 'session-hub',
+    label: 'Session hub',
     group: 'specialist',
-    recent: true,
-    description: 'Strip predictable AI writing patterns from human-facing text at write time',
+    description: 'Coordinate parallel sessions through one shared HTML hub file',
   },
 ]);
+
+// Folders that hold a skill in a generated repository.
+export function harnessSkillFolders(skill) {
+  const runtimes = skill.runtime ? [skill.runtime] : Object.keys(HARNESS_SKILL_RUNTIMES);
+  return runtimes.map((runtime) => `${HARNESS_SKILL_RUNTIMES[runtime].folder}/${skill.name}`);
+}
