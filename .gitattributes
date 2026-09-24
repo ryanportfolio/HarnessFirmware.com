@@ -4,3 +4,9 @@
 # Workflow and issue-template YAML stays LF. A Windows checkout that rewrites it
 # to CRLF produces a whole-file diff for everyone with core.autocrlf off.
 *.yml text eol=lf
+
+# The README and its art are generated with LF endings; keep the checkout identical so
+# scripts/readme/verify.mjs compares like with like.
+README.md text eol=lf
+assets/readme/*.svg text eol=lf
+scripts/readme/glyphs.json text eol=lf

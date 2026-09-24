@@ -8,7 +8,7 @@ Run from the repository root:
 node site/server.mjs
 ```
 
-Open [the local preview](http://127.0.0.1:4348). The server binds to localhost and serves only the `site/` directory; paths that start with a dot (`.env`, `.local/`) are not served. Set `PORT` to use another port. This site has not been published.
+Open [the local preview](http://127.0.0.1:4348). The server binds to localhost and serves only the `site/` directory; paths that start with a dot (`.env`, `.local/`) are not served. Set `PORT` to use another port. The live site is https://harnessfirmware.com.
 
 The five-stage loop supports manual selection and a deterministic example replay, including a failed check, repair, and retained lesson. Replay is illustrative and does not execute repository actions. Reduced motion shows the complete example immediately. With JavaScript disabled, the default stage and the source disclosure explain the full process.
 
