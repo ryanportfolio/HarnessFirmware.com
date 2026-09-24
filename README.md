@@ -45,7 +45,7 @@ Decisions and pitfalls carry into the next session.
 
 ### Production-ready
 
-Health checks, CI, and your approval before anything ships.
+Long tasks run in audited rounds. Finished work gets polished and measured before it ships.
 
 - `/wow-loop`: Reviews and repairs one piece against the goal, round after round, and keeps only changes that prove better.
 - `/perf-loop`: Measures speed against a baseline, changes one thing, and measures again with an independent check.

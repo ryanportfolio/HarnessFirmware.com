@@ -54,7 +54,7 @@ export const DEFAULT_PILLARS = [
     skills: [skill('/codex-review'), skill('/impartial-review'), skill('/handoff-audit')] },
   { word: 'remembered', line: 'Decisions and pitfalls carry into the next session.', stage: 'lessons',
     skills: [file('pitfalls.md', 'auto-saved'), file('architecture.md', 'auto-loaded')], skillsLabel: 'Memory files' },
-  { word: 'production-ready', line: 'Health checks, CI, and your approval before anything ships.', stage: 'human',
+  { word: 'production-ready', line: 'Long tasks run in audited rounds. Finished work gets polished and measured before it ships.', stage: 'human',
     // the two long-horizon runtimes end the branch, one above the other
     skills: [skill('/wow-loop'), skill('/perf-loop'), skill('/long-horizon'), skill('/long-horizon-workflows')] },
   { word: 'self-improving', line: 'When a workflow stumbles, the fix goes into the skill itself.', stage: 'integrate',
