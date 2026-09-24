@@ -1,0 +1,6 @@
+/* Pixel wipe (pixel-wipe.mjs). The host is a size container so the grid can cover it with square
+   cells in CSS alone: whichever of width or height needs the larger scale wins. */
+.pixel-wipe{position:absolute;inset:0;overflow:hidden;pointer-events:none;container-type:size;color:var(--pixel-wipe-color,#11120D)}
+.pixel-wipe__grid{position:absolute;top:0;left:0;display:block;overflow:hidden;width:max(100cqw,100cqh * var(--pixel-wipe-cols,17) / var(--pixel-wipe-rows,9));height:max(100cqh,100cqw * var(--pixel-wipe-rows,9) / var(--pixel-wipe-cols,17))}
+.pixel-wipe__cell{fill:currentColor;opacity:0}
+.pixel-wipe:not(.is-active) .pixel-wipe__grid{visibility:hidden}

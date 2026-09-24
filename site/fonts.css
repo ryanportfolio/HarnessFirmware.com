@@ -1,0 +1,34 @@
+/* Site type: four faces, one token per role. Every page links this file first.
+   Files, sources and licenses: PROVENANCE.md. Fraunces, Mona Sans and Departure Mono are subset
+   to Latin and the punctuation and arrows the pages use; Lineal ships as released. Fraunces ships
+   as one static instance at the accent tokens below (wght 600, opsz 144, SOFT 100, WONK 1): change
+   --accent-weight or --accent-vs and the file has to be cut again. Mona Sans keeps its weight and
+   optical-size axes; it carries a Reserved Font Name, so its subset is renamed Harness Text.
+
+     --font-display  huge type: hero headline, statements, section and page headings (Lineal)
+     --font-accent   the accent words: rotating hero word, pillar words, the closing statement
+                     lines (Fraunces italic); pair it with --accent-style and --accent-vs
+     --font-text     sub-lines, body, navigation, buttons (Harness Text: Mona Sans, subset)
+     --font-mono     typed commands, tags, labels, canvas labels (Departure Mono) */
+
+@font-face{font-family:"Lineal";src:url("/assets/fonts/lineal/Lineal-VF.woff2") format("woff2");font-weight:1 1000;font-style:normal;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("/assets/fonts/fraunces/Fraunces-Italic.woff2") format("woff2");font-weight:600;font-style:italic;font-display:swap}
+@font-face{font-family:"Harness Text";src:url("/assets/fonts/harness-text/HarnessText-VF.woff2") format("woff2");font-weight:200 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Departure Mono";src:url("/assets/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+
+:root{
+  --font-display:"Lineal","Arial Black",Arial,Helvetica,sans-serif;
+  --display-weight:781;
+  --display-track:-.015em;
+  --font-accent:"Fraunces",Georgia,"Times New Roman",serif;
+  --accent-weight:600;
+  --accent-style:italic;
+  --accent-vs:"opsz" 144,"SOFT" 100,"WONK" 1;
+  --font-text:"Harness Text",Arial,Helvetica,sans-serif;
+  --text-weight:500;
+  --font-mono:"Departure Mono",ui-monospace,Consolas,monospace;
+  font-synthesis:none;
+}
+
+/* Code everywhere takes the mono face; zero specificity, so a page's own rule still wins. */
+:where(code,kbd,samp,pre){font-family:var(--font-mono)}

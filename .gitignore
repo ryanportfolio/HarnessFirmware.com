@@ -22,3 +22,12 @@ build/
 Thumbs.db
 .DS_Store
 debug.log
+
+# Browser-automation console logs and snapshots
+.playwright-mcp/
+
+# Local-only site assets that must never be committed (e.g. the licensed display face)
+site/.local/
+
+# Vercel CLI project link and local build output
+.vercel/

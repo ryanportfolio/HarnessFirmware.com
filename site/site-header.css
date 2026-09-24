@@ -1,0 +1,15 @@
+/* Shared sticky site header for every page. Lives outside the scroll layer so it holds while the layer translates. */
+.site-header{position:fixed;top:0;left:0;z-index:50;width:100%;height:90px;padding:0 4.3%;display:flex;justify-content:space-between;align-items:center;color:#f3f3ec;background:transparent;border-bottom:1px solid transparent;font-family:var(--font-text);font-weight:var(--text-weight);transition:background .25s,border-color .25s}
+.site-header[data-scrolled]{background:#0f1210f2;border-bottom-color:rgba(243,243,236,.22)}
+.site-header a{color:inherit;text-decoration:none}
+.site-header .brand{display:flex;align-items:center;gap:12px;font-size:17px;line-height:1;letter-spacing:-.02em;min-height:44px}
+.site-header .brand span br{display:inline}
+.site-header .harness-mark{width:35px;height:35px;fill:currentColor;stroke:none}
+.site-header nav{display:flex;align-items:center;gap:36px;font-size:13px}
+.site-header nav a[aria-current]{color:#96f77c}
+.site-header .github{display:inline}
+.site-header .nav-start{border:1px solid rgba(243,243,236,.22);border-radius:0;padding:13px 17px}
+.site-header .nav-start span{margin-left:25px}
+@media(min-width:1600px){.site-header{padding-left:max(4.3%,calc((100vw - 1500px)/2));padding-right:max(4.3%,calc((100vw - 1500px)/2))}}
+@media(max-width:1000px){.site-header{padding:0 24px}.site-header nav{gap:22px}.site-header .github{display:none}}
+@media(max-width:600px){.site-header{height:76px;padding:0 22px}.site-header nav>a:not(.nav-start){display:none}.site-header .brand{font-size:15px;gap:8px}.site-header .harness-mark{width:30px;height:30px}.site-header .nav-start{font-size:12px;padding:11px 12px}.site-header .nav-start span{margin-left:15px}}

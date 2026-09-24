@@ -1,0 +1,4 @@
+/* Command card drawings (card-art.mjs). */
+.card-row .card-art{position:absolute;inset:0;pointer-events:none}
+.card-row .card-art svg{display:block;width:100%;height:100%;overflow:visible}
+.card-row .card-art :is(.dare-scan,.dare-sweep,.dare-stamp,.arena-packet,.arena-stamp,.lab-dot,.showpiece-scan,.wow-scan,.wow-stamp,.perf-scan,.perf-stamp){filter:drop-shadow(0 0 4px #53db7680)}

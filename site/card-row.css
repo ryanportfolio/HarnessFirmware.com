@@ -1,0 +1,76 @@
+/* Card row (card-row.mjs). Without [data-motion] (no JS, reduced motion) the markup is the
+   finished section: pillar headline and three cards on #11120D. With motion the section gains
+   150svh of scroll below its content (none when card-row.mjs sets --card-tail to 0: every card
+   is under the held headline by then); the content box pins while the next section slides over,
+   and a pixel wipe in the next section's color closes it. */
+.card-row{--card-pad:clamp(20px,calc(20px + 40*((100vw - 402px)/1518)),60px);position:relative;z-index:20}
+.card-row *,.card-row *::before,.card-row *::after{box-sizing:border-box}
+.card-row .card-row__section{position:relative;overflow:hidden;overflow:clip;background:#11120D;color:#F7F7F7;font:var(--text-weight) 16px/1.5 var(--font-text)}
+.card-row[data-motion] .card-row__section::after{content:"";display:block;height:calc(var(--card-tail,150vh) + var(--card-round,0px) + var(--card-intro,0px));height:calc(var(--card-tail,150svh) + var(--card-round,0px) + var(--card-intro,0px))}
+.card-row .card-row__pin{position:relative;display:flex;flex-direction:column;padding:var(--card-pad) var(--card-pad) 96px}
+/* Native scroll: a sticky box cannot leave its section, so the section runs one box height longer
+   than it shows; the extra length is clipped away and the next section moves up over it. The block
+   (z-index 20) still covers that stretch of the next section, so it lets the pointer through and
+   only the section takes it back; the clip-path keeps the clipped stretch out of hit testing. */
+.card-row[data-motion="native"]{margin-bottom:calc(-1 * var(--card-pin-h,0px));pointer-events:none}
+.card-row[data-motion="native"] .card-row__section{clip-path:inset(0 0 var(--card-pin-h,0px) 0);pointer-events:auto}
+.card-row[data-motion="native"] .card-row__section::after{height:calc(var(--card-tail,150vh) + var(--card-round,0px) + var(--card-pin-h,0px));height:calc(var(--card-tail,150svh) + var(--card-round,0px) + var(--card-pin-h,0px))}
+.card-row[data-motion="native"] .card-row__pin{position:sticky;top:var(--card-pin-top,0px)}
+.card-row[data-motion="native"] .card-row__head{position:sticky;top:var(--card-head-top,0px)}
+.card-row .card-row__inner{position:relative;display:flex;flex-direction:column;padding:var(--card-pad) var(--card-pad) 40px}
+.card-row .card-row__head{position:relative;z-index:2;display:flex;flex-direction:column;gap:clamp(16px,2vw,28px);margin:0 0 clamp(56px,9vh,110px);margin:0 0 clamp(56px,9svh,110px)}
+.card-row .card-row__title{margin:0}
+/* Held headline (card-row.mjs): while the cards scroll up under it, the headline block covers
+   everything from the viewport top to a band below itself in the section color (56 px, fading
+   out over the last 32 px, unless card-row.mjs sets --card-band and --card-fade), so no card
+   shows above it or through it. */
+.card-row.is-held .card-row__head{z-index:3}
+.card-row.is-held .card-row__head::before{content:"";position:absolute;z-index:-1;top:calc(-1 * var(--card-head-top,0px));right:-24px;bottom:calc(-1 * var(--card-band,56px));left:-24px;background:linear-gradient(#11120D calc(100% - var(--card-fade,32px)),rgb(17 18 13 / 0));pointer-events:none}
+.card-row .card-row__sub{max-width:30em;margin:0;font-size:clamp(20px,min(2vw,4.4vh),34px);line-height:1.3;letter-spacing:-.01em}
+.card-row .card-row__cards{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:48px}
+.card-row .card-row__foot{position:relative;z-index:2;max-width:46em;margin:calc(clamp(48px,7vh,88px) - var(--card-foot-trim,0px)) 0 0;font-size:clamp(19px,1.6vw,26px);line-height:1.45;color:#D9DDD4}
+.card-row .card-row__grid{z-index:0}
+.card-row .card-row__wipe{position:absolute;top:var(--card-wipe-top,0px);right:0;left:0;z-index:20;height:100vh;height:100svh}
+
+/* Card: dashed frame, green corner pins, media box, command with index label, body text. */
+.card-row .cmd-card{position:relative;display:flex;flex-direction:column;gap:22px;padding:28px 24px;border:1px dashed rgba(247,247,247,.15);background:#11120D}
+.card-row .cmd-card__pin{position:absolute;z-index:3;width:8px;height:8px;background:#53DB76;box-shadow:0 0 9px rgba(83,219,118,.5)}
+.card-row .cmd-card__pin:nth-child(1){top:-6px;left:-6px}
+.card-row .cmd-card__pin:nth-child(2){top:-6px;right:-6px}
+.card-row .cmd-card__pin:nth-child(3){bottom:-6px;left:-6px}
+.card-row .cmd-card__pin:nth-child(4){right:-6px;bottom:-6px}
+/* Hover arc: a conic wedge twice the card's size turns behind a 1 px frame; the inner fill hides
+   all of it except a green arc just inside the dashed border. */
+.card-row .cmd-card__glow{position:absolute;inset:0;z-index:1;overflow:hidden;opacity:0;pointer-events:none;transition:opacity .3s cubic-bezier(.33,1,.68,1)}
+.card-row .cmd-card__glow::after{content:"";position:absolute;inset:1px;z-index:1;background:#11120D}
+.card-row .cmd-card__sweep{position:absolute;inset:-50%;background:#11120D conic-gradient(transparent,#53DB76,transparent 30%)}
+.card-row .cmd-card.is-hovered .cmd-card__glow{opacity:1}
+.card-row .cmd-card__media{position:relative;z-index:2;aspect-ratio:2/1;border:1px solid rgba(247,247,247,.2);background:#10150f}
+/* A single row that would not fit its pinned frame: card-row.mjs closes the gap above the line
+   under the cards, then lowers the media boxes. */
+.card-row[data-trim] .cmd-card__media{aspect-ratio:auto;height:var(--card-media-h)}
+.card-row .cmd-card__body{position:relative;z-index:2;display:flex;flex-direction:column;gap:18px}
+/* The command stays on one line beside its index: Departure Mono runs 0.616em a character at this
+   tracking, the longest command has 10, and the index with the gap takes 72 px. */
+.card-row .cmd-card__head{display:flex;align-items:center;justify-content:space-between;gap:12px;container-type:inline-size}
+.card-row .cmd-card__title{min-width:0;margin:0;font:500 min(clamp(22px,2.3vw,34px),(100cqi - 72px) / 6.2)/1.15 var(--font-mono);letter-spacing:-.02em;color:#53DB76;white-space:nowrap}
+.card-row .cmd-card__index{flex:none;padding:6px 10px;border:1px solid rgba(247,247,247,.15);color:#53DB76;font:500 15px/1.4 var(--font-mono);text-align:center}
+.card-row .cmd-card__text{margin:0;font-size:clamp(18px,calc(18px + 4*((100vw - 402px)/1518)),22px);font-weight:var(--text-weight);line-height:1.4}
+
+/* Reveal: cards wait 30% of their height low and transparent until the headline is in view. */
+.card-row[data-motion] .cmd-card{opacity:0;transform:translateY(30%)}
+/* Ease-in-out quint; linear() traces it exactly where supported. */
+.card-row.is-revealed .cmd-card{opacity:1;transform:none;transition:opacity 1s cubic-bezier(.83,0,.17,1),transform 1s cubic-bezier(.83,0,.17,1);transition:opacity 1s linear(0,0,.0002,.0012,.0051,.0156,.0389,.084,.1638,.2952,.5,.7048,.8362,.916,.9611,.9844,.9949,.9988,.9998,1,1),transform 1s linear(0,0,.0002,.0012,.0051,.0156,.0389,.084,.1638,.2952,.5,.7048,.8362,.916,.9611,.9844,.9949,.9988,.9998,1,1);transition-delay:var(--card-delay,0s)}
+.card-row[data-pin="after"] .card-row__pin{visibility:hidden}
+
+/* Three columns from 1024 px, one below 768 px; in between the third card spans the row. */
+@media(max-width:1023px){
+  .card-row .card-row__cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card-row .cmd-card:nth-child(3){grid-column:1/-1}
+  .card-row .cmd-card:nth-child(3) .cmd-card__media{width:calc(50% - 24px);align-self:flex-start}
+}
+@media(max-width:767px){
+  .card-row .card-row__cards{display:flex;flex-direction:column;gap:40px}
+  .card-row .cmd-card:nth-child(3) .cmd-card__media{width:auto;align-self:auto}
+  .card-row .cmd-card__title{font-size:min(28px,(100cqi - 72px) / 6.2)}
+}
