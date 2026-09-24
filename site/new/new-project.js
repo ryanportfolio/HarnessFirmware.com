@@ -1,4 +1,10 @@
-import { HARNESS_SKILL_CATALOG, HARNESS_SKILL_GROUPS, HARNESS_SKILL_RUNTIMES } from './skill-catalog.js';
+import {
+  HARNESS_SKILL_CATALOG,
+  HARNESS_SKILL_GROUPS,
+  HARNESS_SKILL_RUNTIMES,
+  harnessMinimumSkills,
+  toggleHarnessSkill,
+} from './skill-catalog.js';
 
 const connection = document.querySelector('#connection');
 const form = document.querySelector('#github-form');
@@ -89,9 +95,10 @@ function skillOption(skill) {
   input.dataset.skillName = skill.name;
   input.setAttribute('aria-describedby', `skill-description-${skill.name}`);
   input.addEventListener('change', () => {
-    skillState.set(skill.name, input.checked);
-    option.classList.toggle('is-enabled', input.checked);
-    updateSkillCounts();
+    const enabled = new Set(HARNESS_SKILL_CATALOG.filter((entry) => skillState.get(entry.name)).map((entry) => entry.name));
+    const result = toggleHarnessSkill(enabled, skill.name, input.checked);
+    applySkillSelection(result.enabled);
+    showSkillNote(skill.name, result.note);
   });
 
   const copy = document.createElement('span');
@@ -101,7 +108,11 @@ function skillOption(skill) {
   const description = document.createElement('small');
   description.id = `skill-description-${skill.name}`;
   description.textContent = skill.description;
-  copy.append(label, description);
+  const note = document.createElement('small');
+  note.className = 'skill-option-note';
+  note.dataset.skillNote = skill.name;
+  note.setAttribute('aria-live', 'polite');
+  copy.append(label, description, note);
 
   const meta = document.createElement('span');
   meta.className = 'skill-option-meta';
@@ -157,15 +168,28 @@ function renderSkillPicker() {
   updateSkillCounts();
 }
 
-function setOptionalSkills(enabled) {
+// Mirrors a set of enabled skill names into the state, the checkboxes, and the counts.
+function applySkillSelection(enabled) {
   for (const skill of HARNESS_SKILL_CATALOG) {
-    if (skill.required) continue;
-    skillState.set(skill.name, enabled);
+    const on = enabled.has(skill.name);
+    skillState.set(skill.name, on);
     const input = skillGroups.querySelector(`[data-skill-name="${skill.name}"]`);
-    input.checked = enabled;
-    input.closest('.skill-option').classList.toggle('is-enabled', enabled);
+    input.checked = on;
+    input.closest('.skill-option').classList.toggle('is-enabled', on);
   }
   updateSkillCounts();
+}
+
+// One note at a time, on the skill the last click touched.
+function showSkillNote(name, text) {
+  for (const note of skillGroups.querySelectorAll('[data-skill-note]')) {
+    note.textContent = note.dataset.skillNote === name && text ? text : '';
+  }
+}
+
+function setOptionalSkills(enabled) {
+  applySkillSelection(enabled ? new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name)) : harnessMinimumSkills());
+  showSkillNote(null, null);
 }
 
 function closeSkillPicker() {
