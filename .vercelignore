@@ -1,0 +1,12 @@
+# Upload only what the deployment serves: the static site, the creator function, and this config.
+/*
+!/site
+!/api
+!/vercel.json
+
+# Private or dev-only files inside site/
+/site/.*
+/site/server.mjs
+/site/*.test.mjs
+/site/generate-grain.mjs
+/site/README.md

@@ -1,0 +1,33 @@
+/* 7 · Remembered: pillar headline beside the routed file map (CLAUDE.md and AGENTS.md route the
+   task to focused topic files; the map highlights pitfalls.md). */
+.memory-cta{--mc-green:#69e990;position:relative;display:grid;grid-template-columns:40% 1fr;gap:4%;padding:96px 4.3%;color:#f0f5ec;background-color:#08110e;background-image:linear-gradient(#9cdfba08 1px,transparent 1px),linear-gradient(90deg,#9cdfba08 1px,transparent 1px);background-size:48px 48px;border-block:1px solid #abc6b328;isolation:isolate}
+.memory-cta .mc-copy{display:flex;flex-direction:column;align-items:flex-start;gap:24px;align-self:center}
+.memory-cta .mc-description{max-width:17em;margin:0;font-size:clamp(20px,1.8vw,30px);line-height:1.3;color:#c3d7cb;letter-spacing:-.01em}
+.memory-cta .mc-link{display:inline-flex;gap:26px;align-items:center;margin-top:8px;border:1px solid #73d99a;padding:14px 20px;color:#acfac5;font:500 16px var(--font-mono);letter-spacing:.02em;min-height:52px;transition:background .18s,color .18s}
+.memory-cta .mc-link:hover{background:#173323;color:#fff}.memory-cta .mc-link:focus-visible{outline:3px solid #b4ffce;outline-offset:5px}
+.mc-diagram{position:relative;min-width:0;display:flex;justify-content:space-between;align-items:center;height:400px;align-self:center}
+.mc-wires{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:-1}.mc-wires path{fill:none;stroke:#456953;stroke-width:1;vector-effect:non-scaling-stroke}.mc-wires .mc-active-wire{stroke:#8bfdac;stroke-width:1.5;filter:drop-shadow(0 0 4px #80fa9b80)}.mc-wires circle{fill:#507c5e}
+.mc-roots,.mc-targets{display:flex;flex-direction:column;gap:18px;width:38%}.mc-roots{gap:28px}
+.mc-file{display:flex;gap:16px;align-items:center;border:1px solid #537b626e;background:#0a1310;height:116px;padding:0 16px;border-radius:3px;min-width:0}
+.mc-file svg{width:24px;height:30px;flex:none;fill:none;stroke:#bfdfcc;stroke-width:1}
+.mc-file strong{display:block;font:500 clamp(16px,1.35vw,21px) var(--font-mono);color:#eff6ef;white-space:nowrap;letter-spacing:-.02em}
+.mc-file small{display:block;margin-top:6px;font:clamp(14px,1.05vw,17px)/1.3 var(--font-mono);letter-spacing:-.01em;color:#b5d1c1}
+.mc-selected{border-color:#81f6a5;box-shadow:inset 2px 0 #8dffae,0 0 19px #67f99310}
+/* One column below 1100 px; below 640 px the map stacks: the two entry files side by side, a
+   rule, then the topic files as full-width rows. */
+@media(max-width:1100px){.memory-cta{grid-template-columns:1fr;gap:56px;padding-block:80px}.mc-diagram{max-width:860px;width:100%}}
+@media(max-width:640px){
+  .memory-cta{padding:72px 20px;gap:44px}
+  .mc-diagram{flex-direction:column;align-items:stretch;gap:44px;height:auto}
+  .mc-wires{display:none}
+  .mc-roots{flex-direction:row;gap:12px;width:100%}
+  .mc-roots .mc-file{flex:1 1 0}
+  .mc-targets{position:relative;width:100%;gap:12px}
+  .mc-targets::before{content:"";position:absolute;top:-44px;left:50%;height:44px;border-left:1px solid #8bfdac}
+  .mc-file{height:auto;padding:14px 12px;gap:12px}
+  .mc-file svg{width:18px;height:24px}
+  .mc-roots .mc-file svg{display:none}
+  .mc-file strong{font-size:17px}
+  .mc-file small{font-size:15px}
+}
+@media(prefers-reduced-motion:reduce){.memory-cta .mc-link{transition:none}}

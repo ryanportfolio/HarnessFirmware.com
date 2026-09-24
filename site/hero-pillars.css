@@ -1,0 +1,182 @@
+/* Hero pillar headline. Pairs with hero-pillars.mjs; every rule is scoped under .hp.
+
+   Theme through custom properties on .hp or any ancestor:
+     --hp-font --hp-weight --hp-track --hp-lh   headline face (unset: inherited), tracking, line height
+     --hp-size                                  largest headline size; it also shrinks to fit the box
+     --hp-stack                                 1: line one breaks at its last space (narrow screens)
+     --hp-sub-size --hp-sub-width               sub-line size and measure
+     --hp-sub-rise                              em the sub-line rises on entry (default 0.45em)
+     --hp-list-size                             static pillar line size (default 0.86 x sub-line)
+     --hp-ink --hp-accent --hp-muted            text, accent word, sub-line colors
+     --hp-accent-font --hp-accent-weight        accent word face (unset: the headline's), also
+     --hp-accent-style --hp-accent-vs           measured in that face
+   --hp-fit is measured at runtime: the widest row, in em. */
+
+/* Defaults at zero specificity, so a theme set on the host element itself still wins. */
+:where(.hp) {
+  --hp-ink: #f2efdf;
+  --hp-accent: #53db76;
+  --hp-muted: #c2c9ba;
+  --hp-size: clamp(52px, 5.6vw, 86px);
+  --hp-track: -0.065em;
+  --hp-lh: 0.99;
+  --hp-sub-size: 24px;
+  --hp-sub-width: 100%;
+}
+.hp {
+  container-type: inline-size; /* the host keeps its own positioning */
+  color: var(--hp-ink);
+}
+
+/* An undefined var() makes the declaration unset, so the family inherits unless themed. */
+.hp-head,
+.hp-measure {
+  font-family: var(--hp-font);
+  font-weight: var(--hp-weight, 400);
+  letter-spacing: var(--hp-track);
+  line-height: var(--hp-lh);
+  font-kerning: normal;
+}
+
+.hp-head {
+  position: relative;
+  font-size: min(var(--hp-size), 100cqi / var(--hp-fit, 7));
+}
+
+.hp-title {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+}
+.hp-br { display: none; }
+.hp.is-stacked .hp-br { display: inline; }
+
+.hp-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 100px;
+  white-space: pre;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---- animated headline, laid over the heading ------------------------------------------- */
+/* Nothing here clips: every glyph, halo and descender is drawn whole. Rows are kept apart
+   in time by the script, not by windows. */
+.hp-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--hp-fit, 7) * 1em);
+  height: 100%;
+  pointer-events: none;
+}
+
+.hp-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--hp-lh) * 1em);
+}
+.hp-row-3,
+.hp.is-stacked .hp-row-2 { top: calc(var(--hp-lh) * 1em); }
+.hp.is-stacked .hp-row-3 { top: calc(var(--hp-lh) * 2em); }
+
+.hp-grp {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  visibility: hidden;
+}
+.hp-grp.is-on { visibility: visible; }
+
+.hp-g {
+  position: absolute;
+  top: 0;
+  white-space: pre;
+}
+
+/* An unset var() inherits, so the accent keeps the headline face unless themed. */
+.hp-accent {
+  color: var(--hp-accent);
+  font-family: var(--hp-accent-font);
+  font-weight: var(--hp-accent-weight);
+  font-style: var(--hp-accent-style);
+  font-variation-settings: var(--hp-accent-vs);
+}
+
+/* Promoted only while a transition runs; dropped again so resting text rasterizes plainly. */
+.hp-grp.is-anim .hp-g,
+.hp-sub.is-anim { will-change: transform, opacity, filter; }
+
+/* ---- rule and sub-line --------------------------------------------------------------- */
+.hp-rule {
+  display: block;
+  width: 34px;
+  height: 1px;
+  margin: var(--hp-rule-before, 22px) 0 var(--hp-rule-after, 18px);
+  background: var(--hp-accent);
+  transform-origin: 0 50%;
+}
+/* In motion the rule arrives with the intro's text, not before it. */
+.hp:not(.is-static) .hp-rule:not(.is-on) { visibility: hidden; }
+
+.hp-subs,
+.hp.is-static .hp-words {
+  max-width: var(--hp-sub-width);
+  margin: 0;
+  font-size: var(--hp-sub-size);
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+  color: var(--hp-muted);
+  text-wrap: pretty;
+}
+.hp-subs { display: grid; }
+.hp-sub {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.hp-sub.is-on { visibility: visible; }
+
+/* ---- assistive tech: heading, the tagline's sub-line, and the pillar list ---------------- */
+.hp:not(.is-static) .hp-title,
+.hp:not(.is-static) .hp-title .hp-accent { color: transparent; }
+
+.hp-lede,
+.hp-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- static (prefers-reduced-motion): tagline, then the pillars as one quiet line ------- */
+.hp.is-static .hp-stage,
+.hp.is-static .hp-subs,
+.hp:not(.is-static) .hp-words { display: none; }
+
+.hp.is-static .hp-words {
+  display: block;
+  font-size: var(--hp-list-size, calc(var(--hp-sub-size) * 0.86));
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.hp-word { white-space: nowrap; } /* the dot after a word stays on its line */
+.hp-word:not(:last-child)::after {
+  content: '';
+  display: inline-block;
+  width: 0.2em;
+  height: 0.2em;
+  margin: 0 0.16em 0 0.42em;
+  border-radius: 50%;
+  background: var(--hp-accent);
+  vertical-align: 0.22em;
+}

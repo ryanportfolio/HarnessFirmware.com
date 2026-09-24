@@ -1,0 +1,113 @@
+/* Convergence section (#converge-block). converge.mjs drives the live version; without it
+   (no script, reduced motion, no canvas) the markup shows a static composition: the fused beam
+   from the inline SVG, the headline block beside the node and the lead line. Fluid sizes run
+   linearly from 402 px to 1920 px wide. The headline block starts at 50% of the stage width, 45%
+   below 1280 px, and ends at the stage's right edge, so long copy wraps instead of running off
+   the stage. Departure Mono (fonts.css) draws the canvas labels and the call to action. */
+#converge-block {
+  --cv-bg: #11120d;
+  --cv-ink: #f7f7f7;
+  --cv-green: #53db76;
+  --cv-pad: clamp(20px, calc(20px + 40 * (100vw - 402px) / 1518), 60px);
+  --cv-sm: clamp(15px, calc(15px + 3 * (100vw - 402px) / 1518), 18px);
+  --cv-md: clamp(18px, calc(18px + 6 * (100vw - 402px) / 1518), 24px);
+  --cv-lg: clamp(18px, calc(18px + 14 * (100vw - 402px) / 1518), 32px);
+  --cv-x: 50%; /* headline block's left edge, as a share of the stage width */
+  position: relative;
+  background: var(--cv-bg);
+  color: var(--cv-ink);
+  font-weight: var(--text-weight);
+}
+#converge-block[data-live] { height: min(10000px, 750svh); }
+
+.cv-stage { position: relative; height: 100svh; overflow: hidden; }
+/* The static stage grows when its text needs more than one screen, so nothing is cut off. */
+#converge-block:not([data-live]) .cv-stage { height: auto; min-height: 100svh; }
+#converge-block[data-pin="sticky"] .cv-stage { position: sticky; top: 0; }
+#converge-block[data-pin="transform"] .cv-stage { will-change: transform; }
+
+.cv-canvas { position: absolute; inset: 0; display: none; width: 100%; height: 100%; }
+/* The beam follows the canvas camera (converge.mjs): (width - 1.6 x height) / 15.3464 px off
+   centre, capped so the node's halo stays one node radius clear of the headline text (node at
+   -0.018 world units, 2.33 radii of 0.098: 0.2103 units right of the SVG centre, 2.7412svh).
+   It stays one screen tall when the static stage grows. */
+.cv-still { position: absolute; top: 0; left: calc(50% + min((100% - 160svh) / 15.3464, var(--cv-x) - 50% + var(--cv-pad) - 2.7412svh)); height: 100svh; aspect-ratio: 4; translate: -50% 0; overflow: visible; }
+.cv-still--narrow { display: none; }
+#converge-block[data-live] .cv-canvas { display: block; }
+#converge-block[data-live] .cv-still { display: none; }
+.cv-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to right, rgb(17 18 13 / .9) 0, rgb(17 18 13 / 0) 20%); }
+
+.cv-lead-wrap { position: absolute; right: 0; bottom: 8.52%; z-index: 2; padding: var(--cv-pad); text-align: right; transition: opacity .2s; }
+.cv-lead { max-width: 512px; font-size: var(--cv-lg); line-height: 1.15; }
+/* Keyboard focus forces the headline block visible mid-timeline; the lead steps aside meanwhile. */
+#converge-block[data-focus-reveal] .cv-lead-wrap { opacity: 0; }
+
+.cv-center { position: absolute; top: 59.8%; left: var(--cv-x); z-index: 2; display: flex; flex-direction: column; gap: 20px; width: calc(100% - var(--cv-x)); padding: var(--cv-pad); translate: 0 -50%; }
+/* The pillar word keeps the size every pillar word has (home.css), which fits beside the beam. */
+#converge-block .cv-title { text-shadow: 0 0 18px rgb(83 219 118 / .45); }
+.cv-body { max-width: 25em; font-size: var(--cv-md); line-height: 1.4; }
+
+.cv-cta {
+  position: relative;
+  display: flex;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  column-gap: 20px;
+  padding: 16px 25px;
+  border: 1px dashed var(--cv-bg);
+  border-radius: 5px;
+  background: linear-gradient(var(--cv-bg), var(--cv-bg)) padding-box, linear-gradient(var(--cv-green), rgb(247 247 247 / .3)) border-box;
+  color: var(--cv-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.cv-cta::before { content: ""; position: absolute; inset: 0; border-radius: 5px; background: linear-gradient(90deg, rgb(81 224 118 / .05), rgb(81 224 118 / .2)); box-shadow: 0 2px 15px rgb(83 219 118 / .4); opacity: 0; transition: opacity .3s; }
+.cv-cta:focus-visible { outline: 2px solid var(--cv-green); outline-offset: 4px; }
+.cv-cta-label { position: relative; z-index: 2; font: 400 var(--cv-sm) / 1.4 var(--font-mono); letter-spacing: 0; text-transform: uppercase; white-space: pre; }
+.cv-cta-icon { position: relative; z-index: 2; display: flex; overflow: hidden; width: 31px; height: 31px; border-radius: 6px; background: var(--cv-green); color: #181914; }
+.cv-cta-front, .cv-cta-back { display: flex; align-items: center; justify-content: center; width: 31px; height: 31px; transition: transform .42s cubic-bezier(.215, .61, .355, 1); }
+.cv-cta-back { position: absolute; inset: 0; transform: translateX(-100%); }
+.cv-cta-front svg { width: 12px; height: 12px; }
+.cv-cta-back svg { width: 20px; height: 9.6px; }
+.cv-cta:is(:hover, :focus-visible)::before { opacity: 1; }
+.cv-cta:is(:hover, :focus-visible) .cv-cta-front { transform: translateX(100%); }
+.cv-cta:is(:hover, :focus-visible) .cv-cta-back { transform: none; }
+
+@media (max-width: 1279px) {
+  #converge-block { --cv-x: 45%; }
+}
+@media (min-width: 768px) {
+  /* Static composition: both blocks sit in flow, so the lead can never cover the headline block.
+     With room to spare this lands where the live layout does: the ::before spacer tops out at
+     19.6svh plus the lead's own block (lead line, bottom padding, the ::after gap of 8.52svh),
+     which centres the headline block on 59.8% of the stage. On short stages the spacers give way
+     first; then the stage grows. */
+  #converge-block:not([data-live]) .cv-stage { display: flex; flex-direction: column; }
+  #converge-block:not([data-live]) .cv-stage::before { content: ""; flex: 1 1 0; max-height: calc(28.12svh + var(--cv-pad) + 1.15 * var(--cv-lg)); }
+  #converge-block:not([data-live]) .cv-stage::after { content: ""; flex: 1 1 0; order: 2; max-height: 8.52svh; }
+  #converge-block:not([data-live]) .cv-center { position: relative; top: auto; left: auto; width: auto; margin: auto 0 auto var(--cv-x); translate: none; }
+  #converge-block:not([data-live]) .cv-lead-wrap { position: relative; bottom: auto; order: 1; align-self: flex-end; padding-top: 0; }
+}
+@media (max-width: 767px) {
+  .cv-still { left: 50%; }
+  .cv-still--wide { display: none; }
+  .cv-still--narrow { display: block; }
+  .cv-lead-wrap { right: auto; bottom: 0; left: 0; padding: 20px; text-align: left; }
+  .cv-center { top: auto; bottom: 0; left: 0; width: 100%; padding: 20px; translate: none; }
+  /* Static composition: both blocks sit at the bottom here, so the lead stacks above the
+     headline block instead of under it. The ::before spacer keeps the text below the node, which
+     ends at 56svh with one radius of clearance (centre 0.232 units below the middle, halo 2.33
+     radii of 0.098: 6svh); the lead's 20 px top padding is part of that. */
+  #converge-block:not([data-live]) .cv-stage { display: flex; flex-direction: column; justify-content: flex-end; }
+  #converge-block:not([data-live]) .cv-stage::before { content: ""; flex: 0 0 calc(56svh - 20px); }
+  #converge-block:not([data-live]) :is(.cv-lead-wrap, .cv-center) { position: relative; }
+  #converge-block:not([data-live]) .cv-lead-wrap { padding-bottom: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-cta::before, .cv-cta-front, .cv-cta-back, .cv-lead-wrap { transition: none; }
+}
+
+/* Links to this section (the header's "How it works") land where the scene starts: past the
+   statement's pixel wipe, which runs 100svh into it, less the fixed header (effects.mjs). */
+#converge-block[data-live] { scroll-margin-top: calc(110px - 100svh); }

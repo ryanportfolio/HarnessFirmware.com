@@ -1,0 +1,92 @@
+/* Homepage sections below the hero: shared pillar headline, typed-command style, and the
+   sections without a motion module of their own (Always on, Audited, Self-improving). */
+:root{--pillar-size:clamp(44px,min(8.2vw,15vh),136px);--green-on-paper:#1d8f43}
+
+/* Pillar headline: the pillar word, large, in the site green; on paper a deeper step of the same
+   green keeps it readable. The plain sub-headline follows it. Every pillar word is the same size
+   and never wraps (Production-ready does not break at its hyphen). */
+.pillar-word{margin:0;white-space:nowrap;font-family:var(--font-accent);font-style:var(--accent-style);font-weight:var(--accent-weight);font-variation-settings:var(--accent-vs);font-size:var(--pillar-size);line-height:.98;letter-spacing:var(--display-track);color:var(--green)}
+.paper .pillar-word{color:var(--green-on-paper)}
+.pillar-sub{max-width:30em;margin:0;font-size:clamp(21px,2vw,34px);line-height:1.3;letter-spacing:-.015em}
+
+/* Typed commands: /command in mono. */
+code.cmd{font-family:var(--font-mono);font-weight:500;font-size:.94em;letter-spacing:-.02em;color:var(--green);white-space:nowrap}
+.paper code.cmd{color:var(--green-on-paper)}
+
+/* 4 · Always on: three columns on paper, one per behavior that runs without a command. */
+.always-on{padding-top:110px}
+.always-on .intro-row{display:grid;grid-template-columns:1fr 1fr;align-items:start;margin-top:32px}
+.always-on .section-mark{font-size:96px;font-weight:300;line-height:1}
+.always-on .intro-row p{max-width:24em;font-size:clamp(21px,1.9vw,30px);line-height:1.35}
+.always-grid{display:grid;grid-template-columns:repeat(3,1fr);margin-top:88px;border-top:1px solid #b8bbb1}
+.always-grid article{padding:34px 35px 10px 0}
+.always-grid article+article{padding-left:35px;border-left:1px solid #c6c9be}
+.always-tag{display:inline-flex;align-items:center;gap:10px;padding:6px 14px 6px 12px;border:1px solid #b8bbb1;border-radius:999px;background:#e9ebe1;font:500 16px/1.3 var(--font-mono);color:#1d3a26}
+.always-tag::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #53db7633}
+.always-grid h3{margin:26px 0 14px;font:400 clamp(34px,3.2vw,52px)/1.1 var(--font-mono);letter-spacing:-.02em}
+.always-grid p{max-width:22em;font-size:clamp(18px,1.4vw,21px);line-height:1.45;color:#3d4038}
+
+/* 6 · Audited: pillar headline, the evidence field (dither-effects.mjs), three steps and the
+   commands that run them. */
+#audit-details{padding-top:110px}
+#audit-details .pillar-word{margin:0;font-size:var(--pillar-size)}
+#audit-details .pillar-sub{margin-top:24px}
+#audit-details .evidence-field{margin:56px 0 48px}
+#audit-details .audit-detail-grid span{font:500 16px/1.4 var(--font-mono);color:#565950}
+#audit-details .audit-detail-grid h3{margin:14px 0 16px;font-size:clamp(36px,3.4vw,56px);line-height:1.05}
+#audit-details .audit-detail-grid p{font-size:clamp(18px,1.4vw,21px);line-height:1.5}
+.command-row{display:grid;grid-template-columns:repeat(3,1fr);gap:50px;margin:72px 0 0;padding:34px 0 0;border-top:1px solid #b8bbb1;list-style:none}
+.command-row li{min-width:0}
+.command-row code.cmd{display:block;font-size:clamp(24px,2.1vw,34px);white-space:normal;overflow-wrap:anywhere}
+.command-row p{margin-top:12px;font-size:clamp(18px,1.4vw,21px);line-height:1.45;color:#3d4038}
+
+/* 8 · Production-ready: the /long-horizon pair above the card row's headline. */
+.horizon-commands{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1.5fr;gap:48px;margin:0 0 clamp(56px,9vh,110px);margin:0 0 clamp(56px,9svh,110px);padding:0 0 clamp(36px,5vh,56px);border-bottom:1px dashed rgba(247,247,247,.2)}
+.horizon-commands p{margin:0;font-size:clamp(18px,1.5vw,24px);line-height:1.4;color:#D9DDD4}
+.horizon-commands .horizon-name{color:#AEB5A9}
+/* The command never breaks at a hyphen: 13.8em holds /long-horizon-workflows, so on phones the
+   size follows the card row's text width (the viewport less four paddings). */
+.horizon-commands .horizon-name code.cmd{font-size:min(clamp(24px,2.2vw,36px),calc((100vw - 4 * var(--card-pad)) / 13.8))}
+/* With motion the /long-horizon statement stays pinned until this section's top reaches the
+   viewport top, so the block starts half a screen down: it is on screen, clear of the header,
+   when the statement's wipe clears, and has half a screen of scroll to be read. */
+.card-row[data-motion] .horizon-commands{margin-top:max(0px,calc(50vh - 2 * var(--card-pad)));margin-top:max(0px,calc(50svh - 2 * var(--card-pad)))}
+.horizon-commands .horizon-name + p{margin-top:12px}
+
+/* 9 · Self-improving: short dark statement. */
+.self-improving{--cv-bg:#0b100c;--cv-ink:#f7f7f7;--cv-green:#53db76;--cv-sm:clamp(15px,calc(15px + 3*(100vw - 402px)/1518),18px);position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:clamp(24px,3vw,40px);padding:clamp(110px,16vh,180px) 4.3%;background:var(--cv-bg);color:var(--paper);border-top:1px solid #53db7633}
+.self-improving .pillar-sub{max-width:21em;font-size:clamp(26px,3.2vw,52px);line-height:1.2;letter-spacing:-.03em}
+.self-improving .cv-cta{margin-top:12px}
+
+/* Spring scroll (smooth-scroll.mjs) moves the content in a fixed layer; scroll anchoring would
+   fight it. */
+html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-smooth-scroll] [data-scroll-spacer]{overflow-anchor:none}
+
+/* 10 · Get started: the panel's actions at reading size. */
+.start-actions .button{font-size:18px}
+.start-actions .text-link{font-size:17px}
+/* Phones: the column keeps to the section, so the link and the buttons wrap their words instead of
+   running past the edge. */
+@media(max-width:600px){.start-bottom{grid-template-columns:minmax(0,1fr)}.start-actions .text-link{width:auto;gap:20px}}
+
+/* Wide screens: Remembered shares its row with the file map and Token-efficient sits beside the
+   beam, so from 1101 px every pillar word steps down to 6.8vw, the size both fit at (Remembered runs
+   5.07em plus its d's 0.17em italic overhang, in a column of 40% of 91.4vw). Phones: the
+   longest pillar word (Production-ready, 6.52 times its size wide, plus its italic overhang) still fits one line inside the
+   card row, also beside a classic scrollbar (--gutter, living-system.mjs); on the narrowest
+   phones the row's four 20 px paddings set the size. On short screens (under about 870 px tall at
+   1920 wide) 15vh caps it, so the held card-row headline leaves a card room to show whole. */
+@media(min-width:1101px){:root{--pillar-size:clamp(44px,min(6.8vw,15vh),136px)}}
+@media(max-width:767px){:root{--pillar-size:min(calc(.122 * (100vw - var(--gutter,0px))),calc((100vw - var(--gutter,0px) - 80px) / 6.65))}}
+@media(max-width:1023px){
+  .horizon-commands{grid-template-columns:1fr;gap:28px}
+}
+@media(max-width:800px){
+  .always-on .intro-row{grid-template-columns:1fr;gap:20px}
+  .always-on .section-mark{font-size:64px}
+  .always-grid{grid-template-columns:1fr;margin-top:56px}
+  .always-grid article,.always-grid article+article{padding:30px 0 26px;border-left:0}
+  .always-grid article+article{border-top:1px solid #c6c9be}
+  .command-row{grid-template-columns:1fr;gap:30px}
+}
+@media(max-width:1023px) and (min-width:801px){#audit-details .audit-detail-grid{gap:32px}.command-row{gap:32px}}

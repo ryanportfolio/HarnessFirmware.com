@@ -1,0 +1,94 @@
+#skills{--ss-lime:#53db76;--ss-ivory:#f1f0df;--ss-muted:#acb19e;background:#09100b;color:var(--ss-ivory);padding:76px 3.1% 88px;position:relative;isolation:isolate;overflow:hidden}
+#skills *{box-sizing:border-box}
+#skills:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 22% 19%,#22422a1c,transparent 48%),url('assets/grain.png');opacity:.09;animation:ss-grain .27s steps(1,end) infinite}
+/* Moves only the grain layer; the tint stays put. Offsets match grain-jitter in styles.css. */
+@keyframes ss-grain{0%{background-position:0 0,0 0}11.1%{background-position:0 0,-97px 43px}22.2%{background-position:0 0,61px -128px}33.3%{background-position:0 0,-23px -71px}44.4%{background-position:0 0,117px 89px}55.5%{background-position:0 0,-139px 17px}66.6%{background-position:0 0,29px 113px}77.7%{background-position:0 0,-67px -37px}88.8%{background-position:0 0,83px -101px}}
+@media(prefers-reduced-motion:reduce){#skills:before{animation:none}}
+#skills .ss-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:26px}
+#skills h2{font:var(--display-weight) clamp(38px,4.1vw,62px)/1.06 var(--font-display);letter-spacing:var(--display-track);margin:0 0 10px}
+#skills .ss-heading p{margin:0;font:13px/1.5 var(--font-mono);color:var(--ss-muted)}
+#skills .ss-motion{display:flex;align-items:center;gap:13px;flex-shrink:0;font:10px/1.4 var(--font-mono);letter-spacing:.07em;text-transform:uppercase}
+#skills button{cursor:pointer;font-family:inherit}
+#skills .ss-motion button{color:var(--ss-ivory);background:transparent;border:1px solid #546959;padding:10px 13px;font:11px var(--font-mono)}
+#skills .ss-gallery{display:grid;grid-template-columns:1.62fr 1fr;grid-template-rows:238px 258px;gap:12px}
+#skills .ss-feature{position:relative;border:1px solid #516b58;min-width:0;overflow:hidden;background:linear-gradient(120deg,#101b130f,#0d191080)}
+#skills .ss-feature:before,#skills .ss-feature:after{content:"";position:absolute;width:8px;height:8px;border-color:#53db76;pointer-events:none;z-index:2}
+#skills .ss-feature:before{top:5px;left:5px;border-top:1px solid;border-left:1px solid}
+#skills .ss-feature:after{bottom:5px;right:5px;border-bottom:1px solid;border-right:1px solid}
+#skills .ss-horizon{grid-row:1/3}
+#skills .ss-feature-top{position:absolute;left:24px;right:24px;top:18px;display:flex;justify-content:space-between;font:10px var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:#b2dabc;z-index:1}
+#skills .ss-feature-top span:last-child{color:#809d87;font-size:9px;letter-spacing:.08em}
+#skills .ss-illustration{display:block;width:100%;height:130px;margin-top:24px;overflow:visible}
+#skills .ss-horizon .ss-illustration{height:354px;margin-top:30px}
+#skills .ss-feature-copy{position:absolute;bottom:20px;left:24px;right:24px}
+#skills .ss-feature h3{font:var(--display-weight) 30px/1.02 var(--font-display);letter-spacing:var(--display-track);margin:0 0 7px}
+#skills .ss-horizon h3{font-size:44px}
+#skills .ss-feature-copy p{font:var(--text-weight) 13px/1.4 var(--font-text);color:#d0d2c2;margin:0 0 13px;max-width:75%}
+#skills .ss-feature-copy a{display:inline-block;color:var(--ss-ivory);font:var(--text-weight) 12px var(--font-text);text-decoration:none;border-bottom:1px solid var(--ss-lime);padding-bottom:5px}
+#skills .ss-feature-copy a span{padding-left:9px}
+#skills .ss-feature-copy a:hover{color:var(--ss-lime)}
+#skills .ss-scene-state{position:absolute;right:22px;bottom:23px;font:9px/1.65 var(--font-mono);letter-spacing:.09em;text-transform:uppercase;color:#a0c5a9;max-width:115px;border-left:1px solid #617867;padding-left:13px}
+#skills .ss-review{border-color:#50d873}
+#skills .ss-review .ss-illustration{height:130px;margin-top:19px}
+#skills .ss-review .ss-feature-copy{bottom:18px}
+#skills .ss-filament{fill:none;stroke:#659a72;stroke-width:.65;opacity:.45}
+#skills .ss-filament.faint{opacity:.23;stroke-dasharray:1 3}
+#skills .ss-wire{fill:none;stroke:var(--ss-lime);stroke-width:1.65}
+#skills .ss-planes{fill:#53db760a;stroke:#8bb596;stroke-width:.7}
+#skills .ss-diagram-label{fill:#a0bea8;font:9px var(--font-mono);letter-spacing:1px}
+#skills .ss-node{fill:#58e07b;filter:drop-shadow(0 0 5px #58e07b)}
+#skills .ss-orbit{fill:none;stroke:#50d873;stroke-width:.5;opacity:.45}
+#skills .ss-gate{fill:#53db7618;stroke:#53db76;stroke-width:1}
+#skills .ss-audit-finding{fill:none;stroke:#efbb69;stroke-width:1.7}
+#skills .ss-audit-check{fill:none;stroke:#58e07b;stroke-width:1.8}
+#skills .ss-directory{margin-top:30px;padding-top:25px;border-top:1px solid #2b3d30}
+#skills .ss-directory-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+#skills .ss-directory h3{font:var(--display-weight) 25px var(--font-display);letter-spacing:var(--display-track);margin:0}
+#skills .ss-count{font:11px var(--font-mono);color:var(--ss-muted)}
+#skills .ss-tools{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+#skills .ss-search-label{flex:1;min-width:180px;position:relative}
+#skills .ss-search-label>span{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+#skills #skill-search{width:100%;min-width:0;height:43px;border:1px solid #506956;background:#0e1610;color:var(--ss-ivory);padding:10px 14px;font:12px var(--font-mono);border-radius:0}
+#skills #skill-search::placeholder{color:#96ae9c;opacity:1}
+#skills .ss-filters{display:flex;flex-wrap:wrap;gap:6px}
+#skills .ss-filters button{padding:12px 15px;border:1px solid #435c49;background:transparent;color:#dde0cb;font:var(--text-weight) 12px var(--font-text);border-radius:0}
+#skills .ss-filters button[aria-pressed=true]{background:var(--ss-lime);color:#0e1b11;border-color:var(--ss-lime)}
+#skills .ss-index{display:grid;grid-template-columns:1fr 1fr;column-gap:34px;align-items:start}
+#skills .ss-entry{border-top:1px solid #2c4232;min-width:0}
+#skills .ss-entry[hidden],#skills .empty-skills[hidden]{display:none}
+#skills .ss-entry summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:1fr 70px 18px;gap:10px;align-items:center;padding:18px 0;min-height:88px}
+#skills .ss-entry summary::-webkit-details-marker{display:none}
+#skills .ss-entry h4{margin:0 0 5px;font:500 18px/1.15 var(--font-text);letter-spacing:-.015em}
+#skills .ss-entry summary p{margin:0;color:#a1b8a7;font:var(--text-weight) 12px/1.5 var(--font-text)}
+#skills .ss-category{color:#96c5a2;text-transform:uppercase;letter-spacing:.06em;font:9px var(--font-mono);text-align:right}
+#skills .ss-plus{font:19px var(--font-mono);color:#50d873;text-align:right}
+#skills .ss-entry[open] .ss-plus{transform:rotate(45deg)}
+#skills .ss-detail{padding:0 22px 21px 12px;color:#b2cdb9;font:var(--text-weight) 13px/1.6 var(--font-text)}
+#skills .ss-detail p{margin:0 0 12px}
+#skills .ss-detail code{display:block;font:11px/1.6 var(--font-mono);border-left:1px solid #477a54;padding:7px 12px;margin:13px 0;overflow-wrap:anywhere;color:#b1e8bf}
+#skills .ss-detail a{color:#bdedc9;text-underline-offset:4px;font:var(--text-weight) 12px var(--font-text)}
+#skills .ss-source-note{margin:25px 0 0;color:#87a18e;font:11px/1.6 var(--font-mono)}
+#skills .ss-source-note a{color:#b3d4bb;text-decoration:underline;text-underline-offset:3px}
+#skills .empty-skills{font:var(--text-weight) 14px var(--font-text);color:#c3deca;padding:30px 0}
+#skills :is(a,button,input,summary):focus-visible{outline:2px solid #58e07b;outline-offset:5px}
+@media(min-width:621px) and (max-width:1000px){#skills .ss-arena .ss-illustration{height:100px}}
+@media(min-width:1600px){#skills .ss-gallery{grid-template-rows:265px 285px}#skills .ss-horizon .ss-illustration{height:400px}#skills .ss-illustration{height:145px}#skills .ss-review .ss-illustration{height:145px}}
+@media(max-width:1000px){#skills .ss-gallery{grid-template-columns:1.35fr 1fr}#skills .ss-feature-top{left:18px;right:18px}#skills .ss-feature-copy{left:18px;right:18px}#skills .ss-scene-state{display:block;left:18px;right:18px;bottom:13px;max-width:none;border-left:0;border-top:1px solid #2c4232;padding:8px 0 0;font-size:11px;line-height:1.4;letter-spacing:.04em}#skills .ss-diagram-label{display:none}#skills .ss-gallery{grid-template-rows:272px 292px}#skills .ss-feature-copy,#skills .ss-review .ss-feature-copy{bottom:54px}#skills .ss-feature-copy p{max-width:100%}#skills .ss-horizon h3{font-size:38px}#skills .ss-feature h3{font-size:28px}#skills .ss-tools{align-items:stretch;flex-direction:column}#skills .ss-filters{gap:7px}#skills .ss-filters button{flex:1}#skills .ss-index{column-gap:24px}#skills .ss-entry summary{grid-template-columns:1fr 16px;gap:8px}#skills .ss-category{display:none}}
+@media(max-width:620px){#skills{padding:48px 5% 55px}#skills .ss-heading{display:block;margin-bottom:22px}#skills h2{font-size:39px;max-width:310px}#skills .ss-motion{margin-top:20px;justify-content:space-between}#skills .ss-gallery{display:flex;flex-direction:column;gap:12px}#skills .ss-feature{height:284px}#skills .ss-horizon{height:421px}#skills .ss-horizon .ss-illustration{height:266px;margin-top:24px}#skills .ss-feature h3{font-size:31px}#skills .ss-horizon h3{font-size:37px}#skills .ss-feature-copy,#skills .ss-review .ss-feature-copy{bottom:53px}#skills .ss-feature-copy p{font-size:13px;max-width:100%}#skills .ss-illustration,#skills .ss-review .ss-illustration{height:130px}#skills .ss-feature-top{font-size:9px}#skills .ss-directory-heading{align-items:end}#skills .ss-directory h3{font-size:24px}#skills .ss-filters{display:grid;grid-template-columns:repeat(3,1fr)}#skills .ss-filters button{padding:11px 8px}#skills .ss-index{grid-template-columns:1fr}#skills .ss-entry summary{grid-template-columns:1fr 60px 16px;padding:17px 0}#skills .ss-category{display:block}#skills .ss-entry h4{font-size:18px}#skills .ss-entry summary p{font-size:12px}#skills .ss-source-note{font-size:10px}}
+
+
+#skills .ss-entry[open] .ss-category{transform:none}
+/* Native scroll: clear the fixed header, as the smooth-scroll layer's header spacer does. */
+html:not([data-smooth-scroll]) body{padding-top:90px}
+@media(max-width:600px){html:not([data-smooth-scroll]) body{padding-top:76px}}
+/* The page title is the one word, set as large as the width allows; under it, three commands and what each does. */
+#skills h1{font:var(--display-weight) clamp(96px,15vw,240px)/.8 var(--font-display);letter-spacing:var(--display-track);margin:0 0 .16em -.04em}
+#skills .ss-heading p.ss-lede{max-width:46ch;font:var(--text-weight) clamp(19px,1.45vw,25px)/1.42 var(--font-text);letter-spacing:-.01em;color:#d0d2c2;text-wrap:pretty}
+#skills .ss-lede code,#skills .ss-ultra code{font-family:var(--font-mono);font-size:.9em;color:var(--ss-lime)}
+#skills .ss-feature-copy p.ss-ultra{max-width:34em;color:#aebaa9}
+/* The ultra line makes the Long Horizon copy taller: the diagram sits higher, and on phones the card grows. */
+#skills .ss-horizon .ss-illustration{height:318px;margin-top:16px}
+@media(min-width:1600px){#skills .ss-horizon .ss-illustration{height:360px}}
+@media(max-width:620px){#skills h1{font-size:28vw}#skills .ss-horizon{height:510px}#skills .ss-horizon .ss-illustration{height:266px;margin-top:24px}#skills .ss-heading p.ss-lede{font-size:18px}}
+/* A command never breaks at its hyphen. */
+#skills .ss-lede code,#skills .ss-ultra code{white-space:nowrap}

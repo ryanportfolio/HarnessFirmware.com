@@ -106,6 +106,35 @@ session or subagent asking for it gets "Another task's Chrome owns browser
 slot". `--isolated` does not apply there; that string comes from the app, not
 from this repo. Use `playwright-iso` or `launchPlacedChrome()` instead.
 
+## Playwright motion captures: three traps (2026-09-22)
+
+Each cost a retry while verifying a WAAPI headline animation:
+
+1. **`document.hidden` never turns true.** A second tab brought to front, a tab opened
+   in the same window over CDP (`Target.createTarget`, `newWindow: false`) and a
+   CDP-minimized window all left it `false` with no `visibilitychange`. Test a
+   visibility pause by redefining `document.hidden` and dispatching the event.
+2. **`recordVideo` webm has no cue index.** Seeking it in a `<video>` returns the
+   first frame for every `currentTime`. Pull frames by playing it and reading
+   `requestVideoFrameCallback` `mediaTime` instead.
+3. **Freezing WAAPI for frame-by-frame seeks.** `pause()` loses to a component that
+   resumes its own animations (IntersectionObserver), and `play()` on an animation
+   seeked past its end rewinds it and plays it again. Freeze with `playbackRate = 0`,
+   seek via `currentTime`, then restore the rate and call `finish()`. Setting
+   `currentTime` on an already-cancelled animation revives it, so seek only animations
+   that are still live.
+
+## Animated CSS blur: first-visit long frames (2026-09-23)
+
+In Chrome, the first draw of each `filter: blur()` radius compiles a GPU program, and a
+new intro's first raster of its glyph layers lands as one 50-100 ms frame. On the hero
+headline this hit 8 of 10 first loads inside visible motion (confirmed with a
+performance trace: GPU raster plus Skia shader compiles, no main-thread long task).
+Pre-warming the blur radii offscreen made it worse and was backed out. What worked:
+build the animations paused and start them about three frames later, so the long frame
+lands before any ink shows. Second visits in the same profile have no compiles, so test
+first-visit behavior in a fresh browser profile.
+
 ## Bash tool cwd resets between calls (2026-08-29)
 
 The shell tool's working directory does not reliably persist across calls; it

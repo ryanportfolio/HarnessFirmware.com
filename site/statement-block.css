@@ -1,0 +1,60 @@
+/* Pinned statement (statement-block.mjs). Without [data-motion] (no JS, reduced motion) it is a
+   static light panel with the whole statement. With motion the block is the panel's height plus
+   150svh of scroll; the section becomes a track one viewport longer, so the panel can stay pinned
+   for that whole distance. */
+.statement-block{position:relative;z-index:21;color:#181914}
+.statement-block .statement{position:relative}
+.statement-block .statement-container{position:relative;display:flex;flex-direction:column;justify-content:center;gap:clamp(38px,7vh,82px);min-height:100vh;min-height:100svh;padding:110px 5% 70px;background:#F7F7F7}
+.statement-block[data-motion]{height:calc(var(--statement-h,100vh) + 150vh);height:calc(var(--statement-h,100svh) + 150svh)}
+/* The track runs 100svh into the next section: only the panel takes the pointer. */
+.statement-block[data-motion] .statement{position:absolute;top:0;left:0;width:100%;height:calc(100% + 100vh);height:calc(100% + 100svh);pointer-events:none}
+.statement-block[data-motion] .statement-container{background:#53DB76;pointer-events:auto}
+.statement-block[data-motion="native"] .statement-container{position:sticky;top:var(--statement-top,0px)}
+.statement-block[data-pin="after"] .statement-container{visibility:hidden}
+.statement-block .statement-grid{z-index:0}
+.statement-block .statement-wipe{z-index:20}
+
+/* Type: huge. The /long-horizon statement's four process lines sit closer together, and each
+   stays on one line on desktop screens: the longest runs 17.23em, so 5vw keeps it inside the
+   panel's 90% measure less a classic scrollbar. Each line is its own block (.statement-item; with motion,
+   the reveal's line masks mark where one starts), and a gap between them keeps a step that wraps
+   on a phone reading as one step. */
+.statement-block .statement-title,.statement-block .statement-secondary{position:relative;z-index:2;width:100%;margin:0;font-family:var(--font-display);font-weight:var(--display-weight);font-size:clamp(36px,6.4vw,124px);line-height:1.08;letter-spacing:var(--display-track);color:#181914}
+/* Accent: the answering line and the last step, in the accent face. */
+.statement-block .statement-secondary,.statement-block .is-accent{font-family:var(--font-accent);font-style:var(--accent-style);font-weight:var(--accent-weight);font-variation-settings:var(--accent-vs)}
+.statement-block .statement-title{text-align:left;text-wrap:balance}
+.statement-block .statement-secondary{text-align:right;pointer-events:none}
+.statement-block .statement-list{--item-gap:.12em;font-size:clamp(36px,5vw,124px);line-height:1.04}
+.statement-block .statement-item{display:block}
+.statement-block .statement-item+.statement-item{margin-top:var(--item-gap)}
+.statement-block .statement-list .split-reveal__mask--break{margin-top:calc(var(--item-gap) - var(--mask-t))}
+.statement-block .statement-command{position:relative;z-index:2;margin:0;font:500 clamp(22px,2vw,34px)/1.2 var(--font-mono);letter-spacing:-.02em;color:#181914}
+.statement-block .statement-command code{font:inherit;padding:.18em .45em;background:#11120D;color:#53DB76}
+.statement-block .statement-body{position:relative;z-index:2;max-width:34em;margin:0 0 0 auto;font-size:clamp(20px,1.9vw,32px);line-height:1.3;letter-spacing:-.02em;color:#181914}
+.statement-block .statement-list + .statement-body{margin-top:-.4em}
+
+/* Pointer glow, under the text. */
+.statement-block .statement-container:before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 360px 280px at var(--statement-x,50%) var(--statement-y,50%),#53db7690,#53db7620 55%,transparent 80%);opacity:0;transition:opacity .4s ease;mix-blend-mode:multiply}
+.statement-block .statement-container.statement-hover:before{opacity:.2}
+
+/* Intro squares ([data-squares]): 515 px wide, 25% from the top, 9.1vw from the right. Below
+   768 px they sit in flow between the statements, centered, at most 82.5vw or 30% of the viewport
+   height; from 640 px, at most 515 px or 36% of the viewport height. */
+.statement-block .statement-squares{position:absolute;top:25%;right:9.1vw;width:515px;aspect-ratio:515/543.1;pointer-events:none}
+.statement-block .statement-squares svg{position:relative;z-index:10;display:block;width:100%;height:100%;overflow:hidden;fill:#F7F7F7}
+.statement-block .statement-squares rect{transition:opacity 0s linear var(--square-delay,0s)}
+.statement-block.is-revealed .statement-squares rect{opacity:0}
+
+@media(max-width:767px){
+  .statement-block .statement-container{padding:96px 6% 55px;gap:44px}
+  .statement-block .statement-title,.statement-block .statement-secondary{font-size:clamp(34px,10.5vw,52px);line-height:1.1}
+  .statement-block .statement-list{--item-gap:.5em;font-size:clamp(30px,7.6vw,44px)}
+  .statement-block .statement-squares{position:relative;top:auto;right:auto;flex:none;align-self:center;width:min(82.5vw,30vh);width:min(82.5vw,30svh)}
+}
+@media(min-width:640px) and (max-width:767px){.statement-block .statement-squares{width:min(515px,36vh);width:min(515px,36svh)}}
+/* Without scripting the panel is dark, so the transparent header stays legible over it. */
+@media(scripting:none){
+  .statement-block .statement-container{background:#11120D}
+  .statement-block :is(.statement-title,.statement-secondary,.statement-command,.statement-body){color:#F7F7F7}
+}
+@media(prefers-reduced-motion:reduce){.statement-block .statement-container:before{transition:none}}
