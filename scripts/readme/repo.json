@@ -1,5 +1,5 @@
 {
-  "description": "Source of harnessfirmware.com, the website for Harness Firmware: repository files that give Claude Code and Codex committed project memory, skills that load on demand, cross-vendor review and audited long-running work. Static HTML, CSS and ES modules on Vercel, plus the function behind the /new repository creator.",
+  "description": "Harness Firmware: repository files that give Claude Code and Codex committed project memory, skills that load on demand, cross-vendor review and audited long-running work.",
   "homepage": "https://harnessfirmware.com",
   "topics": [
     "harness-firmware",
