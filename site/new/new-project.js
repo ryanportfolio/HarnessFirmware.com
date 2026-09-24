@@ -1,4 +1,4 @@
-import { HARNESS_SKILL_CATALOG, HARNESS_SKILL_GROUPS } from './skill-catalog.js';
+import { HARNESS_SKILL_CATALOG, HARNESS_SKILL_GROUPS, HARNESS_SKILL_RUNTIMES } from './skill-catalog.js';
 
 const connection = document.querySelector('#connection');
 const form = document.querySelector('#github-form');
@@ -108,8 +108,14 @@ function skillOption(skill) {
   const slug = document.createElement('code');
   slug.textContent = skill.name;
   const state = document.createElement('span');
-  state.textContent = skill.required ? 'Required later' : 'Optional';
+  state.textContent = skill.required ? skill.requiredLabel || 'Required' : 'Optional';
   meta.append(slug);
+  if (skill.runtime) {
+    const runtime = document.createElement('span');
+    runtime.className = 'skill-option-runtime';
+    runtime.textContent = HARNESS_SKILL_RUNTIMES[skill.runtime].label;
+    meta.append(runtime);
+  }
   if (skill.recent) {
     const recent = document.createElement('span');
     recent.className = 'skill-option-new';

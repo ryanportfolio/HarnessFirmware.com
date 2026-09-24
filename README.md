@@ -25,7 +25,7 @@ Skills and project notes load only when a task needs them.
 Brainstorm, write the plan, and test alternatives before building.
 
 - `/dare`: Takes the problem apart from first principles in four fresh passes: break it down, test each assumption, rebuild, check the result against reality.
-- `/arena`: Runs several attempts in parallel, keeps the strongest as the base, and folds in the best parts of the rest.
+- `/arena`: Runs several attempts in parallel, has a blind judge pick the strongest as the base, and folds in the best parts of the rest.
 - `/lab`: Builds a live prototype with controls, so you tune motion and layout by feel before anything is final.
 
 ### Audited
@@ -56,7 +56,7 @@ Long tasks run in audited rounds. Finished work gets polished and measured befor
 
 When a workflow stumbles, the fix goes into the skill itself.
 
-- `/refine`: Traces the stumble to its cause and edits the skill, so the next run starts from the fix.
+- `/refine`: Traces the stumble to its cause and edits the skill, so the next run starts from the fix. Preferences you state become rules the same way.
 
 ## Get started
 

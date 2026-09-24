@@ -39,7 +39,7 @@ const NODES = [
   ], href: SKILL("long-horizon") },
   { deg: 144, name: "Execute", refs: [part("fable-mode", SKILL("fable-mode")), part(" discipline")], href: SKILL("fable-mode") },
   { deg: 216, name: "Audit", refRows: [
-    [part("long-horizon", SKILL("long-horizon")), part(" · "), part("verify-this", SKILL("verify-this"))],
+    [part("long-horizon", SKILL("long-horizon")), part(" · "), part("fable-mode", SKILL("fable-mode"))],
     [part("advocate", SKILL("advocate")), part(" · "), part("codex-review", SKILL("codex-review"))],
     [part("arena", SKILL("arena")), part(" · "), part("wow-loop", SKILL("wow-loop"))],
     [part("impartial-review", SKILL("impartial-review"))],
@@ -149,7 +149,7 @@ function build(themeName) {
     inputBox(470, "Evaluators", [
       "CI, tests, audited evidence:",
       "evidence beats claims",
-    ], [part(".github/workflows/", `${TREE}/.github/workflows`), part(" · "), part("/verify-this", SKILL("verify-this"))], `${TREE}/.github/workflows`,
+    ], [part(".github/workflows/", `${TREE}/.github/workflows`), part(" · "), part("/fable-mode", SKILL("fable-mode"))], `${TREE}/.github/workflows`,
     `<path class="glyph" d="M-9 4A9 9 0 0 1 9 4"/><path class="glyph" d="M0 4L5-3"/><path class="glyph" d="M-11 8H11"/>`),
   ];
 
@@ -162,7 +162,7 @@ function build(themeName) {
 <a href="${SKILL("long-horizon")}" target="_blank" rel="noopener noreferrer" aria-label="Long-horizon stagnation supervisor"><text class="label mute" x="16" y="28">SUPERVISOR · STAGNATION WATCH</text></a>
 <text class="copy ink" x="16" y="54">2 audit fails on one step → change approach</text>
 <text class="copy ink" x="16" y="76">3 rounds, no new verified progress → rewrite plan</text>
-<text class="ref accent" x="16" y="104">${linkedText([part("long-horizon (Stagnation)", SKILL("long-horizon")), part(" · "), part("codex-review (gpt-5.6-sol)", SKILL("codex-review"))])}</text>
+<text class="ref accent" x="16" y="104">${linkedText([part("long-horizon (Stagnation)", SKILL("long-horizon")), part(" · "), part("codex-review (gpt-6-sol)", SKILL("codex-review"))])}</text>
 </g>
 <path class="warnwire dash" marker-end="url(#warnarrow)" d="M880 218C830 240 800 266 786 290"/>
 <text class="tiny" fill="${warn}" x="872" y="240">conditional intervention</text>`;
