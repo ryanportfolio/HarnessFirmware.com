@@ -1,0 +1,38 @@
+# README gate. Rebuilds README.md and its art from the site source and fails on anything stale,
+# runs the creator's unit tests, and keeps the About panel honest. Node only, no install step.
+# Vercel deploys independently of this workflow; nothing here builds or deploys the site.
+name: readme
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: readme-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: README and art are current
+        run: node scripts/readme/verify.mjs
+      - name: Creator tests
+        run: node --test site/github-creator.test.mjs
+      - name: About panel file is valid
+        if: github.event_name == 'pull_request'
+        run: node scripts/readme/meta.mjs --lint
+      - name: About panel matches the live repository, README links resolve
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/readme/meta.mjs --check

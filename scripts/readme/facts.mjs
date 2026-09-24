@@ -1,107 +1,82 @@
+/* Everything the README and its art state about the site, read from the site's own source.
+
+   Nothing here is typed in twice. The pillar words, their lines and the skills behind them
+   come from the DEFAULT_PILLARS export in site/hero-pillars.mjs, the headline lead-in and
+   the motion constants from that module's DEFAULTS block, the routes from site/server.mjs
+   (which mirrors vercel.json cleanUrls), the port likewise. Every skill or memory file a
+   pillar names has to exist in this repository, or the build stops. */
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { absolute, frontmatter, read, readJson } from "./lib.mjs";
+import { pathToFileURL } from "node:url";
+import { absolute, read, readJson } from "./lib.mjs";
 
-function directories(relativeRoot) {
-  return fs.readdirSync(absolute(relativeRoot), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((name) => fs.existsSync(absolute(`${relativeRoot}/${name}/SKILL.md`)))
-    .sort();
+function need(condition, message) {
+  if (!condition) throw new Error(`facts: ${message}`);
 }
 
-function sameMembers(actual, expected, label) {
-  if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index])) {
-    throw new Error(`${label} drift\nactual: ${actual.join(", ")}\nexpected: ${expected.join(", ")}`);
-  }
+function constant(source, key, pattern) {
+  const match = source.match(new RegExp(`^\\s*${key}:\\s*(${pattern}),`, "m"));
+  need(match, `site/hero-pillars.mjs has no ${key} in DEFAULTS`);
+  return match[1];
 }
 
-function normalizedBytes(text) {
-  return Buffer.byteLength(text.replaceAll("\r\n", "\n"));
-}
+export async function collectFacts() {
+  const heroSource = read("site/hero-pillars.mjs");
+  const hero = await import(pathToFileURL(absolute("site/hero-pillars.mjs")).href);
+  const pillars = hero.DEFAULT_PILLARS.map((p) => ({
+    word: p.word,
+    line: p.line,
+    stage: p.stage,
+    label: p.skillsLabel || "Skills",
+    skills: p.skills.map((s) => ({ name: s.name, tag: s.tag || "" })),
+  }));
+  need(pillars.length === 6, `expected the six home-page pillars, found ${pillars.length}`);
 
-export function expectedCodexNames(canonicalNames, modes = {}, overrides = {}) {
-  const enabled = name => modes[name] !== "disabled" && overrides[name] !== "off";
-  const names = new Set(canonicalNames.filter(enabled));
-  for (const [name, mode] of Object.entries(modes)) if (mode === "native" && enabled(name)) names.add(name);
-  return [...names].sort();
-}
-
-export function collectFacts() {
-  const inventory = readJson("scripts/readme/items.json");
-  const groupIds = inventory.groups.map((group) => group.id);
-  sameMembers([...groupIds].sort(), ["core", "discipline", "specialist"], "skill groups");
-
-  const canonicalNames = directories(".claude/skills");
-  const codexNames = directories(".agents/skills");
-  const inventoryNames = inventory.skills.map((skill) => skill.name).sort();
-  sameMembers(inventoryNames, canonicalNames, "README skill inventory");
-  const modes = fs.existsSync(absolute(".agents/skill-modes.json")) ? readJson(".agents/skill-modes.json").skills : {};
-  let overrides = {};
-  try {
-    overrides = readJson(".claude/settings.json").skillOverrides ?? {};
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-  sameMembers(codexNames, expectedCodexNames(canonicalNames, modes, overrides), "Codex skill inventory");
-
-  const tierCounts = Object.fromEntries(groupIds.map((group) => [group, 0]));
-  const skills = inventory.skills.map((item) => {
-    if (!groupIds.includes(item.group)) throw new Error(`${item.name}: unknown group ${item.group}`);
-    tierCounts[item.group] += 1;
-    const relativePath = `.claude/skills/${item.name}/SKILL.md`;
-    const text = read(relativePath);
-    const metadata = frontmatter(text, relativePath);
-    if (metadata.name && metadata.name !== item.name) throw new Error(`${relativePath}: name ${metadata.name} does not match directory`);
-    return {
-      ...item,
-      description: metadata.description,
-      bytes: normalizedBytes(text),
-    };
-  });
-
-  const requiredCounts = { core: 8, discipline: 12, specialist: 14 };
-  for (const [group, expected] of Object.entries(requiredCounts)) {
-    if (tierCounts[group] !== expected) throw new Error(`${group}: expected ${expected}, found ${tierCounts[group]}`);
+  for (const p of pillars) {
+    for (const s of p.skills) {
+      const target = s.name.endsWith(".md")
+        ? `.claude/reference/${s.name}`
+        : `.claude/skills/${s.name.replace(/^\//, "")}/SKILL.md`;
+      need(fs.existsSync(absolute(target)), `pillar "${p.word}" names ${s.name}, but ${target} is missing`);
+    }
   }
 
-  const referenceFileCount = fs.readdirSync(absolute(".claude/reference"), { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .length;
-  const kernelBytes = normalizedBytes(read("CLAUDE.md"));
-  const catalogBytes = skills.reduce(
-    (total, skill) => total + Buffer.byteLength(skill.name) + Buffer.byteLength(skill.description),
-    0,
-  );
-  const catalogChars = skills.reduce((total, skill) => total + skill.name.length + skill.description.length, 0);
-  const onDemandBytes = skills.reduce((total, skill) => total + skill.bytes, 0);
-  const residentBytes = kernelBytes + catalogBytes;
-
-  const runtimeNames = ["Claude Code", "Codex"];
-
-  return {
-    skillCount: canonicalNames.length,
-    codexSkillCount: codexNames.length,
-    codexNativeCount: codexNames.filter(name => modes[name] === "native").length,
-    codexAdapterCount: codexNames.filter(name => modes[name] !== "native").length,
-    runtimeNames,
-    runtimeCount: runtimeNames.length,
-    referenceFileCount,
-    tierCounts,
-    canonicalNames,
-    inventoryNames,
-    groups: inventory.groups,
-    skills,
-    kernelBytes,
-    catalogBytes,
-    catalogChars,
-    onDemandBytes,
-    residentBytes,
-    lazyRatio: onDemandBytes / residentBytes,
+  const easeName = JSON.parse(constant(heroSource, "ease", "'[a-z-]+'").replaceAll("'", '"'));
+  const motion = {
+    lead: JSON.parse(constant(heroSource, "lead", '"[^"]+"')),
+    duration: Number(constant(heroSource, "duration", "\\d+")),
+    hold: Number(constant(heroSource, "hold", "\\d+")),
+    wave: Number(constant(heroSource, "wave", "\\d+")),
+    gap: Number(constant(heroSource, "gap", "\\d+")),
+    ease: hero.EASINGS[easeName],
   };
+  need(motion.ease, `easing ${easeName} is not in EASINGS`);
+
+  const server = read("site/server.mjs");
+  const port = Number(server.match(/Number\(process\.env\.PORT\)\|\|(\d+)/)?.[1]);
+  need(port, "site/server.mjs default port not found");
+  const routeMap = Object.fromEntries(
+    [...server.matchAll(/'(\/[a-z-]+)':'(\/[a-z-]+\.html)'/g)].map((m) => [m[1], m[2].slice(1)]),
+  );
+  routeMap["/"] = "index.html";
+
+  const inventory = readJson("scripts/readme/items.json");
+  const pages = inventory.pages.map((page) => {
+    need(routeMap[page.route] === page.file, `${page.route} is served from ${routeMap[page.route]}, items.json says ${page.file}`);
+    need(fs.existsSync(absolute(`site/${page.file}`)), `site/${page.file} is missing`);
+    return page;
+  });
+  const unlisted = Object.keys(routeMap).filter((route) => !pages.some((p) => p.route === route));
+  need(!unlisted.length, `routes missing from items.json: ${unlisted.join(", ")}`);
+
+  const vercel = readJson("vercel.json");
+  need(vercel.outputDirectory === "site" && vercel.cleanUrls === true, "vercel.json no longer serves site/ with clean URLs");
+  need(fs.existsSync(absolute("api/harness/github/[action].mjs")), "the creator function moved");
+  const actions = read("api/harness/github/[action].mjs").match(/\{([a-z,]+)\}/)?.[1].split(",") ?? [];
+  need(actions.length > 0, "creator actions not listed in the function header");
+
+  return { pillars, motion, port, pages, actions };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  process.stdout.write(`${JSON.stringify(collectFacts(), null, 2)}\n`);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.stdout.write(`${JSON.stringify(await collectFacts(), null, 2)}\n`);
 }

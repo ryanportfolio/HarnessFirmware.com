@@ -143,23 +143,16 @@ intermittently resets to the parent workspace directory. Symptoms observed:
 package from the wrong directory, and `git add` failing with "fatal: not a git
 repository". Start compound commands with `cd <repo> &&` or use `git -C`.
 
-## README panels embed repo metrics (2026-09-16, amended 2026-09-19)
+## README is generated from the site source (2026-09-24)
 
-`assets/readme/skills-*.svg` print the total on-demand skill size and
-`assets/readme/boot-*.svg` print the always-loaded context weight, so an edit to any
-`SKILL.md`, to `CLAUDE.md`, to `skillOverrides` in `.claude/settings.json`, or to the
-`.claude/reference/` file set makes them stale and
-`scripts/readme/verify.mjs` fails CI on main. Run `node scripts/readme/build.mjs` before
-opening a PR that touches those paths, and commit only the panels whose content changed
-(autocrlf marks the rest modified). `gh pr merge` does not block on a red check here (no
-required checks), so read `gh pr checks <n>` before merging; #132 landed red this way.
-Same root cause: `node .claude/scripts/check-skill-capabilities.mjs` reports "Capability
-catalog stale" on a CRLF checkout while CI (LF) passes; `--write` then produces a
-line-ending-only diff. Trust CI for that check, not the local run.
-Adding or removing a skill also breaks the pinned counts: `requiredCounts` in
-`scripts/readme/facts.mjs` and three `skillCount`/`tierCounts` assertions in
-`scripts/readme/readme.test.mjs` (the fixture there copies every skill into both runtimes,
-so its Codex count equals the Claude count). `build.mjs` throws until they match.
+`README.md` and `assets/readme/*.svg` are built by `node scripts/readme/build.mjs` from
+`site/hero-pillars.mjs` (pillar words, lines, skills, timing), `site/server.mjs` (routes, port)
+and `scripts/readme/items.json`. Editing a pillar, a route or the hero timing makes them stale
+and `scripts/readme/verify.mjs` fails CI; run the build and commit the output. A pillar that
+names a skill or memory file missing from `.claude/` stops the build. Letters in the art are
+outlines from `scripts/readme/glyphs.json`; a character outside it fails the build until
+`glyphs.py` is rerun with the character added (command in its header). The social preview PNG
+is rasterized by hand with `node scripts/readme/social.mjs` and uploaded in repo Settings.
 
 ## Bash tool collapses doubled backslashes in heredocs (2026-09-19)
 
