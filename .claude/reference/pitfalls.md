@@ -146,8 +146,9 @@ repository". Start compound commands with `cd <repo> &&` or use `git -C`.
 ## README is generated from the site source (2026-09-24)
 
 `README.md` and `assets/readme/*.svg` are built by `node scripts/readme/build.mjs` from
-`site/hero-pillars.mjs` (pillar words, lines, skills, timing), `site/server.mjs` (routes, port)
-and `scripts/readme/items.json`. Editing a pillar, a route or the hero timing makes them stale
+`site/hero-pillars.mjs` (pillar words, lines, skills, timing), `site/server.mjs` (port) and
+`scripts/readme/items.json` (one line per pillar skill or memory file, matched one to one).
+Editing a pillar, its skills or the hero timing makes them stale
 and `scripts/readme/verify.mjs` fails CI; run the build and commit the output. A pillar that
 names a skill or memory file missing from `.claude/` stops the build. Letters in the art are
 outlines from `scripts/readme/glyphs.json`; a character outside it fails the build until
@@ -162,4 +163,7 @@ sees it, even inside a quoted `<<'EOF'` heredoc: a Python literal `'a\\nb'` arri
 Python heredoc therefore produced a string literal split across two lines and a
 SyntaxError; a second heredoc "fix" did the same thing. Write files that need literal
 backslash sequences with the Edit or Write tool, or keep the sequence out of the command
-text (read it from a file).
+text (read it from a file). A JavaScript backslash-u escape (a Unicode code point written
+as backslash, `u`, four hex digits) can arrive as the literal character through Bash and
+Write alike: a dash-check regex turned into raw dashes. Check the bytes with `od -c` and
+build the backslash with `String.fromCharCode(92)` when it must survive.

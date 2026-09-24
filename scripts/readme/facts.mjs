@@ -2,9 +2,10 @@
 
    Nothing here is typed in twice. The pillar words, their lines and the skills behind them
    come from the DEFAULT_PILLARS export in site/hero-pillars.mjs, the headline lead-in and
-   the motion constants from that module's DEFAULTS block, the routes from site/server.mjs
-   (which mirrors vercel.json cleanUrls), the port likewise. Every skill or memory file a
-   pillar names has to exist in this repository, or the build stops. */
+   the motion constants from that module's DEFAULTS block, the port from site/server.mjs, and
+   the one-line description of each skill or memory file from scripts/readme/items.json, which
+   must match the pillars' names one to one. Every skill or memory file a pillar names has to
+   exist in this repository, or the build stops. */
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import { absolute, read, readJson } from "./lib.mjs";
@@ -54,27 +55,15 @@ export async function collectFacts() {
   const server = read("site/server.mjs");
   const port = Number(server.match(/Number\(process\.env\.PORT\)\|\|(\d+)/)?.[1]);
   need(port, "site/server.mjs default port not found");
-  const routeMap = Object.fromEntries(
-    [...server.matchAll(/'(\/[a-z-]+)':'(\/[a-z-]+\.html)'/g)].map((m) => [m[1], m[2].slice(1)]),
-  );
-  routeMap["/"] = "index.html";
 
-  const inventory = readJson("scripts/readme/items.json");
-  const pages = inventory.pages.map((page) => {
-    need(routeMap[page.route] === page.file, `${page.route} is served from ${routeMap[page.route]}, items.json says ${page.file}`);
-    need(fs.existsSync(absolute(`site/${page.file}`)), `site/${page.file} is missing`);
-    return page;
-  });
-  const unlisted = Object.keys(routeMap).filter((route) => !pages.some((p) => p.route === route));
-  need(!unlisted.length, `routes missing from items.json: ${unlisted.join(", ")}`);
+  const { items } = readJson("scripts/readme/items.json");
+  const named = pillars.flatMap((p) => p.skills.map((sk) => sk.name));
+  for (const name of named) need(typeof items[name] === "string" && items[name], `items.json has no line for ${name}`);
+  const unused = Object.keys(items).filter((name) => !named.includes(name));
+  need(!unused.length, `items.json lines for names no pillar shows: ${unused.join(", ")}`);
+  for (const p of pillars) for (const sk of p.skills) sk.about = items[sk.name];
 
-  const vercel = readJson("vercel.json");
-  need(vercel.outputDirectory === "site" && vercel.cleanUrls === true, "vercel.json no longer serves site/ with clean URLs");
-  need(fs.existsSync(absolute("api/harness/github/[action].mjs")), "the creator function moved");
-  const actions = read("api/harness/github/[action].mjs").match(/\{([a-z,]+)\}/)?.[1].split(",") ?? [];
-  need(actions.length > 0, "creator actions not listed in the function header");
-
-  return { pillars, motion, port, pages, actions };
+  return { pillars, motion, port };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
