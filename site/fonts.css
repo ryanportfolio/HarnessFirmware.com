@@ -16,17 +16,27 @@
 @font-face{font-family:"Harness Text";src:url("/assets/fonts/harness-text/HarnessText-VF.woff2") format("woff2");font-weight:200 900;font-style:normal;font-display:swap}
 @font-face{font-family:"Departure Mono";src:url("/assets/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
 
+/* Metric-matched fallbacks: until a webfont arrives, text sets in a local face resized and
+   re-spaced to the webfont's width, ascent and descent, so the swap does not move the page.
+   Values measured in Chrome at 100px against Arial Black, Arial, Consolas and Georgia. A system
+   without the local face skips it and falls through to the next family in the stack. */
+@font-face{font-family:"Lineal fallback";src:local("Arial Black"),local("Arial-Black");font-weight:1 1000;size-adjust:78.47%;ascent-override:101.95%;descent-override:25.49%;line-gap-override:25.49%}
+@font-face{font-family:"Fraunces fallback";src:local("Georgia Bold Italic"),local("Georgia-BoldItalic");font-weight:600;font-style:italic;size-adjust:76.51%;ascent-override:128.09%;descent-override:33.98%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial"),local("ArialMT");font-weight:200 549;size-adjust:97.24%;ascent-override:112.1%;descent-override:32.91%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial Bold"),local("Arial-BoldMT");font-weight:550 900;size-adjust:94.35%;ascent-override:115.53%;descent-override:33.92%;line-gap-override:0%}
+@font-face{font-family:"Departure Mono fallback";src:local("Consolas");font-weight:400;size-adjust:115.74%;ascent-override:86.4%;descent-override:23.33%;line-gap-override:0%}
+
 :root{
-  --font-display:"Lineal","Arial Black",Arial,Helvetica,sans-serif;
+  --font-display:"Lineal","Lineal fallback","Arial Black",Arial,Helvetica,sans-serif;
   --display-weight:781;
   --display-track:-.015em;
-  --font-accent:"Fraunces",Georgia,"Times New Roman",serif;
+  --font-accent:"Fraunces","Fraunces fallback",Georgia,"Times New Roman",serif;
   --accent-weight:600;
   --accent-style:italic;
   --accent-vs:"opsz" 144,"SOFT" 100,"WONK" 1;
-  --font-text:"Harness Text",Arial,Helvetica,sans-serif;
+  --font-text:"Harness Text","Harness Text fallback",Arial,Helvetica,sans-serif;
   --text-weight:500;
-  --font-mono:"Departure Mono",ui-monospace,Consolas,monospace;
+  --font-mono:"Departure Mono","Departure Mono fallback",ui-monospace,Consolas,monospace;
   font-synthesis:none;
 }
 

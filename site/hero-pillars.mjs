@@ -736,6 +736,10 @@ function mount(root, o, restore) {
     layout();
   });
   ro.observe(root);
+  // Lay out now with whatever faces are ready (fonts.css gives each a metric-matched fallback),
+  // so the first mounted frame already has its final rows and size; run() and 'loadingdone'
+  // lay out again once the faces load.
+  layout();
   applyMode();
 
   function dispose() {

@@ -175,3 +175,22 @@ The Bash tool runs each command as `bash -c "<whole command text>"`, so a `pkill
 matches the tool's own shell and ends it: exit code 144, no output. It cost three retries while
 stopping preview servers. Kill by PID from a separate call (`ps -eo pid,args | grep ...` first,
 then `kill <pid>`), or keep the pattern out of the command text.
+
+## `vercel curl` from Git Bash: three traps (2026-09-25)
+
+- Git Bash rewrites a leading-slash path argument into a Windows path: `vercel curl /robots.txt`
+  requested `/C:/Program Files/Git/robots.txt`. Prefix the command with `MSYS_NO_PATHCONV=1`.
+- It forwards every flag it does not own to curl, global CLI flags included, so `--scope` or
+  `--debug` makes curl exit with "option ... is unknown" wherever they sit. Link the checkout
+  instead (`vercel link --project harnessfirmware-com --scope sardonicasts-projects --yes`) and pass
+  only `--deployment`; curl flags go after `--` (long forms work: `-- --silent --include`).
+- In an unlinked worktree, `--yes` auto-links by creating a new empty project named after the
+  folder. Link first. `vercel link` also writes `.env.local` and edits `.gitignore`; delete the
+  file and revert the edit.
+
+## Reveal animations must not keep a clip-path (2026-09-25)
+
+An entrance animation that ends on `clip-path: inset(0)` with `animation-fill-mode: both` keeps
+that clip forever, and a clip at the border box cuts italic overhang and descenders (Fraunces
+lost the tail of "f", "d" and "y"). Fill `backwards` only, and give the clip negative insets
+while it runs (`site/dither-effects.css`, `.mask-reveal`).
