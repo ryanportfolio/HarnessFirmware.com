@@ -9,7 +9,14 @@ const $=s=>root.querySelector(s), reduced=matchMedia('(prefers-reduced-motion: r
 const narrow=matchMedia('(max-width:700px)'),asked={};
 function drawing(phone){return asked[phone]??=fetch(phone?'/hero-mobile.svg':'/hero-desktop.svg').then(async r=>{if(!r.ok)throw new Error(`hero drawing: ${r.status}`);
  const t=document.createElement('template');t.innerHTML=await r.text();const svg=t.content.firstElementChild;
- phone?$('.system-particles').before(svg):$('.system-field').prepend(svg);return svg;}).catch(e=>{delete asked[phone];throw e;});}
+ phone?$('.system-particles').before(svg):$('.system-field').prepend(svg);inkIn(svg);return svg;}).catch(e=>{delete asked[phone];throw e;});}
+// The drawing lands after first paint, so it inks in the way the headline's glyphs do (hero-pillars.mjs:
+// opacity and blur on its `ink` curve) rather than popping in. It does not rise: the node labels sit on
+// it. It holds paused at a trace of ink (Chrome skips rastering a fully transparent layer) and starts
+// three frames later, so the first blurred raster, one 100 ms+ frame, lands before any ink shows
+// (.claude/reference/pitfalls.md, animated CSS blur).
+function inkIn(svg){if(reduced.matches)return;const a=svg.animate([{opacity:.003,filter:'blur(6px)'},{opacity:1,filter:'blur(0px)'}],{duration:900,easing:'cubic-bezier(0.4, 0, 0.2, 1)'});a.pause();
+ let n=3;const go=()=>--n?requestAnimationFrame(go):a.play();requestAnimationFrame(go);}
 const phases=[
  ['recall',3200,'01 / Recall','Start with project memory','Decisions + known pitfalls','recall'],
  ['plan',3200,'02 / Plan','Define a result you can check','A goal + acceptance checks','plan'],
