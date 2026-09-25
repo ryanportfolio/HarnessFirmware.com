@@ -167,3 +167,11 @@ text (read it from a file). A JavaScript backslash-u escape (a Unicode code poin
 as backslash, `u`, four hex digits) can arrive as the literal character through Bash and
 Write alike: a dash-check regex turned into raw dashes. Check the bytes with `od -c` and
 build the backslash with `String.fromCharCode(92)` when it must survive.
+
+## `pkill -f` from the Bash tool kills the tool's own shell (2026-09-25)
+
+The Bash tool runs each command as `bash -c "<whole command text>"`, so a `pkill -f <pattern>`
+(or a `ps | grep <pattern> | kill` loop) whose pattern appears anywhere in that same command
+matches the tool's own shell and ends it: exit code 144, no output. It cost three retries while
+stopping preview servers. Kill by PID from a separate call (`ps -eo pid,args | grep ...` first,
+then `kill <pid>`), or keep the pattern out of the command text.
