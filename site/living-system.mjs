@@ -24,8 +24,9 @@ function inkIn(svg){const first=!field.classList.contains('is-inked');field.clas
  const seq=first?[[at('.goal-label'),0],...[...field.querySelectorAll('.feed')].map((e,i)=>[e,150+i*150]),[svg,300,1500],[at('.system-particles'),500,1500],
   ...['recall','plan','execute','audit','integrate'].map((n,i)=>[at('.node-'+n),900+i*200]),[at('.system-caption'),1300],[at('.horizon-caption'),1900],[at('.artifact-gate'),2100],[at('.human-gate'),2300]]:[[svg,0]];
  const all=seq.filter(([e])=>e).map(([e,delay,duration=900])=>{const a=e.animate([{opacity:.003,filter:'blur(6px)'},{opacity:1,filter:'blur(0px)'}],{duration,delay,fill:'backwards',easing:'cubic-bezier(0.4, 0, 0.2, 1)'});a.pause();return a;});
- const stop=()=>{if(reduced.matches)all.forEach(a=>a.finish());};reduced.addEventListener('change',stop);
- Promise.all(all.map(a=>a.finished)).then(()=>reduced.removeEventListener('change',stop),()=>{});
+ // Reduced motion switched on, or keyboard focus landing on a part still inking in, ends the entrance.
+ const finish=()=>all.forEach(a=>a.finish()),stop=()=>{if(reduced.matches)finish();};reduced.addEventListener('change',stop);field.addEventListener('focusin',finish);
+ Promise.all(all.map(a=>a.finished)).then(()=>{reduced.removeEventListener('change',stop);field.removeEventListener('focusin',finish);},()=>{});
  let n=3;const go=()=>--n?requestAnimationFrame(go):all.forEach(a=>a.playState==='paused'&&a.play());requestAnimationFrame(go);}
 const phases=[
  ['recall',3200,'01 / Recall','Start with project memory','Decisions + known pitfalls','recall'],
