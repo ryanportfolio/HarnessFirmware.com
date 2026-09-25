@@ -180,7 +180,8 @@ new ResizeObserver(()=>pack()).observe($('.system-field'));
 // A classic scrollbar paints over the smooth-scroll layer's right edge (the layer is 100vw); the hero
 // headline and the phone pillar words keep clear of it. This publishes the scrollbar's width as
 // --scrollbar; living-system.css turns it into --gutter only while that layer is mounted, since on
-// native scroll the body already ends at the scrollbar (living-system.css, home.css).
+// native scroll the body already ends at the scrollbar (living-system.css). Math on 100vw, which spans
+// the scrollbar in either mode, subtracts --scrollbar itself (home.css).
 new ResizeObserver(()=>document.documentElement.style.setProperty('--scrollbar',Math.max(0,innerWidth-document.documentElement.clientWidth)+'px')).observe(document.documentElement);
 function restBranch(){flowGen++;
  feeds.forEach((f,k)=>{for(const e of [own[k],...f.querySelectorAll('.feed-skill')]){e.classList.remove('is-anim');e===own[k]?reveal(e):conceal(e);}shown[k]=own[k];state(k,own[k]);Object.assign(flow[k],{lit:false,rise:null,fall:null,actTo:1});});}
