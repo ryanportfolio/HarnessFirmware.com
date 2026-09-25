@@ -1,0 +1,11 @@
+{
+  "name": "harnessfirmware-com",
+  "private": true,
+  "description": "Source of harnessfirmware.com. The deploy build minifies site/ into dist/.",
+  "scripts": {
+    "build": "node scripts/build-site.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

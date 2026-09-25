@@ -1,8 +1,14 @@
-# Upload only what the deployment serves: the static site, the creator function, and this config.
+# Upload only what the deployment needs: the static site, the creator function, this config, and
+# the build that minifies site/ into dist/ (scripts/build-site.mjs, with esbuild from package.json).
 /*
 !/site
 !/api
 !/vercel.json
+!/package.json
+!/package-lock.json
+!/scripts
+/scripts/*
+!/scripts/build-site.mjs
 
 # Private or dev-only files inside site/
 /site/.*
