@@ -2,8 +2,9 @@
    Files, sources and licenses: PROVENANCE.md. Fraunces, Mona Sans and Departure Mono are subset
    to Latin and the punctuation and arrows the pages use; Lineal ships as released. Fraunces ships
    as one static instance at the accent tokens below (wght 600, opsz 144, SOFT 100, WONK 1): change
-   --accent-weight or --accent-vs and the file has to be cut again. Mona Sans keeps its weight and
-   optical-size axes; it carries a Reserved Font Name, so its subset is renamed Harness Text.
+   --accent-weight or --accent-vs and the file has to be cut again. Mona Sans keeps its weight
+   axis, with optical size fixed at 16 (most body text sets at 12-16px); it carries a Reserved
+   Font Name, so its subset is renamed Harness Text.
 
      --font-display  huge type: hero headline, statements, section and page headings (Lineal)
      --font-accent   the accent words: rotating hero word, pillar words, the closing statement
@@ -25,8 +26,8 @@
    without the local face skips it and falls through to the next family in the stack. */
 @font-face{font-family:"Lineal fallback";src:local("Arial Black"),local("Arial-Black");font-weight:1 1000;size-adjust:78.47%;ascent-override:101.95%;descent-override:25.49%;line-gap-override:25.49%}
 @font-face{font-family:"Fraunces fallback";src:local("Georgia Bold Italic"),local("Georgia-BoldItalic");font-weight:600;font-style:italic;size-adjust:76.51%;ascent-override:128.09%;descent-override:33.98%;line-gap-override:0%}
-@font-face{font-family:"Harness Text fallback";src:local("Arial"),local("ArialMT");font-weight:200 549;size-adjust:97.24%;ascent-override:112.1%;descent-override:32.91%;line-gap-override:0%}
-@font-face{font-family:"Harness Text fallback";src:local("Arial Bold"),local("Arial-BoldMT");font-weight:550 900;size-adjust:94.35%;ascent-override:115.53%;descent-override:33.92%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial"),local("ArialMT");font-weight:200 549;size-adjust:102.7%;ascent-override:106.14%;descent-override:31.16%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial Bold"),local("Arial-BoldMT");font-weight:550 900;size-adjust:99.37%;ascent-override:109.69%;descent-override:32.2%;line-gap-override:0%}
 @font-face{font-family:"Departure Mono fallback";src:local("Consolas");font-weight:400;size-adjust:115.74%;ascent-override:86.4%;descent-override:23.33%;line-gap-override:0%}
 
 :root{

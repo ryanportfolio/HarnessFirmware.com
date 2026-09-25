@@ -32,7 +32,7 @@ OUT = ROOT / "scripts" / "readme" / "glyphs.json"
 FACES = {
     "display": ("lineal/Lineal-VF.woff2", {"wght": 781}),
     "accent": ("fraunces/Fraunces-Italic.woff2", {}),  # already a static instance
-    "text": ("harness-text/HarnessText-VF.woff2", {"wght": 500, "opsz": 24}),
+    "text": ("harness-text/HarnessText-VF.woff2", {"wght": 500}),  # optical size pinned at 16 in the file
     "mono": ("departure-mono/DepartureMono-Regular.woff2", {}),
 }
 EXTRA = "’·→"  # right single quote, middle dot, rightwards arrow
