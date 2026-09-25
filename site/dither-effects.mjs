@@ -3,7 +3,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 // solver, no WebGL, no third-party runtime.
 const bayer = [0,48,12,60,3,51,15,63,32,16,44,28,35,19,47,31,8,56,4,52,11,59,7,55,40,24,36,20,43,27,39,23,2,50,14,62,1,49,13,61,34,18,46,30,33,17,45,29,10,58,6,54,9,57,5,53,42,26,38,22,41,25,37,21];
 function mountField(host, audit) {
-  const canvas = document.createElement('canvas'); canvas.setAttribute('aria-hidden','true'); host.prepend(canvas);
+  let canvas = host.querySelector(':scope>canvas'); if (!canvas) {canvas = document.createElement('canvas'); canvas.setAttribute('aria-hidden','true'); host.prepend(canvas);}
   const ctx = canvas.getContext('2d'); if (!ctx) {canvas.remove();const button=host.querySelector('button');if(button){button.textContent='Static evidence';button.disabled=true;}if(audit)host.insertAdjacentHTML('afterbegin','<svg class="evidence-static" viewBox="0 0 640 290" aria-hidden="true"><g fill="none" stroke="#53db76"><path d="M300 65v150M450 100l5 5 9-12m-14 48 5 5 9-12m-14 48 5 5 9-12M480 100h100m-100 41h100m-100 41h100"/></g></svg>');return;}
   let visible = false, paused = !audit, frame = 0, previous = 0, elapsed = 0, trail = [];
   const button = host.querySelector('button');
@@ -37,8 +37,9 @@ function mountField(host, audit) {
   new IntersectionObserver(([e])=>{visible=e.isIntersecting;sync();}).observe(host);
   reduced.addEventListener('change',sync);document.addEventListener('visibilitychange',sync);resize();sync();
 }
-const audit = document.querySelector('#audit-details');
-if(audit){const figure=document.createElement('figure');figure.className='evidence-field';figure.setAttribute('aria-label','Illustration: noisy evidence is inspected and resolves into three checked rows.');figure.innerHTML='<figcaption class="evidence-caption"><span>Fresh evidence / illustrative</span><span>Inspect → recheck</span></figcaption><div class="evidence-key"><span>Work under review</span><span>Checked result</span></div>';audit.querySelector('.audit-detail-grid').before(figure);mountField(figure,true);}
+// index.html ships the audit figure, so the page is its final height from the first paint.
+const evidence = document.querySelector('#audit-details .evidence-field');
+if(evidence)mountField(evidence,true);
 const start=document.querySelector('#start');
 if(start){const field=document.createElement('div');field.className='cta-dither';field.setAttribute('aria-hidden','true');start.prepend(field);mountField(field,false);}
 // Reveal only on entry; content remains visible before JS and in reduced motion.

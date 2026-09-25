@@ -177,12 +177,6 @@ function pack(){if(getComputedStyle(feeds[0]).getPropertyValue('--feed-row').tri
  const T=feeds[0].offsetTop,H=Math.max(0,...it.map(n=>n.e.offsetHeight))+6;
  for(const n of it){n.e.style.setProperty('--sx',n.x-feeds[n.k].offsetLeft+'px');n.e.style.setProperty('--sy',n.row*H+T-feeds[n.k].offsetTop+'px');}}
 new ResizeObserver(()=>pack()).observe($('.system-field'));
-// A classic scrollbar paints over the smooth-scroll layer's right edge (the layer is 100vw); the hero
-// headline and the phone pillar words keep clear of it. This publishes the scrollbar's width as
-// --scrollbar; living-system.css turns it into --gutter only while that layer is mounted, since on
-// native scroll the body already ends at the scrollbar (living-system.css). Math on 100vw, which spans
-// the scrollbar in either mode, subtracts --scrollbar itself (home.css).
-new ResizeObserver(()=>document.documentElement.style.setProperty('--scrollbar',Math.max(0,innerWidth-document.documentElement.clientWidth)+'px')).observe(document.documentElement);
 function restBranch(){flowGen++;
  feeds.forEach((f,k)=>{for(const e of [own[k],...f.querySelectorAll('.feed-skill')]){e.classList.remove('is-anim');e===own[k]?reveal(e):conceal(e);}shown[k]=own[k];state(k,own[k]);Object.assign(flow[k],{lit:false,rise:null,fall:null,actTo:1});});}
 // The second feed sits level with "Your goal"; on tablets a long name there runs into it, so a

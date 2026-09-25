@@ -383,6 +383,10 @@ export function mountConverge(root) {
     if (!center.contains(event.relatedTarget)) setFocusReveal(false);
   }, {signal: events.signal});
   refresh();
+  // The engine resizes its spacer from a ResizeObserver, one frame late. Size it now, so the
+  // document has its full length from the first paint (index.html renders once app.mjs has run).
+  const spacer = document.querySelector('[data-scroll-spacer]');
+  if (pinned && layer && spacer) spacer.style.height = `${layer.getBoundingClientRect().height}px`;
 
   return () => {
     events.abort();

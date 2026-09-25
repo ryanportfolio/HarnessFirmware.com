@@ -26,4 +26,6 @@
 @keyframes mask-reveal{from{clip-path:inset(12% -.3em -.3em);translate:0 18px;opacity:.25}to{clip-path:inset(-.3em);translate:0 0;opacity:1}}
 @media(max-width:620px){.evidence-field,.evidence-field canvas{min-height:240px;height:240px}.evidence-caption{inset:12px 10px auto;flex-direction:column;align-items:flex-start;gap:6px;font-size:14px}.evidence-key{left:16px;right:16px;gap:12px;font-size:14px}.evidence-toggle{right:16px}#skills .ss-preview{grid-template-columns:48px 1fr;gap:13px;padding:16px;min-height:146px}#skills .ss-preview svg{width:44px}#skills .ss-preview a{grid-column:2}#skills .ss-preview strong{font-size:19px}#start>.cta-dither{width:70%;opacity:.15}}
 @media(prefers-reduced-motion:reduce){.mask-reveal{animation:none}#skills .ss-entry summary,#skills .ss-entry summary:before{transition:none}}
+/* Without scripting the audit figure (index.html) has nothing to draw. */
+@media(scripting:none){.evidence-field{display:none}}
 .evidence-static{position:absolute;inset:0;width:100%;height:100%}

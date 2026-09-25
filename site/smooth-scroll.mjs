@@ -8,9 +8,10 @@
 // unchanged. Only the layer's transform changes per frame; frames are requested only while the
 // spring is moving.
 //
-//   mountSmoothScroll(layer, spacer) -> controller
-//     layer   element wrapping everything but the fixed header; fixed to the viewport, 100vw
-//             wide (callers may override the width), translated by controller.y
+//   mountSmoothScroll(layer, spacer, width = '100vw') -> controller
+//     layer   element wrapping everything but the fixed header; fixed to the viewport at
+//             width (100vw by default; pages that keep a scrollbar gutter pass 100%), translated
+//             by controller.y
 //     spacer  static sibling kept at the layer's height
 //   controller.y        get(), on('change', fn) -> unsubscribe, jump(v): rendered offset (<= 0)
 //   controller.scrollY  get(), set(v): native scroll position; the target follows it
@@ -45,7 +46,7 @@ function advance(x, v, dt) {
   return [cSlow * eSlow + cFast * eFast, slow * cSlow * eSlow + fast * cFast * eFast];
 }
 
-export function mountSmoothScroll(layer, spacer) {
+export function mountSmoothScroll(layer, spacer, width = '100vw') {
   if (!layer || !spacer) throw new TypeError('mountSmoothScroll needs a layer and a spacer');
   const savedLayerStyle = layer.getAttribute('style');
   const savedSpacerStyle = spacer.getAttribute('style');
@@ -109,7 +110,7 @@ export function mountSmoothScroll(layer, spacer) {
   // clamp the current scroll position; then size the spacer to the fixed layer.
   const start = scrollY;
   spacer.style.height = `${layer.getBoundingClientRect().height}px`;
-  Object.assign(layer.style, {position: 'fixed', top: '0', left: '0', width: '100vw', display: 'flex', flexDirection: 'column'});
+  Object.assign(layer.style, {position: 'fixed', top: '0', left: '0', width, display: 'flex', flexDirection: 'column'});
   measure();
   // Mounting mid-page (reload, restored history) starts at rest on the current position.
   native = scrollY;

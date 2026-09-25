@@ -55,7 +55,12 @@ button.memory-caption{background:none;border:0;color:inherit;font-family:inherit
    feathered at the edges, so no strand runs through their letters or tags; a strand that starts under a
    label leaves from its edge. The feed's feather fades with its plate (living-system.mjs). The headline
    keeps clear of a classic scrollbar (--gutter). */
-html[data-smooth-scroll]{--gutter:var(--scrollbar,0px)}
+/* The smooth-scroll layer (effects.mjs) is fixed and 100vw wide, so a classic scrollbar paints over its
+   right edge. The layer takes that width before it mounts too (the overflow under the scrollbar is clipped),
+   and the gutter comes from CSS, not a script: the root is an inline-size container, so 100vw - 100cqw is the
+   scrollbar. The hero keeps one box from the first paint on, whenever the script runs. Reduced motion keeps
+   native scroll: the body ends at the scrollbar and there is no gutter. */
+@media(scripting:enabled) and (prefers-reduced-motion:no-preference){:root{container-type:inline-size;overflow-x:clip;--gutter:calc(100vw - 100cqw)}[data-scroll-layer]{width:100vw}}
 @media(max-width:700px){.living-heading{padding-right:calc(12px + var(--gutter,0px))}
  .feed-skill,.feed-skill.is-auto{background:#070c08;border-radius:4px;box-shadow:0 0 6px 2px #070c08}
  .feed{background:#070c08;border-radius:4px;box-shadow:0 0 6px 2px #070c08}.feed.is-skill,.feed.is-idle{box-shadow:0 0 6px 2px #070c0800}

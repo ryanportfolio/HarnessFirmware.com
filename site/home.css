@@ -73,11 +73,12 @@ html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-
    beam, so from 1101 px every pillar word steps down to 6.8vw, the size both fit at (Remembered runs
    5.07em plus its d's 0.17em italic overhang, in a column of 40% of 91.4vw). Phones: the
    longest pillar word (Production-ready, 6.52 times its size wide, plus its italic overhang) still fits one line inside the
-   card row, also beside a classic scrollbar (--scrollbar, living-system.mjs); on the narrowest
+   card row, also beside a classic scrollbar: the root is a size container, so 100cqw is the
+   viewport less the scrollbar from the first paint on (100vw spans it). On the narrowest
    phones the row's four 20 px paddings set the size. On short screens (under about 870 px tall at
    1920 wide) 15vh caps it, so the held card-row headline leaves a card room to show whole. */
 @media(min-width:1101px){:root{--pillar-size:clamp(44px,min(6.8vw,15vh),136px)}}
-@media(max-width:767px){:root{--pillar-size:min(calc(.122 * (100vw - var(--scrollbar,0px))),calc((100vw - var(--scrollbar,0px) - 80px) / 6.65))}}
+@media(max-width:767px){:root{container-type:inline-size;--pillar-size:min(calc(.122 * 100cqw),calc((100cqw - 80px) / 6.65))}}
 @media(max-width:1023px){
   .horizon-commands{grid-template-columns:1fr;gap:28px}
 }
