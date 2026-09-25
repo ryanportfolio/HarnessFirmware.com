@@ -194,3 +194,14 @@ An entrance animation that ends on `clip-path: inset(0)` with `animation-fill-mo
 that clip forever, and a clip at the border box cuts italic overhang and descenders (Fraunces
 lost the tail of "f", "d" and "y"). Fill `backwards` only, and give the clip negative insets
 while it runs (`site/dither-effects.css`, `.mask-reveal`).
+
+## CLS 0 does not mean no load shift (2026-09-25)
+
+Layout-shift entries only score movement of visible content, so two real shifts on this site read
+CLS 0: the homepage document growing ~11,000 px after first paint as the scroll scenes mounted
+(below the viewport; the user saw the scrollbar thumb shrink), and the hero widening 15 px when the
+smooth-scroll layer mounted at 100vw (the top-left corner stayed put). Measure load stability as
+document.documentElement.scrollHeight and first-screen element boxes sampled every frame from FCP
+to load+3 s, on a throttled network too, max over several runs because cells race first paint.
+Scroll scenes must have their final height at first paint (mount before paint, or size the scroll
+spacer at mount), and the smooth-scroll layer must be its final width from the first frame.

@@ -32,8 +32,7 @@ export function mountMemoryScroll(onFrame) {
     teardown = restore;
     try {
       document.documentElement.dataset.smoothScroll = '';
-      controller = mountSmoothScroll(layer, spacer);
-      layer.style.width = '100%';
+      controller = mountSmoothScroll(layer, spacer, '100%');
       window.harnessScroll = controller;
       sticky.style.position = 'relative';
       const update = () => {

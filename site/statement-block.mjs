@@ -147,6 +147,10 @@ export function mountStatementBlock(root) {
   resizeObserver.observe(layer || document.body);
   resizeObserver.observe(container);
   refresh();
+  // The engine resizes its spacer from a ResizeObserver, one frame late. Size it now, so the
+  // document has its full length from the first paint (index.html renders once app.mjs has run).
+  const spacer = document.querySelector('[data-scroll-spacer]');
+  if (engine && layer && spacer) spacer.style.height = `${layer.getBoundingClientRect().height}px`;
 
   return () => {
     events.abort();

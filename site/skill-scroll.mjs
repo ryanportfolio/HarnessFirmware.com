@@ -17,8 +17,12 @@ function mount() {
   spacer.dataset.scrollSpacer = '';
   spacer.setAttribute('aria-hidden', 'true');
   headerSpace.setAttribute('aria-hidden', 'true');
+  // A fixed header overlays the layer, so the layer reserves its height. A header in the
+  // normal flow (arena, long-horizon) moves into the layer instead; leaving it outside would
+  // count its height twice in the document length.
+  const headerInFlow = ['static', 'relative'].includes(getComputedStyle(header).position);
   main.before(layer);
-  layer.append(headerSpace, main);
+  layer.append(headerInFlow ? header : headerSpace, main);
   if (footer) layer.append(footer);
   layer.after(spacer);
   document.documentElement.dataset.smoothScroll = '';
@@ -30,6 +34,7 @@ function mount() {
     events.abort();
     observer.disconnect();
     controller?.destroy();
+    if (headerInFlow) layer.before(header);
     layer.before(main);
     if (footer) layer.before(footer);
     layer.remove();
@@ -42,8 +47,7 @@ function mount() {
   try {
     resizeHeader();
     observer.observe(header);
-    controller = mountSmoothScroll(layer, spacer);
-    layer.style.width = '100%';
+    controller = mountSmoothScroll(layer, spacer, '100%');
     window.harnessScroll = controller;
     const reveal = (element, immediate = false) => {
       const top = Math.max(0, element.getBoundingClientRect().top - layer.getBoundingClientRect().top - header.getBoundingClientRect().height - 20);
