@@ -56,6 +56,9 @@
 #skills .ss-index{display:grid;grid-template-columns:1fr 1fr;column-gap:34px;align-items:start}
 #skills .ss-entry{border-top:1px solid #2c4232;min-width:0}
 #skills .ss-entry[hidden],#skills .empty-skills[hidden]{display:none}
+/* skills.html ships the Audit filter applied: entries of other categories carry data-ss-off, which hides them only when scripts run. skill-showcase.mjs swaps it for [hidden]. Without scripts every entry shows and the controls that need scripts drop out. */
+@media(scripting:enabled){#skills .ss-entry[data-ss-off]{display:none}}
+@media(scripting:none){#skills .ss-count,#skills .ss-tools{display:none}}
 #skills .ss-entry summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:1fr 70px 18px;gap:10px;align-items:center;padding:18px 0;min-height:88px}
 #skills .ss-entry summary::-webkit-details-marker{display:none}
 #skills .ss-entry h4{margin:0 0 5px;font:500 18px/1.15 var(--font-text);letter-spacing:-.015em}

@@ -27,6 +27,7 @@ if (section) {
   };
   const pressed = () => section.querySelectorAll('[data-ss-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.ssFilter === category)));
   pressed();
+  entries.forEach(entry => entry.removeAttribute('data-ss-off'));
   filter();
   // Smooth scroll (skill-scroll.mjs) brings a linked entry into view itself; native scroll
   // jumped to it before the filter ran, so it goes again once the list has settled.
