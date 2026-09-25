@@ -9,14 +9,24 @@ const $=s=>root.querySelector(s), reduced=matchMedia('(prefers-reduced-motion: r
 const narrow=matchMedia('(max-width:700px)'),asked={};
 function drawing(phone){return asked[phone]??=fetch(phone?'/hero-mobile.svg':'/hero-desktop.svg').then(async r=>{if(!r.ok)throw new Error(`hero drawing: ${r.status}`);
  const t=document.createElement('template');t.innerHTML=await r.text();const svg=t.content.firstElementChild;
- phone?$('.system-particles').before(svg):$('.system-field').prepend(svg);inkIn(svg);return svg;}).catch(e=>{delete asked[phone];throw e;});}
-// The drawing lands after first paint, so it inks in the way the headline's glyphs do (hero-pillars.mjs:
-// opacity and blur on its `ink` curve) rather than popping in. It does not rise: the node labels sit on
-// it. It holds paused at a trace of ink (Chrome skips rastering a fully transparent layer) and starts
-// three frames later, so the first blurred raster, one 100 ms+ frame, lands before any ink shows
-// (.claude/reference/pitfalls.md, animated CSS blur).
-function inkIn(svg){if(reduced.matches)return;const a=svg.animate([{opacity:.003,filter:'blur(6px)'},{opacity:1,filter:'blur(0px)'}],{duration:900,easing:'cubic-bezier(0.4, 0, 0.2, 1)'});a.pause();
- let n=3;const go=()=>--n?requestAnimationFrame(go):a.play();requestAnimationFrame(go);}
+ phone?$('.system-particles').before(svg):$('.system-field').prepend(svg);inkIn(svg);return svg;}).catch(e=>{delete asked[phone];field.classList.add('is-inked');throw e;});}
+// The drawing lands after first paint, so the field waits for it (living-system.css keeps it clear
+// until .is-inked), then its parts ink in one after another in the order the story reads: the goal,
+// the feeds, the strands and the loop, the stages around the loop, the release gates. Each inks in the
+// way the headline's glyphs do (hero-pillars.mjs: opacity and blur on its `ink` curve), without the
+// rise, since the labels sit on the drawing. A drawing that arrives later, across the 700px breakpoint,
+// inks in on its own. The entrances hold paused at a trace of ink (Chrome skips rastering a fully
+// transparent layer) and start three frames later, so the first blurred raster, one 100 ms+ frame,
+// lands before any ink shows (.claude/reference/pitfalls.md, animated CSS blur).
+const field=$('.system-field');
+function inkIn(svg){const first=!field.classList.contains('is-inked');field.classList.add('is-inked');if(reduced.matches)return;
+ const at=s=>field.querySelector(s);
+ const seq=first?[[at('.goal-label'),0],...[...field.querySelectorAll('.feed')].map((e,i)=>[e,150+i*150]),[svg,300,1500],[at('.system-particles'),500,1500],
+  ...['recall','plan','execute','audit','integrate'].map((n,i)=>[at('.node-'+n),900+i*200]),[at('.system-caption'),1300],[at('.horizon-caption'),1900],[at('.artifact-gate'),2100],[at('.human-gate'),2300]]:[[svg,0]];
+ const all=seq.filter(([e])=>e).map(([e,delay,duration=900])=>{const a=e.animate([{opacity:.003,filter:'blur(6px)'},{opacity:1,filter:'blur(0px)'}],{duration,delay,fill:'backwards',easing:'cubic-bezier(0.4, 0, 0.2, 1)'});a.pause();return a;});
+ const stop=()=>{if(reduced.matches)all.forEach(a=>a.finish());};reduced.addEventListener('change',stop);
+ Promise.all(all.map(a=>a.finished)).then(()=>reduced.removeEventListener('change',stop),()=>{});
+ let n=3;const go=()=>--n?requestAnimationFrame(go):all.forEach(a=>a.playState==='paused'&&a.play());requestAnimationFrame(go);}
 const phases=[
  ['recall',3200,'01 / Recall','Start with project memory','Decisions + known pitfalls','recall'],
  ['plan',3200,'02 / Plan','Define a result you can check','A goal + acceptance checks','plan'],
