@@ -17,6 +17,6 @@ The subsets keep Basic Latin, Latin-1, general punctuation and the arrows and sy
 
 | Files | What it is |
 |---|---|
-| `assets/memory-forest.png` | Image generated with an AI image model for this project from its own memory-page concept. |
+| `assets/memory-forest.webp` | Image generated with an AI image model for this project from its own memory-page concept. |
 | `assets/grain.png` | Seeded grayscale noise written by `generate-grain.mjs`. Regenerate with `node site/generate-grain.mjs`. |
 | `assets/favicon.svg`, `assets/harness-mark.svg` | The Harness H mark, drawn for this project. |
