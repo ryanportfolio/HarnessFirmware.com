@@ -1,6 +1,15 @@
 // The headline (hero-pillars.mjs) is loaded on its own at the end, so the diagram runs even if it fails.
 const root=document.querySelector('.living-system');
 const $=s=>root.querySelector(s), reduced=matchMedia('(prefers-reduced-motion: reduce)');
+// The hero drawings live in their own files so each device downloads only the one it shows
+// (living-system.css swaps them at 700px; index.html preloads the matching one). Parsed as HTML,
+// as inline markup is, and placed where it sat inline: desktop first, phone before the canvas.
+// Each is requested once, however often the breakpoint flips before it lands; a failed request
+// is forgotten, so the next crossing into its breakpoint asks again.
+const narrow=matchMedia('(max-width:700px)'),asked={};
+function drawing(phone){return asked[phone]??=fetch(phone?'/hero-mobile.svg':'/hero-desktop.svg').then(async r=>{if(!r.ok)throw new Error(`hero drawing: ${r.status}`);
+ const t=document.createElement('template');t.innerHTML=await r.text();const svg=t.content.firstElementChild;
+ phone?$('.system-particles').before(svg):$('.system-field').prepend(svg);return svg;}).catch(e=>{delete asked[phone];throw e;});}
 const phases=[
  ['recall',3200,'01 / Recall','Start with project memory','Decisions + known pitfalls','recall'],
  ['plan',3200,'02 / Plan','Define a result you can check','A goal + acceptance checks','plan'],
@@ -44,11 +53,14 @@ root.addEventListener('pointerdown',e=>{if(!e.target.closest('[data-node],.syste
 // Keep pointer transfers to the panel alive until the link receives its click.
 root.addEventListener('focusout',event=>{if(!event.relatedTarget?.closest('[data-node],.system-detail'))close();});
 const canvas=$('.system-particles'),ctx=canvas.getContext('2d');
-const paths=[...root.querySelectorAll('[data-track]')].map(p=>{const length=p.getTotalLength();return {kind:p.dataset.track,points:Array.from({length:241},(_,i)=>{const q=p.getPointAtLength(length*i/240);return [q.x,q.y];})};});
-// The goal's strands, one per feed: the three feed tracks, then the review tracks (the first
-// one runs through the review feed's dot).
-{let f=0;for(const p of paths){if(p.kind==='feed')p.slot=f++;else if(p.kind==='review')p.slot=3;}}
-const strands=[0,1,2,3].map(k=>paths.filter(p=>p.slot===k));
+// Read off the desktop drawing, refilled in place when it arrives after a breakpoint crossing.
+const paths=[],strands=[[],[],[],[]];
+function readTracks(){paths.splice(0,paths.length,...[...root.querySelectorAll('[data-track]')].map(p=>{const length=p.getTotalLength();return {kind:p.dataset.track,points:Array.from({length:241},(_,i)=>{const q=p.getPointAtLength(length*i/240);return [q.x,q.y];})};}));
+ // The goal's strands, one per feed: the three feed tracks, then the review tracks (the first
+ // one runs through the review feed's dot).
+ let f=0;for(const p of paths){if(p.kind==='feed')p.slot=f++;else if(p.kind==='review')p.slot=3;}
+ strands.forEach((s,k)=>s.splice(0,s.length,...paths.filter(p=>p.slot===k)));}
+readTracks();
 let width=1440,height=780;
 function resize(){const b=canvas.getBoundingClientRect();width=b.width;height=b.height;const d=Math.min(devicePixelRatio,1.5);canvas.width=width*d;canvas.height=height*d;ctx?.setTransform(d*width/1440,0,0,d*height/780,0,0);}
 new ResizeObserver(resize).observe($('.system-field'));
@@ -76,8 +88,9 @@ function ease(time){const dt=Math.max(0,Math.min(80,time-flowAt));flowAt=time;
  for(const f of flow)f.act+=Math.sign(f.actTo-f.act)*Math.min(Math.abs(f.actTo-f.act),dt/420);}
 // how brightly strand k glows: fading out with the old pillar, in with the light of the new one
 function glowOf(f){let v=0;if(live(f.fall))v=1-prog(f.fall);if(live(f.rise))v=Math.max(v,Math.min(1,prog(f.rise)*1.6));else if(f.lit&&!live(f.fall))v=1;return v;}
-// the point of strand k nearest its feed's dot, in viewBox units
-function knot(k){const s=strands[k][0],d=feeds[k].querySelector('i').getBoundingClientRect(),b=canvas.getBoundingClientRect();if(!s||!b.width)return 0;
+// the point of strand k nearest its feed's dot, in viewBox units; null while the desktop drawing
+// is still on its way, and drawFlow finds it once the drawing is in
+function knot(k){const s=strands[k][0],d=feeds[k].querySelector('i').getBoundingClientRect(),b=canvas.getBoundingClientRect();if(!b.width)return 0;if(!s)return null;
  const x=(d.left+d.width/2-b.left)/b.width*1440,y=(d.top+d.height/2-b.top)/b.height*780;let best=0,bd=1e9;
  s.points.forEach((q,i)=>{const e=(q[0]-x)**2+(q[1]-y)**2;if(e<bd){bd=e;best=i;}});return best;}
 // the strand from its dot, then a curve that carries on in the strand's direction onto the loop,
@@ -96,11 +109,11 @@ const COMET_IN=240,COMET_DUR=620,COMET_AT=.75; // ms after a skill starts to app
 function drawFlow(){ctx.lineCap='round';ctx.lineJoin='round';
  flow.forEach((f,k)=>{const g=glowOf(f);
   // the strand brightens from its dot toward the loop: a soft halo under a bright core
-  if(g>.01)for(const s of strands[k]){const P=s.points,i0=s===strands[k][0]?f.i0:0,n=P.length-1-i0;if(n<2)continue;
+  if(g>.01)for(const s of strands[k]){const P=s.points,i0=s===strands[k][0]?(f.i0??=knot(k)):0,n=P.length-1-i0;if(n<2)continue;
    for(const [w,col,k2] of [[5,'#58e07b',.16],[1.4,'#a4f5ba',.75]]){ctx.strokeStyle=col;ctx.lineWidth=w;
     for(let j=0;j<n;j+=8){const u=j/n;ctx.globalAlpha=g*k2*(.12+.88*u*u);ctx.beginPath();ctx.moveTo(P[i0+j][0],P[i0+j][1]);for(let m=1;m<=8&&j+m<=n;m++)ctx.lineTo(P[i0+j+m][0],P[i0+j+m][1]);ctx.stroke();}}}
   // the trail of light, while its animation runs
-  if(!live(f.rise)||!f.node)return;const p=prog(f.rise);if(p<=0||p>=1)return;
+  if(!live(f.rise)||!f.node||!strands[k][0])return;const p=prog(f.rise);if(p<=0||p>=1)return;
   f.route??=route(k,f.node);const r=f.route,head=r.len*(1-(1-p)**3),tail=Math.min(190,head),fade=p>.85?(1-p)/.15:1,N=20;
   for(const [w,col,k2] of [[7,'#58e07b',.14],[2,'#c4fad2',.9]]){ctx.strokeStyle=col;ctx.lineWidth=w;
    for(let j=0;j<N;j++){const [x0,y0]=at(r,head-tail*(1-j/N)),[x1,y1]=at(r,head-tail*(1-(j+1)/N));ctx.globalAlpha=fade*k2*((j+1)/N)**1.6;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();}}
@@ -133,7 +146,9 @@ const own=feeds.map(f=>f.querySelector('.feed-label'));
 const links=feeds.map(f=>f.querySelector('.feed-link'));
 const shown=own.slice();// what each feed shows at rest: its own label, a skill, or nothing (null)
 const names=new Map();
-const phoneStrands=feeds.map((_,k)=>root.querySelector(`.mobile-system-svg [data-slot="${k}"]`));
+const phoneStrands=[];
+const readPhone=()=>feeds.forEach((_,k)=>phoneStrands[k]=root.querySelector(`.mobile-system-svg [data-slot="${k}"]`));
+readPhone();
 const STEP=45;// ms between consecutive feeds
 let flowGen=0;
 function nameEl(i,k,s){const key=i+':'+k;let e=names.get(key);if(e)return e;
@@ -222,4 +237,11 @@ async function leaveFallback(h){if(reduced.matches||+getComputedStyle(h).opacity
 function heroFailed(err){const h=$('.living-heading');h.getAnimations({subtree:true}).forEach(a=>a.cancel());h.style.opacity='1';driven=false;restBranch();render();schedule();reportError(err);}// the static heading shows at once; the loop runs its own story
 (async()=>{const {mountHeroPillars}=await import('./hero-pillars.mjs');const h=$('.living-heading');await leaveFallback(h);
  headline=mountHeroPillars(h,{titleId:'hero-title',onPillar});})().catch(heroFailed);
+// The hero runs without waiting for its drawing: the one this viewport shows is asked for here,
+// the other when the viewport crosses 700px, and each is read in when it lands; the phone
+// strands take the feeds' current state. Without its drawing the hero runs on; the browser has
+// already logged the failed request.
+function cross(){const phone=narrow.matches;if(asked[phone])return;
+ drawing(phone).then(()=>{if(phone){readPhone();feeds.forEach((_,k)=>state(k,shown[k]));}else readTracks();},()=>{});}
+narrow.addEventListener('change',cross);cross();
 render();resize();draw(0);schedule();
