@@ -15,7 +15,8 @@ const out = path.join(root, "dist");
 const loaders = { ".js": "js", ".mjs": "js", ".css": "css" };
 
 await fs.rm(out, { recursive: true, force: true });
-await fs.cp(source, out, { recursive: true, filter: (file) => !path.basename(file).startsWith(".") });
+// site/new/package.json only tells Node those .js files are modules; browsers never need it.
+await fs.cp(source, out, { recursive: true, filter: (file) => !path.basename(file).startsWith(".") && path.basename(file) !== "package.json" });
 
 let before = 0, after = 0, files = 0;
 for (const entry of await fs.readdir(out, { recursive: true, withFileTypes: true })) {
