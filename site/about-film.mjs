@@ -18,9 +18,8 @@ const W = 1920, H = 1080, TAU = Math.PI * 2;
 const CHAPTERS = [['cold', 14], ['flash', 10], ['recall', 11], ['skills', 10], ['audit', 14], ['round', 10], ['resolve', 8]];
 const START = {}; let TOTAL = 0; for (const [id, d] of CHAPTERS) { START[id] = TOTAL; TOTAL += d; }
 const L = (c, x) => START[c] + x;
-// Compact framing: everything below the statement band (stage y 240 and down) is drawn at G around
-// (960, 250), so the visible band is stage y 50 to 880 (1920 x 830) and fits the screen at full width.
-const G = .8, GX = 960, GY = 250, BAND_TOP = 50, BAND_H = 830;
+// The visible band of the stage: y 50 to 1040 (1920 x 990); above and below it the stage is empty.
+const BAND_TOP = 50, BAND_H = 990;
 // Motion constants, tuned in the animatic lab (2026-09-28).
 const MORPH = 1.4, STAGGER = .45, BOUNCE = .8, ARC = .18, FLIGHT_GLOW = .6, DRIFT = 1, DUST = .22;
 const POINT_SIZE = 2.4, EXPOSURE = 1, TRAIL = .88, BLOOM = .8, GRAIN = .05, VIGNETTE = .4;
@@ -384,7 +383,7 @@ function captions() {
   cap(A(8.6), A(10.3), 'mono grn', 1300, 350, 'FIXED · RECHECKING'); cap(A(10.3), A(14), 'mono grn', 1300, 350, 'VERIFIED');
   cap(A(11), A(14), 'mono s c', 1580, 680, 'YOU'); cap(A(12.1), A(14), 'mono grn c', 1580, 706, 'APPROVED');
   cap(A(10.9), A(14), 'stmt', 120, 84, 'A second model checks it. <em>You</em> approve');
-  ['Recall', 'Plan', 'Execute', 'Audit', 'Integrate'].forEach((nm, j) => { const a = (-90 + 72 * j) * Math.PI / 180; cap(R(.6 + j * .1), R(10), j ? 'lbl c' : 'lbl', ...(j ? [RC.x + Math.cos(a) * (RC.r + 92), RC.y + Math.sin(a) * (RC.r + 84) - 11] : [RC.x + 48, RC.y - RC.r - 11]), nm); });
+  ['Recall', 'Plan', 'Execute', 'Audit', 'Integrate'].forEach((nm, j) => { const a = (-90 + 72 * j) * Math.PI / 180; cap(R(.6 + j * .1), R(10), 'lbl c', RC.x + Math.cos(a) * (RC.r + 62), RC.y + Math.sin(a) * (RC.r + 62) - 11, nm); });
   LAPS.forEach((l, j) => cap(l[0], j === 2 ? R(9.8) : l[1], 'mono c', RC.x, RC.y - 12, `ROUND ${j + 1}`));
   TG.forEach((tg, m) => cap(tg + 1.3, tg + 3, 'mono s grn', SEG[m][0], ROWY[SEG[m][2]] - 30, '+1 LESSON'));
   cap(R(5), R(10), 'stmt', 120, 84, 'Each round starts from what the last one <em>learned</em>');
@@ -483,7 +482,6 @@ function mount(root) {
   if (!gl) { root.dataset.state = 'unsupported'; for (const b of chapterBtns) b.disabled = true; return; }
   timeline();
   const caps = captions().map(c => {
-    if (c.y >= 240) { c.x = GX + (c.x - GX) * G; c.y = GY + (c.y - GY) * G; }
     const el = document.createElement('div'); el.className = 'fc ' + c.cls + (c.x <= 124 ? ' l' : ''); el.style.left = c.x + 'px'; el.style.top = c.y + 'px'; el.innerHTML = c.h;
     const tx = /\bc\b/.test(c.cls) ? 'translateX(-50%)' : /\br\b/.test(c.cls) ? 'translateX(-100%)' : '';
     const words = c.cls.includes('stmt') ? splitWords(el) : null; if (words) el.style.transform = tx; ov.append(el);
@@ -551,7 +549,7 @@ function mount(root) {
     const s = Math.min(w / W, h / BAND_H), ox = (w - W * s) / 2, oy = (h - BAND_H * s) / 2 - BAND_TOP * s;
     ov.style.setProperty('--lx', ((parseFloat(getComputedStyle(transport).paddingLeft) - ox) / s - 120) + 'px');
     ov.style.left = ox + 'px'; ov.style.top = oy + 'px'; ov.style.transform = `scale(${s})`;
-    const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(full * d)); gl.view(s * G * d, (ox + GX * (1 - G) * s) * d, (oy + GY * (1 - G) * s) * d); wake(3);
+    const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(full * d)); gl.view(s * d, ox * d, oy * d); wake(3);
   };
   new ResizeObserver(layout).observe(stage); layout();
   // Starts once half the stage shows; keeps playing while any of it shows.
