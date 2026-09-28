@@ -586,28 +586,37 @@ function mount(root) {
     sync();
   }, {threshold: 0}).observe(stage);
   // Start trigger: the viewport minus the fixed header, whose height differs by width, so it is read
-  // here and on resize (never inside frame) and the observer is rebuilt when it changes.
+  // here and on resize (never inside frame) and the observer is rebuilt when it changes. So is the room
+  // the layout needs: the span from beat 1's caption to the nearer half of the drawing. When that fits
+  // under the header (with a scroll step to spare), playback waits for the whole caption and half the
+  // drawing; when it does not (landscape phones, short windows), for the caption alone: whole, or when
+  // it is taller than the room, filling nearly all of it.
   const caption = items[0], art = root.querySelector('.ex-art-box'), header = document.querySelector('.site-header');
-  let trigger = null, headerBottom = -1, capFull = false, artHalf = false, artCut = false;
+  let trigger = null, armedKey = '', capOk = false, artHalf = false, artCut = false;
   const arm = () => {
-    if (started) { trigger?.disconnect(); trigger = null; return; }
+    if (started) { trigger?.disconnect(); trigger = null; armedKey = ''; return; }
     const hb = Math.max(0, Math.round(header ? header.getBoundingClientRect().bottom : 0));
-    if (hb === headerBottom && trigger) return;
-    headerBottom = hb;
+    const room = innerHeight - hb, c = caption.getBoundingClientRect(), a = art.getBoundingClientRect();
+    const half = a.height / 2, s = Math.min(Math.max(c.top, a.top), a.top + half);
+    const both = Math.max(c.bottom, s + half) - Math.min(c.top, s) <= room - 24;
+    const capNeed = both || c.height <= room - 40 ? .994 : +(.92 * Math.min(1, room / c.height)).toFixed(3);
+    const key = `${hb} ${both} ${capNeed}`;
+    if (key === armedKey && trigger) return;
+    armedKey = key;
     trigger?.disconnect();
-    capFull = artHalf = artCut = false;
+    capOk = artHalf = artCut = false;
     trigger = new IntersectionObserver(entries => {
       for (const e of entries) {
-        if (e.target === caption) capFull = e.isIntersecting && e.intersectionRatio >= .994;
+        if (e.target === caption) capOk = e.isIntersecting && e.intersectionRatio >= capNeed;
         else {
           artHalf = e.isIntersecting && e.intersectionRatio >= .495;
           artCut = e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0);
         }
       }
-      // artCut: the drawing already runs under the header while the caption is whole (a viewport too
-      // short for both), so scrolling on cannot show more of it; start rather than never.
-      if (!started && capFull && (artHalf || artCut)) { started = true; inView = visible = true; arm(); sync(); }
-    }, {rootMargin: `-${hb}px 0px 0px 0px`, threshold: [0, .5, .995, 1]});
+      // artCut: the drawing already runs under the header while the caption is whole, so scrolling on
+      // cannot show more of it; start rather than never.
+      if (!started && capOk && (!both || artHalf || artCut)) { started = true; inView = visible = true; arm(); sync(); }
+    }, {rootMargin: `-${hb}px 0px 0px 0px`, threshold: [0, .5, capNeed, .995, 1]});
     trigger.observe(caption);
     trigger.observe(art);
   };

@@ -537,14 +537,21 @@ ms first frame (pitfalls.md, animated CSS blur) and this section swaps nine time
 
 Autoplay and playback:
 
-- Start (round 7): the first time beat 1's caption is wholly on screen below the fixed `.site-header` and
-  at least half of `.ex-art-box` is on screen below it, at every width. A second IntersectionObserver
-  watches the caption and the art box with `rootMargin` set to minus the header's height (thresholds
-  `[0, .5, .995, 1]`). The header height differs by width, so the module reads it on mount and on
-  `resize` and rebuilds that observer when it changes, never inside `frame`. In a viewport too short for
-  both (a landscape phone), it starts once the caption is whole and the drawing already runs under the
-  header, since scrolling on cannot show more of it. The observer disconnects after the start. It plays
-  once and stops at `TOTAL`; it does not loop.
+- Start (round 7, round 17): the first time beat 1's caption is wholly on screen below the fixed
+  `.site-header` and at least half of `.ex-art-box` is on screen below it, wherever the room under the
+  header can hold both. A second IntersectionObserver watches the caption and the art box with
+  `rootMargin` set to minus the header's height (thresholds `[0, .5, need, .995, 1]`). On mount and on
+  `resize`, never inside `frame`, the module reads the header height and the caption and art boxes,
+  and works out the shortest span that holds the caption and a contiguous half of the drawing (the half
+  nearer the caption). If that span fits the room under the header with 24 px to spare, the rule above
+  applies (`need` = .994); it also starts when the caption is whole and the drawing already runs under the
+  header, since scrolling on cannot show more of it. If it does not fit (landscape phones such as
+  667x375, 740x360 and 844x390, or 390x500), it starts on the caption alone: wholly on screen when the
+  caption is at least 40 px shorter than the room, otherwise once it fills 92% of what fits
+  (`need` = .92 x min(1, room / caption height)). Round 7's rule never fired at 390x500, 667x375 or
+  740x360: with the caption above the drawing, the caption went under the header before half the
+  drawing was on screen. The observer is rebuilt only when the header height, the rule or `need`
+  changes, and disconnects after the start. It plays once and stops at `TOTAL`; it does not loop.
 - Pauses when the stage leaves the screen entirely (an observer on `.ex-stage`, threshold 0), when
   `document.hidden` is true, or when the visitor presses Pause. Resumes from the same `t` when any part
   of the stage is back on screen, the tab is visible, and Pause is not pressed. Starting asks for more
@@ -865,7 +872,8 @@ Module shape (mirrors card-art.mjs):
 - The drawing in use follows `matchMedia('(max-width:767px)')`; on a change, the module re-collects parts
   for the shown SVG and repaints the current `t`.
 - Three IntersectionObservers (the stage, for pausing; the start trigger, see Timing; the title, see Ground,
-  type and palette), `resize` listeners that re-read the header height, and one `visibilitychange` listener. No
+  type and palette), `resize` listeners that re-read the header height (and, for the start trigger, the caption and art
+  boxes), and one `visibilitychange` listener. No
   reduced-motion listener: the preference does not change playback (amendment v2).
 - `detent(root)`, the scroll detent (see Scroll detent): one non-passive `wheel` listener on `window`,
   attached and removed by an IntersectionObserver on the section (`rootMargin: 200% 0px`), and one
@@ -972,6 +980,14 @@ labels at 10px the wide builder frame starts at x 364, the auditor frame ends at
 Stage geometry). Group 2 is lit in beats 4 and 5 (Focus). Beat 4's failing tile comes forward at 2.5 times
 its size (3 on phones) with its crosses while it fails (`GEOM.*.stall`, Per beat 4). Pause and Replay are
 12px with a lighter underline. Timing, reveals, captions, the playback model and `detent()` are unchanged.
+
+Round 17 (codex-review of PR #12): autoplay starts on short viewports. At 390x500, 667x375 and 740x360
+the section stayed `idle` however slowly the page was scrolled, because round 7's rule (whole caption,
+half the drawing) cannot hold when the room under the header is shorter than the span from the caption
+to the drawing's middle. `arm()` now also reads the caption and art boxes on mount and resize and, when
+that span does not fit, starts on beat 1's caption alone (see Timing, Autoplay and playback). Viewports
+that can show both keep round 7's rule. Nothing was added to the frame loop and there is no scroll
+listener; the drawing, captions, timing and `detent()` are unchanged.
 
 Accessibility:
 
