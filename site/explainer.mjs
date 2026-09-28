@@ -712,9 +712,11 @@ function detent(root) {
     if (!d) return;
     const y = scrollY;
     // The pause after a stop. A key, link, scrollbar or script that moved the page off the reading position
-    // ends it early, so the next wheel event scrolls from wherever the page now is.
+    // ends it early, so the next wheel event scrolls from wherever the page now is. An uncancelable wheel
+    // event may already have moved it by up to its own delta (and the previous one's) before settle() puts
+    // it back, so that drift does not count.
     if (pauseUntil) {
-      if (event.timeStamp < pauseUntil && Math.abs(y - reading) <= SLACK) { hold(event, d); return; }
+      if (event.timeStamp < pauseUntil && Math.abs(y - reading) <= SLACK + 2 * Math.abs(d)) { hold(event); return; }
       pauseUntil = 0;
     }
     if (!armed && Math.abs(y - reading) > band) armed = true;
@@ -737,17 +739,21 @@ function detent(root) {
     if (!armed || !crosses) return;
     armed = false;
     pauseUntil = event.timeStamp + PAUSE;
-    event.preventDefault();
     // With the smooth-scroll layer the spring eases to the new native position; without it this is final.
     window.scrollTo({top: reading, behavior: 'instant'});
+    hold(event);
   };
-  // Held during the pause. Chrome makes the later events of a trackpad scroll sequence uncancelable when
-  // its first event was not cancelled; the browser applies those itself, so the same distance is scrolled
-  // back. Neither path moves the page anywhere else, so a scroll a script makes during the pause stays
-  // where it put the page.
-  const hold = (event, d) => {
+  // Held at the stop and during the pause. Chrome makes the later events of a trackpad scroll sequence
+  // uncancelable when its first event was not cancelled, and the browser applies those itself, before or
+  // after this handler runs; settle() puts the page back on the reading position on the next frame, once
+  // the browser has applied it.
+  let settling = 0;
+  const settle = () => {
+    if (!settling) settling = requestAnimationFrame(() => { settling = 0; window.scrollTo({top: reading, behavior: 'instant'}); });
+  };
+  const hold = event => {
     if (event.cancelable) event.preventDefault();
-    else window.scrollBy({top: -d, behavior: 'instant'});
+    else settle();
   };
 
   // A non-passive wheel listener makes the browser wait for the main thread before it scrolls each wheel
