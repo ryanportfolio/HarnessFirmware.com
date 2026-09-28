@@ -100,8 +100,6 @@ section.tree,section.start{padding:140px var(--gutter) 0}
 .chapter-list button:hover .ch-line{color:#fff}
 .ch-body{display:grid;gap:12px;align-content:start;font-size:16px;line-height:1.55;color:#c2c9ba}
 .ch-body p{margin:0}
-.ch-use{color:var(--paper)}
-.ch-use b{font-weight:650;color:var(--green)}
 .ch-where{font-size:14px;color:var(--muted)}
 .ch-where a,.start a,.start-alt a,.facts a{border-bottom:1px solid #53db7666;transition:border-color .2s,color .2s}
 .ch-where a:hover,.start a:hover,.start-alt a:hover,.facts a:hover{color:var(--green);border-color:var(--green)}
