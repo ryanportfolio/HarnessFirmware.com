@@ -659,21 +659,25 @@ function mount(root) {
 }
 
 // Scroll detent (amendments v8, v9). A mouse-wheel or trackpad gesture that would carry the page across the
-// reading position stops there for the rest of that gesture; the next gesture scrolls on. It acts on the wheel
-// event before the browser scrolls, never on scroll events, so nothing that is not a wheel event can be held.
+// reading position stops there, and every wheel event for the next PAUSE ms is absorbed, in either direction
+// and whatever the wheel's lines-per-click setting (owner request: the smooth-scroll layer's glide hid shorter
+// holds). After the pause wheel scrolling works as usual. It acts on the wheel event before the browser
+// scrolls, never on scroll events, so nothing that is not a wheel event can be held.
 const GESTURE_GAP = 300; // ms without a wheel event that ends a gesture
 const LINE = 40; // px per line, for deltaMode 1
 const SLACK = 8; // px a notch may land off its target and still count as on its way there
+const PAUSE = 2000; // ms after a stop during which wheel input does not scroll
 function detent(root) {
   const header = document.querySelector('.site-header');
   const layer = document.querySelector('[data-scroll-layer]');
   const boxes = ['.ex-bottom', '.ex-art-box', '.ex-beats'].map(sel => root.querySelector(sel)).filter(Boolean);
   const title = root.querySelector('h2');
   if (!boxes.length) return;
-  // armed: a crossing will be held. holding: the live gesture is held. aim: where the gesture's wheel input
-  // has sent the page so far (a notch animates, so scrollY lags behind it), null until its first event and
-  // whenever the page is no longer on its way there. was: scrollY at the gesture's previous wheel event.
-  let reading = 0, band = 0, armed = true, holding = false, aim = null, was = 0, dir = 0, last = -Infinity, attached = false;
+  // armed: a crossing will be held. pauseUntil: wheel input is absorbed until this event time. aim: where the
+  // gesture's wheel input has sent the page so far (a notch animates, so scrollY lags behind it), null until
+  // its first event and whenever the page is no longer on its way there. was: scrollY at the gesture's
+  // previous wheel event.
+  let reading = 0, band = 0, armed = true, pauseUntil = 0, aim = null, was = 0, dir = 0, last = -Infinity, attached = false;
 
   // Reading position: the reading block (the bottom row with the note and controls, the drawing and the
   // captions) sits below the header, centred in the room left under it when it fits. When the section title
@@ -702,41 +706,46 @@ function detent(root) {
 
   const wheel = event => {
     if (event.ctrlKey) return; // pinch zoom, not scrolling
-    if (event.timeStamp - last > GESTURE_GAP) { holding = false; aim = null; dir = 0; }
+    if (event.timeStamp - last > GESTURE_GAP) { aim = null; dir = 0; }
     last = event.timeStamp;
     const d = event.deltaY * (event.deltaMode === 1 ? LINE : event.deltaMode === 2 ? innerHeight : 1);
     if (!d) return;
     const y = scrollY;
-    if (!holding) {
-      if (!armed && Math.abs(y - reading) > band) armed = true;
-      if (Math.sign(d) !== dir) { dir = Math.sign(d); aim = null; }
-      // aim holds only while the page is still on its way to it: scrollY between the previous event's
-      // position and aim, give or take SLACK. Anywhere else, a key, anchor, scrollbar or script scroll has
-      // moved the page since, so this event is measured from where the page is now.
-      if (aim !== null && (y < Math.min(was, aim) - SLACK || y > Math.max(was, aim) + SLACK)) aim = null;
-      // A notch that ran long: the page was short of the reading position at the previous event and is now
-      // at it or at most SLACK past it, still on its way to aim.
-      const ranLong = aim !== null && (d > 0 ? was < reading && y >= reading : was > reading && y <= reading) && Math.abs(y - reading) <= SLACK;
-      was = y;
-      const from = aim ?? y;
-      const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
-      aim = Math.min(Math.max(0, from + d), max);
-      // Crossing, judged from where the page is now: it is short of the reading position and this event
-      // takes it there or past. The start side is always scrollY, never the earlier aim, so a stale aim
-      // cannot make a crossing.
-      const crosses = ranLong || (d > 0 ? y < reading && aim >= reading : y > reading && aim <= reading);
-      if (!armed || !crosses) return;
-      armed = false;
-      holding = true;
-      event.preventDefault();
-      // With the smooth-scroll layer the spring eases to the new native position; without it this is final.
-      window.scrollTo({top: reading, behavior: 'instant'});
-      return;
+    // The pause after a stop. A key, link, scrollbar or script that moved the page off the reading position
+    // ends it early, so the next wheel event scrolls from wherever the page now is.
+    if (pauseUntil) {
+      if (event.timeStamp < pauseUntil && Math.abs(y - reading) <= SLACK) { hold(event, d); return; }
+      pauseUntil = 0;
     }
-    // Held for the rest of the gesture. Chrome makes the later events of a trackpad scroll sequence
-    // uncancelable when its first event was not cancelled; the browser applies those itself, so the
-    // same distance is scrolled back. Neither path moves the page anywhere else, so a scroll a script
-    // makes during the gesture stays where it put the page.
+    if (!armed && Math.abs(y - reading) > band) armed = true;
+    if (Math.sign(d) !== dir) { dir = Math.sign(d); aim = null; }
+    // aim holds only while the page is still on its way to it: scrollY between the previous event's
+    // position and aim, give or take SLACK. Anywhere else, a key, anchor, scrollbar or script scroll has
+    // moved the page since, so this event is measured from where the page is now.
+    if (aim !== null && (y < Math.min(was, aim) - SLACK || y > Math.max(was, aim) + SLACK)) aim = null;
+    // A notch that ran long: the page was short of the reading position at the previous event and is now
+    // at it or at most SLACK past it, still on its way to aim.
+    const ranLong = aim !== null && (d > 0 ? was < reading && y >= reading : was > reading && y <= reading) && Math.abs(y - reading) <= SLACK;
+    was = y;
+    const from = aim ?? y;
+    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+    aim = Math.min(Math.max(0, from + d), max);
+    // Crossing, judged from where the page is now: it is short of the reading position and this event
+    // takes it there or past. The start side is always scrollY, never the earlier aim, so a stale aim
+    // cannot make a crossing.
+    const crosses = ranLong || (d > 0 ? y < reading && aim >= reading : y > reading && aim <= reading);
+    if (!armed || !crosses) return;
+    armed = false;
+    pauseUntil = event.timeStamp + PAUSE;
+    event.preventDefault();
+    // With the smooth-scroll layer the spring eases to the new native position; without it this is final.
+    window.scrollTo({top: reading, behavior: 'instant'});
+  };
+  // Held during the pause. Chrome makes the later events of a trackpad scroll sequence uncancelable when
+  // its first event was not cancelled; the browser applies those itself, so the same distance is scrolled
+  // back. Neither path moves the page anywhere else, so a scroll a script makes during the pause stays
+  // where it put the page.
+  const hold = (event, d) => {
     if (event.cancelable) event.preventDefault();
     else window.scrollBy({top: -d, behavior: 'instant'});
   };
@@ -749,7 +758,7 @@ function detent(root) {
     if (near === attached) return;
     attached = near;
     if (near) addEventListener('wheel', wheel, {passive: false});
-    else { removeEventListener('wheel', wheel); armed = true; holding = false; }
+    else { removeEventListener('wheel', wheel); armed = true; pauseUntil = 0; }
   }, {rootMargin: '200% 0px'}).observe(root);
 
   measure();

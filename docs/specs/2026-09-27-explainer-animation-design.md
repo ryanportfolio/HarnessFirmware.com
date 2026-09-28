@@ -668,7 +668,12 @@ mouse-wheel and trackpad scrolling is held.
   trackpads send about one event per frame, so 300 ms keeps one flick one gesture, while a second scroll
   after a pause is free (the check waits 1.2 s before its second fling and 700 ms before its release
   wheel).
-- Release: the next gesture scrolls on. The detent re-arms only after the page leaves the band where the
+- Pause (owner request after testing the PR preview: a stop released by the next wheel click could not be
+  felt, because the smooth-scroll layer's glide hides a short hold and a Windows wheel set to 7 lines sends
+  about 233 px a click): after a stop, every wheel event for the next 2000 ms (`PAUSE`) is absorbed, in
+  either direction, however large. A key, link, scrollbar or script that moves the page off the reading
+  position ends the pause early.
+- Release: after the pause, wheel input scrolls on. The detent re-arms only after the page leaves the band where the
   whole block stays on screen (the centring margin, at least 120 px each way), checked on each wheel
   event, or when the explainer moves more than two viewports from the screen. Small moves near the
   reading position are never caught twice.
