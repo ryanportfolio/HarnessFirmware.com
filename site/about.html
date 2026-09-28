@@ -5,7 +5,8 @@
 
 
 
-<section id="film" class="film" aria-label="The film" data-state="idle">
+<section id="film" class="film" aria-labelledby="about-title" data-state="idle">
+  <h1 id="about-title" class="visually-hidden">About Harness Firmware: the 77-second film</h1>
   <div class="film-stage" tabindex="0" role="img" aria-label="A 77-second silent film drawn in green light. The chapters below repeat everything it says.">
     <canvas class="film-canvas"></canvas>
     <div class="film-ov" aria-hidden="true"></div>
@@ -17,10 +18,6 @@
     <div class="film-track"><div class="film-ticks" aria-hidden="true"></div><input class="film-scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="Film position"></div>
   </div>
   </section>
-<section class="about-hero" aria-labelledby="about-title">
-  <h1 id="about-title">Harness Firmware, in <em>77 seconds</em></h1>
-  <p class="lede">Harness Firmware is a set of plain files you add to a repository, so Claude Code and Codex work from the project's own rules, memory and review.</p>
-</section>
 
 <section class="chapters" aria-label="Film chapters">
   <ol class="chapter-list">

@@ -22,10 +22,8 @@ h1,h2,h3,.ch-line,.fc.stmt{text-wrap:balance}
 h1,h2,h3{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track);margin:0}
 h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-weight);font-style:var(--accent-style);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
 
-/* ---- opening */
-.about-hero{padding:120px var(--gutter) 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 5vw;align-items:end}
-.about-hero h1{font-size:clamp(38px,3.4vw,62px);line-height:1}
-.about-hero .lede{margin:0;max-width:30em;justify-self:end;font-size:clamp(15px,1.05vw,18px);line-height:1.45;color:#c2c9ba}
+/* The page title stays for search and screen readers; the film is the visible opening. */
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- the film */
 /* The film fills the screen: the canvas covers the section, and about-film.mjs fits the 16:9 stage
@@ -133,9 +131,6 @@ section.tree,section.start{padding:140px var(--gutter) 0}
 .facts dt{font:11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
 .facts dd{margin:0;font-size:16px;line-height:1.5}
 
-@media(max-width:1100px){
-  .about-hero{grid-template-columns:1fr;padding-top:120px}.about-hero h1{white-space:normal}.about-hero .lede{justify-self:start}
-}
 @media(max-width:900px){
   .section-head{grid-template-columns:1fr;gap:18px}
   .chapter-list li{grid-template-columns:1fr}
