@@ -539,13 +539,11 @@ function mount(root) {
     else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + 5); } else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(t - 5); }
   });
   stage.addEventListener('click', () => playBtn.click());
-  // The canvas fills the section, which sits below the fixed header; the 1920 x 1080 stage is fitted into
-  // the part above the transport, and the dust fills the rest of the screen.
-  const transport = root.querySelector('.film-transport');
+  // The stage box is the page width and 990/1920 of it tall: the stage scales to the width and its
+  // empty bands above y 50 and below y 1040 are cropped.
   const layout = () => {
     const w = stage.clientWidth, h = stage.clientHeight; if (!w) return;
-    const room = Math.max(1, h - transport.offsetHeight);
-    const s = Math.min(w / W, room / H), ox = (w - W * s) / 2, oy = (room - H * s) / 2;
+    const s = w / W, ox = 0, oy = -50 * s;
     ov.style.left = ox + 'px'; ov.style.top = oy + 'px'; ov.style.transform = `scale(${s})`;
     const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(h * d)); gl.view(s * d, ox * d, oy * d); wake(3);
   };

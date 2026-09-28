@@ -26,15 +26,15 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- the film */
-/* The film fills the screen: the canvas covers the section, and about-film.mjs fits the 16:9 stage
-   into the room between the fixed header and the transport laid over the bottom edge. */
+/* The film fills the page width. about-film.mjs scales the 1920 x 1080 stage to the width and crops its
+   empty bands above y 50 and below y 1040, so the stage box is 1920 x 990; the controls sit below it. */
 /* --hh is the fixed header's height. skill-scroll.mjs reserves it above the scroll layer; without that
    layer (reduced motion, no script) main reserves it instead. */
 :root{--hh:90px}
 @media(max-width:600px){:root{--hh:76px}}
 @media(prefers-reduced-motion:reduce),(scripting:none){main{padding-top:var(--hh)}}
-.film{position:relative;height:min(calc(100svh - var(--hh)),calc(100vw*9/16 + 64px));min-height:300px}
-.film-stage{position:absolute;inset:0;background:var(--ink);overflow:hidden;cursor:pointer}
+.film{position:relative}
+.film-stage{position:relative;aspect-ratio:1920/990;background:var(--ink);overflow:hidden;cursor:pointer}
 .film-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .film-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
 .film-fallback{display:none;position:absolute;inset:0;margin:0;place-items:center;padding:10%;text-align:center;font:15px/1.6 var(--font-mono);color:var(--muted)}
@@ -58,7 +58,7 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .fc.fc.amb{color:var(--amber)}.fc.fc.grn{color:var(--green)}
 .fc.lbl{font:600 22px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
 /* Transport */
-.film-transport{position:absolute;left:var(--gutter);right:var(--gutter);bottom:0;height:64px;display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
+.film-transport{height:64px;padding:0 var(--gutter);display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
 .film-play{min-width:92px;padding:11px 16px;border:1px solid #3c5a44;border-radius:999px;color:var(--paper);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transition:border-color .2s,background .2s}
 .film-play:hover{border-color:var(--green);background:#53db7614}
 .film-time{min-width:92px;font-variant-numeric:tabular-nums}
