@@ -205,3 +205,11 @@ document.documentElement.scrollHeight and first-screen element boxes sampled eve
 to load+3 s, on a throttled network too, max over several runs because cells race first paint.
 Scroll scenes must have their final height at first paint (mount before paint, or size the scroll
 spacer at mount), and the smooth-scroll layer must be its final width from the first frame.
+
+## `npm install` removes the Playwright the checks use (2026-09-28)
+
+`package.json` lists only esbuild; `playwright-core` sits in `node_modules` as an extraneous
+package that `scripts/lib/launch-chrome.mjs` imports. A plain `npm install` (for example before
+`node scripts/build-site.mjs`) prunes it, and every headed-Chrome check then fails with
+"launch-chrome needs playwright or playwright-core installed". Restore it without touching the
+manifest or lockfile: `npm install --no-save playwright-core`.

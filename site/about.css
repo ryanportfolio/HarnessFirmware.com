@@ -1,0 +1,144 @@
+/* About page: the film (about-film.mjs) as the page's centre, its chapters as a transcript that seeks
+   the film, then the files, the three steps and the project facts. Tokens match styles.css. */
+:root{--ink:#0f1210;--paper:#f3f3ec;--green:#53db76;--amber:#efc87e;--muted:#b2b5ab;--line:rgba(243,243,236,.16);
+  --gutter:max(4.3vw,calc((100vw - 1500px)/2));color-scheme:dark;font-family:var(--font-text);font-weight:var(--text-weight);background:var(--ink);color:var(--paper)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:100px}
+body{margin:0;background:var(--ink)}
+/* Grain over the whole page, as on the homepage hero. */
+body:after{content:'';position:fixed;inset:0;background:url(assets/grain.png) repeat;opacity:.035;mix-blend-mode:screen;pointer-events:none;z-index:60}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+a,button{-webkit-tap-highlight-color:transparent}
+a:focus-visible,button:focus-visible,.film-stage:focus-visible,input:focus-visible{outline:3px solid #5fb775;outline-offset:6px}
+code{font-family:var(--font-mono);font-size:.92em;letter-spacing:.01em}
+.skip{position:fixed;top:-100px;left:20px;z-index:100;background:var(--paper);color:var(--ink);padding:10px 16px}
+.skip:focus{top:10px}
+main{display:block}
+main:focus{outline:none}
+.kicker{margin:0 0 18px;font:12px/1.4 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+h1,h2,h3{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track);margin:0}
+h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-weight);font-style:var(--accent-style);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
+
+/* ---- opening */
+.about-hero{padding:128px var(--gutter) 34px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 5vw;align-items:end}
+.about-hero .kicker{grid-column:1/-1;margin:0}
+.about-hero h1{font-size:clamp(38px,3.4vw,62px);line-height:1;white-space:nowrap}
+.about-hero .lede{margin:0;max-width:30em;justify-self:end;font-size:clamp(15px,1.05vw,18px);line-height:1.45;color:#c2c9ba}
+
+/* ---- the film */
+/* The stage fits the viewport height below the opening, so the whole picture shows at once. */
+.film{padding:0 var(--gutter);--fw:min(100%,calc((100svh - 330px)*16/9))}
+.film-stage,.film-transport{width:var(--fw);margin-inline:auto}
+.film-stage{position:relative;aspect-ratio:16/9;background:var(--ink);overflow:hidden;cursor:pointer;
+  box-shadow:0 0 0 1px var(--line),0 40px 120px -40px #53db7626}
+.film-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.film-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
+.film-fallback{display:none;position:absolute;inset:0;margin:0;place-items:center;padding:10%;text-align:center;font:15px/1.6 var(--font-mono);color:var(--muted)}
+.film[data-state=unsupported] .film-fallback{display:grid}
+.film[data-state=unsupported] .film-transport{display:none}
+.film[data-state=unsupported] .film-stage{cursor:default}
+/* Captions, set on the 1920 x 1080 stage and scaled with it. */
+.fc{position:absolute;opacity:0;white-space:nowrap}
+.fc.stmt{font:400 68px/1.04 var(--font-display);letter-spacing:-.01em;color:var(--paper);white-space:normal;max-width:1640px}
+.fc.stmt.c{white-space:nowrap;max-width:none}
+.fc.stmt.big{font-size:80px}
+.fc.stmt em{font:var(--accent-style) var(--accent-weight) 1.1em/1 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
+.fc.stmt .w{display:inline-block;opacity:0}
+.fc.mono{font:17px/1.5 var(--font-mono);letter-spacing:.12em;color:rgba(243,243,236,.62)}
+.fc.mono.s{font-size:14px;letter-spacing:.1em;color:rgba(243,243,236,.5)}
+.fc.mono.file{letter-spacing:.02em}
+.fc.mono.q{letter-spacing:.04em;color:rgba(243,243,236,.66)}
+.fc.mono.q b{font-weight:400;color:var(--paper)}
+.fc.mono.big{font-size:30px;letter-spacing:.2em}
+.fc.mono.url{font-size:24px;letter-spacing:.06em}
+.fc.amb{color:var(--amber)}.fc.grn{color:var(--green)}
+.fc.lbl{font:600 22px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
+/* Transport */
+.film-transport{display:flex;align-items:center;gap:20px;padding:18px 0 0;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
+.film-play{min-width:92px;padding:11px 16px;border:1px solid #3c5a44;border-radius:999px;color:var(--paper);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transition:border-color .2s,background .2s}
+.film-play:hover{border-color:var(--green);background:#53db7614}
+.film-time{min-width:92px;font-variant-numeric:tabular-nums}
+.film-note{white-space:nowrap;opacity:.7}
+.film-note-small{display:none;margin:12px auto 0;width:var(--fw);font:11px/1.5 var(--font-mono);letter-spacing:.06em;color:var(--muted)}
+.film-track{position:relative;flex:1;height:28px}
+.film-ticks i{position:absolute;top:8px;height:12px;border-left:1px solid #53db7680}
+.film-scrub{--p:0;position:absolute;inset:0;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.film-scrub::-webkit-slider-runnable-track{height:2px;background:linear-gradient(90deg,var(--green) calc(var(--p)*100%),rgba(243,243,236,.18) 0)}
+.film-scrub::-moz-range-track{height:2px;background:linear-gradient(90deg,var(--green) calc(var(--p)*100%),rgba(243,243,236,.18) 0)}
+.film-scrub::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5px;border-radius:50%;background:var(--green);box-shadow:0 0 12px #53db76}
+.film-scrub::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--green);box-shadow:0 0 12px #53db76}
+
+/* ---- sections below the film */
+section.chapters,section.tree,section.start{padding:140px var(--gutter) 0}
+.section-head{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0 6vw;align-items:end;margin-bottom:56px}
+.section-head .kicker{grid-column:1/-1}
+.section-head h2{font-size:clamp(34px,3.6vw,60px);line-height:1}
+.section-head p:not(.kicker){margin:0;max-width:34em;font-size:17px;line-height:1.55;color:#c2c9ba}
+
+/* Chapters: time and title, the chapter's statement, then what it shows and the practice. The row
+   playing now carries a green rule; every row stays fully readable. */
+.chapter-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.chapter-list li{position:relative;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px 6vw;padding:34px 0 38px;border-bottom:1px solid var(--line)}
+.chapter-list li:before{content:'';position:absolute;left:-22px;top:34px;bottom:38px;width:2px;background:var(--green);box-shadow:0 0 14px #53db76;transform:scaleY(0);transform-origin:top;transition:transform .45s cubic-bezier(.22,1,.36,1)}
+.chapter-list li:has(.is-current):before{transform:none}
+.chapter-list button{display:grid;gap:16px;text-align:left;align-content:start}
+.ch-meta{display:flex;gap:18px;font:12px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.ch-time{color:var(--green);font-variant-numeric:tabular-nums}
+.ch-meta:after{content:'Watch ▸';margin-left:auto;opacity:0;color:var(--green);transition:opacity .2s}
+.chapter-list button:hover .ch-meta:after,.chapter-list button:focus-visible .ch-meta:after{opacity:1}
+.chapter-list button.is-current .ch-meta:after{content:'Now playing';opacity:1}
+.ch-line{font:var(--display-weight) clamp(26px,2.3vw,40px)/1.06 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
+.chapter-list button:hover .ch-line{color:#fff}
+.ch-body{display:grid;gap:12px;align-content:start;font-size:16px;line-height:1.55;color:#c2c9ba}
+.ch-body p{margin:0}
+.ch-use{color:var(--paper)}
+.ch-use b{font-weight:650;color:var(--green)}
+.ch-where{font-size:14px;color:var(--muted)}
+.ch-where a,.start a,.start-alt a,.facts a{border-bottom:1px solid #53db7666;transition:border-color .2s,color .2s}
+.ch-where a:hover,.start a:hover,.start-alt a:hover,.facts a:hover{color:var(--green);border-color:var(--green)}
+.ch-cta{font:13px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
+
+/* The files, as a tree in the film's light. */
+.tree-art{margin:0;padding:44px clamp(20px,4vw,64px);overflow-x:auto;background:#0b0e0c;box-shadow:0 0 0 1px var(--line);font:clamp(13px,1.05vw,17px)/1.9 var(--font-mono);color:var(--paper)}
+.tree-art .g{color:#53db7699}
+.tree-art .d{color:var(--green);text-shadow:0 0 12px #53db7666}
+.tree-art .f{color:var(--paper)}
+.tree-art .n{color:var(--muted)}
+
+/* Three steps */
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line)}
+.steps li{padding:30px 34px 36px 0;display:grid;gap:14px;align-content:start}
+.steps li+li{padding-left:34px;border-left:1px solid var(--line)}
+.step-n{font:12px var(--font-mono);letter-spacing:.14em;color:var(--green)}
+.steps h3{font-size:clamp(22px,1.8vw,30px);line-height:1.08}
+.steps h3 code{font-size:.85em;color:var(--green)}
+.steps p{margin:0;font-size:16px;line-height:1.55;color:#c2c9ba}
+.start-alt{margin:26px 0 0;font-size:15px;color:var(--muted)}
+
+/* Facts */
+.facts{padding:140px var(--gutter) 150px}
+.facts h2.kicker{font-family:var(--font-mono);font-weight:400;letter-spacing:.14em}
+.facts dl{margin:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line)}
+.facts dl>div{padding:24px 24px 0 0}
+.facts dl>div+div{padding-left:24px;border-left:1px solid var(--line)}
+.facts dt{font:11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.facts dd{margin:0;font-size:16px;line-height:1.5}
+
+@media(max-width:1100px){
+  .about-hero{grid-template-columns:1fr;padding-top:120px}.about-hero h1{white-space:normal}.about-hero .lede{justify-self:start}
+}
+@media(max-width:900px){
+  .film-note-small{display:block}
+  .section-head{grid-template-columns:1fr;gap:18px}
+  .chapter-list li{grid-template-columns:1fr}
+  .chapter-list li:before{left:-12px}
+  .steps{grid-template-columns:1fr}
+  .steps li+li{padding-left:0;border-left:0;border-top:1px solid var(--line)}
+  .facts dl{grid-template-columns:1fr 1fr}
+  .facts dl>div,.facts dl>div+div{padding:20px 16px 20px 0;border-left:0}
+  .film-note{display:none}
+  section.chapters,section.tree,section.start{padding-top:96px}
+}
+@media(max-width:520px){.film-transport{gap:12px}.film-time{min-width:0}.facts dl{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}html{scroll-behavior:auto}}

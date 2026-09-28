@@ -16,7 +16,7 @@ const mime={
 };
 const headers=file=>({'Content-Type':mime[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
 // Clean routes, as vercel.json cleanUrls serves them. The .html forms redirect to the clean one.
-const pages={'/skills':'/skills.html','/memory':'/memory.html','/new':'/new.html','/arena':'/arena.html','/long-horizon':'/long-horizon.html'};
+const pages={'/about':'/about.html','/skills':'/skills.html','/memory':'/memory.html','/new':'/new.html','/arena':'/arena.html','/long-horizon':'/long-horizon.html'};
 // Missing files get 404.html, as Vercel serves it.
 async function notFound(req,res){
  const content=await readFile(path.join(root,'404.html'));

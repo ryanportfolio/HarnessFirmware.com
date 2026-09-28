@@ -1,0 +1,552 @@
+// About page film (#film): seven chapters drawn by one pool of WebGL2 particles on a 1920 x 1080 stage,
+// with captions as HTML over the canvas. Every frame is a pure function of the clock t, so the film can
+// be scrubbed, paused and replayed; the one piece of state is the phosphor trail buffer, cleared on seek.
+//   autoplay   the first time half the stage is on screen, unless prefers-reduced-motion is set; then
+//              the last frame shows as a still and the film waits for Play
+//   pause      when the stage leaves the screen or the tab is hidden (resumes by itself), or on Pause
+//              (resumes only on Play)
+//   end        holds the last frame; the button reads Replay
+// Chapter buttons (anything with data-film-chapter, including the transcript under the film) seek to
+// their chapter and play; the current chapter carries .is-current and #film[data-chapter] names it.
+// #film[data-state] is idle, playing, paused or ended. Without WebGL2 the film shows a static message
+// and the transcript carries the story.
+// Pipeline per frame: particles -> additive gaussian points into a half-float target that keeps the
+// last frame times TRAIL^(dt*60) (gain 1-k, so steady brightness does not depend on trail length) ->
+// separable blur at 1/4 and 1/8 size -> tone-mapped composite with grain and vignette.
+
+const W = 1920, H = 1080, TAU = Math.PI * 2;
+const CHAPTERS = [['cold', 14], ['flash', 10], ['recall', 11], ['skills', 10], ['audit', 14], ['round', 10], ['resolve', 8]];
+const START = {}; let TOTAL = 0; for (const [id, d] of CHAPTERS) { START[id] = TOTAL; TOTAL += d; }
+const L = (c, x) => START[c] + x;
+// Motion constants, tuned in the animatic lab (2026-09-28).
+const MORPH = 1.4, STAGGER = .45, BOUNCE = .8, ARC = .18, FLIGHT_GLOW = .6, DRIFT = 1, DUST = .22;
+const POINT_SIZE = 2.4, EXPOSURE = 1, TRAIL = .88, BLOOM = .8, GRAIN = .05, VIGNETTE = .4;
+const GREEN = [.325, .859, .463], AMBER = [.937, .784, .494], PAPER = [.953, .953, .925], INK = [.059, .071, .063];
+
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x, lerp = (a, b, t) => a + (b - a) * t;
+const sm = x => { x = clamp(x); return x * x * (3 - 2 * x); }, eo = x => { x = clamp(x); return 1 - (1 - x) ** 3; };
+const ei = x => { x = clamp(x); return x * x * x; }, eio = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2; };
+function backOut(x, c1) { if (x <= 0) return 0; if (x >= 1) return 1; const c3 = c1 + 1; return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2; }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// Eased path through [t, x, y] keys, memoised per t (every particle of a frame asks at the same t).
+function path(keys) {
+  let lt = NaN; const o = {x: keys[0][1], y: keys[0][2]};
+  return t => {
+    if (t === lt) return o; lt = t;
+    if (t <= keys[0][0]) { o.x = keys[0][1]; o.y = keys[0][2]; return o; }
+    for (let j = 1; j < keys.length; j++) { const b = keys[j]; if (t < b[0]) { const a = keys[j - 1], u = eio((t - a[0]) / (b[0] - a[0])); o.x = lerp(a[1], b[1], u); o.y = lerp(a[2], b[2], u); return o; } }
+    const z = keys[keys.length - 1]; o.x = z[1]; o.y = z[2]; return o;
+  };
+}
+function rectPt(u, x0, y0, x1, y1) { const w = x1 - x0, h = y1 - y0, p = 2 * (w + h); u = (u % 1 + 1) % 1 * p; if (u < w) return [x0 + u, y0]; u -= w; if (u < h) return [x1, y0 + u]; u -= h; if (u < w) return [x1 - u, y1]; u -= w; return [x0, y1 - u]; }
+function blockCenters(cx, cy) { const rows = [4, 3, 2, 1], ys = [130, 34, -62, -158], o = []; rows.forEach((c, r) => { for (let j = 0; j < c; j++) o.push({x: cx + (j - (c - 1) / 2) * 188, y: cy + ys[r]}); }); return o; }
+
+// ---- particles: seeded randoms, roles as fixed index ranges, shapes sampled once
+const MARK = ['M47 65 123 21v168l-76-30Z', 'M232 21l76 44v103l-76-28Z', 'M47 172l76 30v108l-76-25Z', 'M134 115l174 64v105l-76 26v-84l-98-32Z'];
+const ROWY = [898, 924, 950, 976, 1002], ROWEND = [1330, 1190, 1080, 1150, 990];
+const IDXLEN = []; { const r = mulberry(31); for (let j = 0; j < 24; j++) IDXLEN.push(140 + r() * 150); }
+let N, R1, R2, R3, R4, ROLES, MX, MY, ME, BX, BY, BB, BBR, SX, SY, SK, PX, PY, PB, IR, IU, buf;
+function alloc(count) {
+  N = count; const r = mulberry(7);
+  R1 = new Float32Array(N); R2 = new Float32Array(N); R3 = new Float32Array(N); R4 = new Float32Array(N);
+  for (let i = 0; i < N; i++) { R1[i] = r(); R2[i] = r(); R3[i] = r(); R4[i] = r(); }
+  let off = 0; ROLES = {};
+  for (const [k, f] of [['SPARK', .02], ['BUILD', .25], ['RING', .12], ['SLAB', .16], ['AUX', .13]]) { const n = Math.floor(N * f); ROLES[k] = {start: off, n}; off += n; }
+  ROLES.DUST = {start: off, n: N - off};
+  sampleMark(off); sampleBlocks(ROLES.BUILD.n); sampleSlab(ROLES.SLAB.n); samplePanel(ROLES.BUILD.n); sampleIndex(ROLES.AUX.n);
+  buf = new Float32Array(N * 6);
+}
+// The H mark, rasterised at 2x: half the points on its edges (drawn brighter), half inside.
+function sampleMark(M) {
+  const sc = 2, cw = 720, ch = 660, c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+  x.scale(sc, sc); x.fillStyle = '#fff'; for (const d of MARK) x.fill(new Path2D(d));
+  const img = x.getImageData(0, 0, cw, ch).data, ins = (p, q) => p >= 0 && q >= 0 && p < cw && q < ch && img[(q * cw + p) * 4 + 3] > 127;
+  const edge = [], fill = []; for (let q = 0; q < ch; q++) for (let p = 0; p < cw; p++) if (ins(p, q)) (!ins(p + 1, q) || !ins(p - 1, q) || !ins(p, q + 1) || !ins(p, q - 1) ? edge : fill).push(p, q);
+  const r = mulberry(11); MX = new Float32Array(M); MY = new Float32Array(M); ME = new Uint8Array(M);
+  for (let m = 0; m < M; m++) { const e = r() < .5, l = e ? edge : fill, j = Math.floor(r() * l.length / 2) * 2; MX[m] = (l[j] + r()) / sc - 177.5; MY[m] = (l[j + 1] + r()) / sc - 165.5; ME[m] = e ? 1 : 0; }
+}
+// Ten blocks of a pyramid, each an outline and three code lines, as offsets from its centre.
+function sampleBlocks(n) {
+  const r = mulberry(21), lens = []; for (let j = 0; j < 30; j++) lens.push(50 + r() * 78);
+  BX = new Float32Array(n); BY = new Float32Array(n); BB = new Uint8Array(n); BBR = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const b = Math.min(9, Math.floor(k * 10 / n)); BB[k] = b;
+    if (r() < .62) { const [x, y] = rectPt(r(), -85, -38, 85, 38); BX[k] = x; BY[k] = y; BBR[k] = .85; }
+    else { const l = Math.floor(r() * 3); BX[k] = -64 + r() * lens[b * 3 + l]; BY[k] = -17 + l * 17; BBR[k] = .45; }
+  }
+}
+// The repository slab: an outline and five rows of words.
+function sampleSlab(n) {
+  const r = mulberry(41), segs = []; let tot = 0;
+  for (let row = 0; row < 5; row++) { let x = 790; while (x < ROWEND[row]) { const w = Math.min(24 + r() * 70, ROWEND[row] - x); segs.push([x, x + w, row]); tot += w; x += w + 12; } }
+  SX = new Float32Array(n); SY = new Float32Array(n); SK = new Int8Array(n);
+  for (let k = 0; k < n; k++) {
+    if (r() < .22) { const [x, y] = rectPt(r(), 380, 870, 1540, 1024); SX[k] = x; SY[k] = y; SK[k] = -1; continue; }
+    let u = r() * tot, s = segs[0]; for (const g of segs) { if (u <= g[1] - g[0]) { s = g; break; } u -= g[1] - g[0]; }
+    SX[k] = s[0] + u; SY[k] = ROWY[s[2]] + (r() - .5) * 2; SK[k] = s[2];
+  }
+}
+// One loaded playbook: an outline, a title bar and fifteen lines.
+function samplePanel(n) {
+  const r = mulberry(51), lines = []; for (let l = 0; l < 15; l++) lines.push([r() < .3 ? 928 : 904, 120 + r() * 280]);
+  PX = new Float32Array(n); PY = new Float32Array(n); PB = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const q = r();
+    if (q < .22) { const [x, y] = rectPt(r(), 880, 290, 1360, 760); PX[k] = x; PY[k] = y; PB[k] = .7; }
+    else if (q < .3) { PX[k] = 904 + r() * 250; PY[k] = 318 + (r() - .5) * 3; PB[k] = 1.05; }
+    else { const l = Math.floor(r() * 15); PX[k] = lines[l][0] + r() * lines[l][1]; PY[k] = 350 + l * 26 + (r() - .5) * 1.5; PB[k] = .5; }
+  }
+}
+// The skill index: 24 lines, each broken into words, so a line reads as text even when it thickens.
+function sampleIndex(n) {
+  IR = new Uint8Array(n); IU = new Float32Array(n); const r = mulberry(61), words = [];
+  for (let row = 0; row < 24; row++) { const w = []; let u = 0; while (u < 1) { const len = Math.min(.09 + r() * .16, 1 - u); w.push([u, len]); u += len + .045; } words.push(w); }
+  for (let k = 0; k < n; k++) {
+    const row = Math.min(23, Math.floor(k * 24 / n)), w = words[row], tot = w.reduce((s, x) => s + x[1], 0);
+    let u = r() * tot, pos = 0; for (const [a, len] of w) { if (u <= len) { pos = a + u; break; } u -= len; }
+    IR[k] = row; IU[k] = pos;
+  }
+}
+
+// ---- role functions fn(t, i, k, n, P) write position x,y, brightness b, amber mix a, white mix w, size s
+const Pd = {x: 0, y: 0, b: 0, a: 0, w: 0, s: 1};
+function dust(t, i, P) {
+  const r1 = R1[i], r3 = R3[i], r4 = R4[i];
+  P.x = ((r1 * 2100 + t * (5 + r3 * 14) * DRIFT) % 2100) - 90;
+  P.y = R2[i] * 1100 - 10 + Math.sin(t * .21 + r4 * 6.283) * 22 * DRIFT + Math.sin(t * .05 + r1 * 9) * 26 * DRIFT;
+  P.b = DUST * (.25 + .75 * r4 * r4) * (.7 + .3 * Math.sin(t * 1.3 + r3 * 40)) * (1 - .55 * sm((t - START.resolve) / 2));
+  P.a = 0; P.w = 0; P.s = .6 + r3 * .6;
+}
+const dustFn = (t, i, k, n, P) => dust(t, i, P);
+const hidden = (t, i, k, n, P) => { P.x = 960; P.y = 540; P.b = 0; };
+// Gather out of the dust (arrival: ease-out), or scatter back into it (exit: ease-in, burst outwards).
+function fromDust(P, t, t0, d, i) {
+  const p = eo((t - t0) / d); if (p >= 1) return; dust(t, i, Pd); const g = Math.sin(Math.PI * p) * FLIGHT_GLOW * .8;
+  P.x = lerp(Pd.x, P.x, p); P.y = lerp(Pd.y, P.y, p); P.b = lerp(Pd.b, P.b, p) + g; P.a *= p; P.w *= p; P.s = lerp(Pd.s, P.s, p);
+}
+function toDust(P, t, t0, d, i, cx, cy, burst) {
+  if (t <= t0) return; const q = ei((t - t0) / d), q2 = sm((t - t0) / (d * 1.3)); dust(t, i, Pd);
+  const bx = P.x + (P.x - cx) * burst * q, by = P.y + (P.y - cy) * burst * q;
+  P.x = lerp(bx, Pd.x, q2); P.y = lerp(by, Pd.y, q2); P.b = lerp(P.b * (1 + (1 - q) * .9), Pd.b, q2); P.a *= 1 - q2; P.w *= 1 - q2;
+}
+function mixDust(P, t, i, f) { if (f <= 0) return; dust(t, i, Pd); P.x = lerp(P.x, Pd.x, f); P.y = lerp(P.y, Pd.y, f); P.b = lerp(P.b, Pd.b, f); P.a *= 1 - f; P.w *= 1 - f; }
+function spark(P, t, i, x, y, b, am) {
+  const r3 = R3[i], dir = R4[i] < .5 ? 1 : -1, ang = R1[i] * TAU + t * (1.2 + R2[i] * 2.6) * dir, rad = 2 + Math.pow(r3, 2.4) * 30;
+  P.x = x + Math.cos(ang) * rad; P.y = y + Math.sin(ang) * rad * .85; P.b = b * (1.7 - rad / 22); P.a = am; P.w = .45 * (1 - r3); P.s = 1.15;
+}
+function glitch(P, t, i, g) { P.x += Math.sin(t * 37 + R1[i] * 60) * 5 * g * R2[i]; P.y += Math.cos(t * 29 + R2[i] * 50) * 3 * g; P.b *= 1 + g * .6 * Math.abs(Math.sin(t * 23 + R4[i] * 9)); }
+// Secondary motion for built things that hold still: each block sways a pixel on its own phase and a
+// faint scan line runs down the stage every 3.2 s. Neither changes a shape or the layout.
+function alive(P, t, b) { P.y += Math.sin(t * .9 + b * 1.5) * 1.2; const sy = ((t * .31) % 1) * 1400 - 200; P.b += .22 * Math.exp(-(((P.y - sy) / 26) ** 2)); }
+const twinkle = (t, i) => .85 + .15 * Math.sin(t * 2.1 + R1[i] * 40);
+function fixBurst(P, t, i, tx) { if (t <= tx) return; const q = eo((t - tx - R3[i] * .15) / .55); P.x += (R1[i] - .5) * 50 * (1 - q); P.y += (R2[i] - .5) * 50 * (1 - q); P.b += .9 * (1 - q); }
+
+// Cold open. Monday: the agent snags on one block, you correct it in the chat, it finishes; the chat
+// ends and the correction scatters with it. Thursday: a new session snags on the same block, beside
+// the empty dashed outline where the correction was.
+let SESS = [], C1 = [], NOTE = {};
+const sessionAt = t => { for (const s of SESS) if (t >= s.start && t < s.end) return s; return null; };
+function coldBuild(t, i, k, n, P) {
+  const s = sessionAt(t); if (!s) { dust(t, i, P); return; }
+  const b = BB[k], tb = s.tb[b] + R3[i] * .12; if (t < tb) { dust(t, i, P); return; }
+  P.x = C1[b].x + BX[k]; P.y = C1[b].y + BY[k]; P.b = BBR[k]; alive(P, t, b);
+  if (b === 5) { const g = clamp((t - s.ts) / .3) * (1 - sm((t - s.tfix) / .3)); P.a = g; glitch(P, t, i, g); fixBurst(P, t, i, s.tfix); }
+  fromDust(P, t, tb, .45, i); toDust(P, t, s.td + R3[i] * .25, .7, i, 960, 540, .35);
+}
+function coldSpark(t, i, k, n, P) {
+  const s = sessionAt(t); if (!s) { hidden(t, i, k, n, P); return; }
+  const p = s.path(t), b = eo((t - s.start) / .3) * (1 - sm((t - s.td) / .4)), am = sm((t - s.ts) / .3) * (1 - sm((t - s.tfix) / .3));
+  spark(P, t, i, p.x + (am ? Math.sin(t * 41) * 4 * am : 0), p.y, b * (1 + am * .3 * Math.sin(t * 30)), am);
+}
+function coldNote(t, i, k, n, P) {
+  const thread = k < n * .22, u0 = (k - n * .22) / (n * .78);
+  if (t < NOTE.ghost) {
+    if (thread) {
+      if (t < NOTE.readA || t > NOTE.readZ + .4) { dust(t, i, P); return; }
+      const u = (R1[i] + t * .9) % 1, sp = SESS[0].path(t);
+      P.x = lerp(NOTE.x0, sp.x + 30, u); P.y = lerp(NOTE.y, sp.y, u) + (R2[i] - .5) * 4;
+      P.b = Math.sin(Math.PI * u) * .7 * sm((t - NOTE.readA) / .3) * (1 - sm((t - NOTE.readZ) / .4)); P.w = .8; return;
+    }
+    if (t < NOTE.inT + R3[i] * .35) { dust(t, i, P); return; }
+    const [x, y] = rectPt(u0, NOTE.x0, NOTE.y - 40, NOTE.x1, NOTE.y + 40); P.x = x; P.y = y; P.b = .3 * twinkle(t, i); P.w = 1;
+    fromDust(P, t, NOTE.inT + R3[i] * .35, .6, i); toDust(P, t, NOTE.outT + R3[i] * .3, .8, i, (NOTE.x0 + NOTE.x1) / 2, NOTE.y, .5); return;
+  }
+  if (thread || (k / n * 40) % 1 < .5 || R4[i] > .5) { dust(t, i, P); return; }
+  const [x, y] = rectPt(u0, NOTE.x0, NOTE.y - 40, NOTE.x1, NOTE.y + 40); P.x = x; P.y = y;
+  P.b = .22 * (.55 + .45 * Math.sin(t * 9 + R1[i])) * sm((t - NOTE.ghost) / .6); P.w = 1; fromDust(P, t, NOTE.ghost + R3[i] * .3, .6, i);
+}
+
+// Flash and resolve: the H mark, flashed by a scan line, or crossed by a slow sheen.
+function markFn(cx, cy, sc, o = {}) {
+  const top = cy - 150 * sc - 30, bot = cy + 150 * sc + 30;
+  return (t, i, k, n, P) => {
+    const x = cx + MX[i] * sc, y = cy + MY[i] * sc; P.x = x + Math.sin(t * .7 + R1[i] * 6.3) * 1.1; P.y = y + Math.cos(t * .6 + R2[i] * 6.3) * 1.1;
+    let b = ME[i] ? .95 : .42, w = 0;
+    if (o.scan) { const [a, z] = o.scan; if (t > a && t < z + .4) { const ys = lerp(top, bot, eio((t - a) / (z - a))), g = Math.exp(-(((y - ys) / 24) ** 2)); b += g * 1.4; w = g * .7; } b += .18 * sm((t - z) / .6); }
+    if (o.sheen != null) { const u = ((t - o.sheen) % 5) / 2; if (t > o.sheen && u < 1.2) { const pos = cx + lerp(-420, 420, u / 1.2), d = (x - pos) + (y - cy) * .6, g = Math.exp(-((d / 46) ** 2)); b += g * .9; w = g * .5; } }
+    P.b = b; P.w = w; P.a = 0; P.s = 1;
+  };
+}
+let T = {};
+function slab(t, i, k, n, P) {
+  P.x = SX[k]; P.y = SY[k]; let b = .5 * twinkle(t, i);
+  if (SK[k] === 2) { const e = sm((t - T.readA) / .3) * (1 - sm((t - T.readZ) / .5)); b += e * 1.1; P.w = e * .35; }
+  P.b = b;
+}
+
+// Remembered: the next session reads pitfalls.md first, then builds the whole pyramid.
+let TB3 = [], SP3 = null;
+function recallBuild(t, i, k, n, P) {
+  const b = BB[k], tb = TB3[b] + R3[i] * .12; if (t < tb) { dust(t, i, P); return; }
+  P.x = C1[b].x + BX[k]; P.y = C1[b].y + BY[k]; P.b = BBR[k] + .25 * sm((t - TB3[9] - .4) / .6) * Math.exp(-(((t - TB3[9] - .9) / .7) ** 2)); alive(P, t, b);
+  fromDust(P, t, tb, .45, i);
+}
+function recallSpark(t, i, k, n, P) { if (t < T.ign3) { hidden(t, i, k, n, P); return; } const p = SP3(t); spark(P, t, i, p.x, p.y, eo((t - T.ign3) / .35) * (1 + 1.4 * Math.exp(-(((t - (TB3[5] - .15)) / .14) ** 2))), 0); }
+function thread(t, i, k, n, P) { const u = (R1[i] + t * .9) % 1; P.x = 720 + (R2[i] - .5) * 6; P.y = lerp(945, 772, u); P.b = Math.sin(Math.PI * u) * .85; P.w = .2; }
+
+// Token-efficient: a skill index of one line each; loading every playbook fills the context; the task
+// calls one, which unfolds into a playbook while the meter barely moves.
+const expandE = t => sm((t - T.exA) / .6) * (1 - ei((t - T.exZ) / .45));
+const level = t => .05 + .95 * expandE(t) + .08 * eo((t - T.call) / .8);
+function index(t, i, k, n, P) {
+  // Loading every playbook: each line spreads into three longer lines of text.
+  const r = IR[k], e = expandE(t), sub = Math.floor(R2[i] * 3);
+  P.x = 440 + IU[k] * IDXLEN[r] * (1 + e * (.5 + .4 * sub)); P.y = 290 + r * 20 + (sub - 1) * 5.5 * e;
+  P.b = (.42 + e * .3) * twinkle(t, i); P.a = e * .85;
+  if (r === 9) { const h = sm((t - T.hl9) / .3); P.b += h * .9; P.w = h * .3; }
+}
+function meter(t, i, k, n, P) {
+  const lv = level(t), no = Math.floor(n * .35);
+  if (k < no) { const [x, y] = rectPt(k / no, 1540, 290, 1580, 760); P.x = x; P.y = y; P.b = .5; }
+  else { const f = (k - no) / (n - no); P.x = 1545 + R2[i] * 30; P.y = f < lv ? 756 - f * 462 : 756 - lv * 462; P.b = f < lv ? .8 : 0; }
+  P.a = sm((lv - .45) / .3);
+}
+function row9(t, i, k, n, P) { P.x = 440 + R1[i] * IDXLEN[9]; P.y = 470 + (R2[i] - .5) * 2; P.b = .8; P.w = .2; }
+function panel(t, i, k, n, P) { P.x = PX[k] + Math.sin(t * .8 + R1[i] * 6) * .6; P.y = PY[k]; P.b = PB[k] * twinkle(t, i); alive(P, t, 0); }
+let SP4 = null;
+function skillsSpark(t, i, k, n, P) { if (t < T.task) { hidden(t, i, k, n, P); return; } const p = SP4(t); spark(P, t, i, p.x, p.y, eo((t - T.task) / .3) * (1 - ei((t - T.taskEnd) / .4)), 0); }
+
+// Audited: a DONE stamp slams and cracks; an amber lens sweeps with fresh context and flags two blocks;
+// the builder fixes them; a recheck passes; you approve.
+let CA = [], FLAG = {}, LENS = null, SP5 = null;
+function auditBuild(t, i, k, n, P) {
+  const b = BB[k]; P.x = CA[b].x + BX[k]; P.y = CA[b].y + BY[k]; P.b = BBR[k] + .3 * sm((t - T.verified) / .5); alive(P, t, b);
+  const fl = FLAG[b];
+  if (fl) { const [tf, tx] = fl; if (t > tf && t < tx + .6) { const g = sm((t - tf) / .25) * (1 - sm((t - tx) / .3)); P.a = g; glitch(P, t, i, g); } fixBurst(P, t, i, tx); }
+}
+function stamp(t, i, k, n, P) {
+  const r = k & 1 ? 104 : 90, th = TAU * k / n, s = t < T.slam ? 1.35 : 1 + .35 * (1 - backOut(clamp((t - T.slam) / .28), 1.6));
+  let x = Math.cos(th) * r * s, y = Math.sin(th) * r * s, b = t < T.slam ? .3 : .95 + .8 * Math.exp(-(((t - T.slam) / .12) ** 2));
+  if (t > T.crack) { const q = (t - T.crack) / 1.1, side = Math.cos(th) * .8 + Math.sin(th) * .6 > 0 ? 1 : -1; x += side * 60 * eo(q); y += -side * 10 * eo(q) + 300 * q * q; b *= 1 - sm(q / .9); }
+  P.x = 860 + x; P.y = 520 + y; P.b = b; P.w = .15;
+}
+function lens(t, i, k, n, P) {
+  const p = LENS(t), f = k / n; let x, y;
+  if (f < .64) { const th = TAU * f / .64; x = Math.cos(th) * 52; y = Math.sin(th) * 52; } else { const d = 52 + (f - .64) / .36 * 46; x = Math.cos(.785) * d + (R2[i] - .5) * 3; y = Math.sin(.785) * d; }
+  P.x = p.x + x; P.y = p.y + y; P.a = 1; P.b = .2; P.w = 0;
+}
+function connector(t, i, k, n, P) { const u = (R1[i] + t * .45) % 1; P.x = lerp(1240, 1500, u); P.y = 540 + (R2[i] - .5) * 3; P.b = (.35 + .4 * sm((t - T.approve) / .5)) * Math.sin(Math.PI * u); }
+function person(t, i, k, n, P) {
+  const lit = eo((t - T.approve) / .5), f = k / n;
+  if (f < .4) { const th = TAU * f / .4; P.x = 1580 + Math.cos(th) * 30; P.y = 470 + Math.sin(th) * 30; }
+  else { const th = Math.PI + Math.PI * (f - .4) / .6; P.x = 1580 + Math.cos(th) * 64; P.y = 590 + Math.sin(th) * 62; }
+  P.b = .16 + .3 * lit; P.w = .7 * lit;
+}
+function auditSpark(t, i, k, n, P) { const p = SP5(t); spark(P, t, i, p.x, p.y, .9, 0); }
+
+// Every round: the five-stage loop, three laps that speed up, each finding dropped into the repository.
+let LAPS = [], TG = [];
+const SEG = [[1100, 1210, 2], [1170, 1280, 3], [1230, 1340, 2]], RC = {x: 1100, y: 510, r: 260};
+function phi(t) {
+  if (t < LAPS[0][0]) return 0;
+  for (let j = 0; j < 3; j++) { const [a, b] = LAPS[j]; if (t < b) { const u = (t - a) / (b - a); return j + (j === 0 ? 2 * u * u - u * u * u : j === 2 ? u + u * u - u * u * u : u); } }
+  return 3;
+}
+const theta = t => -Math.PI / 2 + TAU * phi(t), lapsDone = t => LAPS.reduce((s, l) => s + sm((t - l[1]) / .5), 0);
+const nodePos = j => { const a = (-90 + 72 * j) * Math.PI / 180; return {x: RC.x + Math.cos(a) * RC.r, y: RC.y + Math.sin(a) * RC.r, a}; };
+function loopRing(t, i, k, n, P) {
+  const Ls = lapsDone(t), th = TAU * k / n - Math.PI / 2, r = RC.r + (R3[i] - .5) * (3 + Ls * 5);
+  P.x = RC.x + Math.cos(th) * r; P.y = RC.y + Math.sin(th) * r;
+  const behind = ((theta(t) - th) % TAU + TAU) % TAU, tail = t > LAPS[0][0] && t < LAPS[2][1] + .6 ? Math.exp(-behind / .7) : 0;
+  P.b = (.3 + .2 * Ls) * twinkle(t, i) + 1.1 * tail; P.w = .25 * tail; mixDust(P, t, i, 1 - sm((.42 + .19 * Ls - R4[i]) / .06));
+}
+function nodes(t, i, k, n, P) {
+  const j = Math.min(4, Math.floor(k * 5 / n)), np = nodePos(j), u = k * 5 / n - j;
+  P.x = np.x + Math.cos(u * TAU) * 24; P.y = np.y + Math.sin(u * TAU) * 24;
+  let d = Math.abs(((theta(t) - np.a) % TAU + TAU) % TAU); d = Math.min(d, TAU - d);
+  const g = t < LAPS[2][1] + .3 ? Math.exp(-((d / .25) ** 2)) * 1.1 : 0; P.b = .55 + g; P.w = g * .35;
+  if (j === 3) { let f = 0; for (const tg of TG) f = Math.max(f, Math.exp(-(((t - tg) / .35) ** 2))); P.a = f; P.b += f * .6; }
+}
+function packets(t, i, k, n, P) {
+  const half = Math.floor(n * .5); if (k >= half) { dust(t, i, P); return; }
+  const m = Math.min(2, Math.floor(k * 3 / half)), tg = TG[m], gs = tg - .25 + R3[i] * .2; if (t < gs) { dust(t, i, P); return; }
+  const np = nodePos(3), ang = R1[i] * TAU + t * 2, rad = Math.sqrt(R2[i]) * 16, cx = np.x + Math.cos(ang) * rad, cy = np.y + Math.sin(ang) * rad;
+  const s = SEG[m], tx = lerp(s[0], s[1], R1[i]), ty = ROWY[s[2]] + (R2[i] - .5) * 2, fs = tg + .45 + R4[i] * .25, fd = .8, u = clamp((t - fs) / fd), f = eio(u);
+  P.x = lerp(cx, tx, f); P.y = lerp(cy, ty, f) - Math.sin(Math.PI * u) * 30; P.a = 1 - f; P.b = u < 1 ? 1 : .55 + .6 * (1 - sm((t - fs - fd) / 1.5));
+  fromDust(P, t, gs, .45, i);
+}
+function orbitSpark(t, i, k, n, P) { const th = theta(t); spark(P, t, i, RC.x + Math.cos(th) * RC.r, RC.y + Math.sin(th) * RC.r, 1.1, 0); }
+
+// ---- timeline: per role, keyframes {at, dur, stag, fn, exit}; an exit eases in, an arrival eases out
+// with a small overshoot.
+let TR;
+function timeline() {
+  const kf = (at, fn, dur = MORPH, stag = STAGGER) => ({at, fn, dur, stag, exit: false});
+  const out = (at, dur = MORPH * .75, stag = STAGGER) => ({at, fn: dustFn, dur, stag, exit: true});
+  const C = x => L('cold', x), F = x => L('flash', x), Rc = x => L('recall', x), K = x => L('skills', x), A = x => L('audit', x), R = x => L('round', x);
+  C1 = blockCenters(960, 540);
+  SESS = [[.3, .45, 9.4, 5.8, 6.1, .38], [9.7, .22, 0, 0, 0, 0]].map(([st, pace, en, fix, resume, p2]) => {
+    const start = C(st), end = en ? C(en) : START.flash, tb = new Array(10).fill(Infinity);
+    for (let j = 0; j <= 5; j++) tb[j] = start + .6 + j * pace;
+    if (resume) for (let j = 6; j < 10; j++) tb[j] = C(resume) + (j - 6) * p2;
+    const at = (j, x) => [x, C1[j].x, C1[j].y - 6], keys = [at(0, start)];
+    for (let j = 0; j <= 5; j++) { keys.push(at(j, tb[j])); if (j < 5) keys.push(at(j, tb[j] + pace * .35)); }
+    if (resume) { keys.push(at(5, tb[6] - p2 * .9)); for (let j = 6; j < 10; j++) { keys.push(at(j, tb[j])); keys.push(at(j, tb[j] + p2 * .35)); } }
+    return {start, end, tb, ts: tb[5], tfix: fix ? C(fix) : Infinity, td: en ? end - .9 : Infinity, path: path(keys)};
+  });
+  NOTE = {x0: 1250, x1: 1640, y: 560, inT: C(3.8), readA: C(4.8), readZ: C(5.7), outT: C(8.3), ghost: C(11.6)};
+  TB3 = [...Array(10)].map((_, j) => Rc(4) + j * .34);
+  T = {ign3: Rc(.4), readA: Rc(1.4), readZ: Rc(3.4), exA: K(1.8), exZ: K(3.8), task: K(4.2), taskEnd: K(5.6), hl9: K(4.7), call: K(5), slam: A(1.1), crack: A(2.7), verified: A(10.2), approve: A(12)};
+  const k3 = [[T.ign3, 960, 420], [Rc(1.3), 720, 760], [Rc(3.2), 720, 760]];
+  for (let j = 0; j < 10; j++) { k3.push([TB3[j], C1[j].x, C1[j].y - 6]); k3.push([TB3[j] + .12, C1[j].x, C1[j].y - 6]); }
+  SP3 = path(k3); SP4 = path([[T.task, 700, 200], [K(4.75), 430, 470]]);
+  CA = blockCenters(860, 540); FLAG = {3: [A(5.3), A(7.9)], 7: [A(6.6), A(8.6)]};
+  LENS = path([[A(4), 1350, 420], [A(4.5), 1350, 420], [A(5.3), 1142, 640], [A(5.7), 1142, 640], [A(6.6), 766, 470], [A(7), 766, 470], [A(7.6), 480, 420], [A(9.3), 480, 420], [A(10.2), 1350, 420]]);
+  SP5 = path([[A(0), 860, 316], [A(7.5), 860, 316], [A(7.9), 1142, 664], [A(8.2), 1142, 664], [A(8.6), 766, 472], [A(8.9), 766, 472], [A(9.3), 860, 316]]);
+  LAPS = [[1.2, 4], [4, 6.2], [6.2, 7.8]].map(([a, b]) => [R(a), R(b)]);
+  TG = [0, 1, 2].map(m => { let lo = LAPS[m][0], hi = LAPS[m][1]; for (let q = 0; q < 40; q++) { const mid = (lo + hi) / 2; phi(mid) < m + .6 ? lo = mid : hi = mid; } return lo; });
+  const toC2 = kf(F(0), markFn(960, 560, 1.45, {scan: [F(2), F(4.2)]}), 2, .6), out2 = out(F(7.2), 1.2, .5);
+  const toC7 = kf(L('resolve', 0), markFn(960, 410, 1.05, {sheen: L('resolve', 2.8)}), 2.4, .55);
+  TR = {
+    SPARK: [kf(0, coldSpark), kf(F(0), hidden), kf(Rc(0), recallSpark), kf(K(0), skillsSpark), kf(A(0), auditSpark), kf(R(0), orbitSpark), toC7],
+    BUILD: [kf(0, coldBuild), toC2, out2, kf(Rc(0), recallBuild), out(K(0)), kf(K(4.6), row9, .7, .3), kf(K(5.3), panel, 1, .3), kf(A(0), auditBuild), kf(R(0), packets), toC7],
+    RING: [kf(0, dustFn), toC2, out2, kf(K(0), meter), kf(A(.2), stamp, .6, .2), out(A(3.9)), kf(A(10.8), person, 1, .3), kf(R(0), loopRing), toC7],
+    SLAB: [kf(0, dustFn), toC2, kf(F(7.2), slab, 1.6, .5), toC7],
+    AUX: [kf(0, coldNote), toC2, out2, kf(Rc(1.3), thread, .7, .3), out(Rc(3.3), .7, .4), kf(K(0), index), out(A(0)), kf(A(4), lens, .8, .25), out(A(10.5), .6, .3), kf(A(10.9), connector, .8, .3), kf(R(0), nodes), toC7],
+    DUST: [kf(0, dustFn)],
+  };
+}
+// Staggered morph: each particle starts its transition at a seeded offset; when a keyframe begins before
+// the previous transition ends, the previous one is evaluated as its own blend, so nothing jumps.
+const POOL = Array.from({length: 10}, () => ({x: 0, y: 0, b: 0, a: 0, w: 0, s: 1}));
+function evalTrack(tr, j, t, i, k, n, d) {
+  const P = POOL[d]; P.b = 1; P.a = 0; P.w = 0; P.s = 1; const f = tr[j]; f.fn(t, i, k, n, P);
+  if (j === 0 || d >= 8) return P;
+  const u = (t - f.at - R1[i] * f.stag * f.dur) / (f.dur * (1 - f.stag)); if (u >= 1) return P;
+  const A = evalTrack(tr, j - 1, t, i, k, n, d + 1); if (u <= 0) return A;
+  const e = f.exit ? ei(u) : backOut(u, BOUNCE), dx = P.x - A.x, dy = P.y - A.y, off = Math.sin(Math.PI * u) * ARC * (R2[i] - .5) * 2;
+  const glow = Math.sin(Math.PI * u) * FLIGHT_GLOW * Math.min(1, Math.hypot(dx, dy) / 260) * Math.min(1, (A.b + P.b) * 2);
+  P.x = A.x + dx * e - dy * off; P.y = A.y + dy * e + dx * off; P.b = A.b + (P.b - A.b) * u + glow; P.a = A.a + (P.a - A.a) * u; P.w = A.w + (P.w - A.w) * u; P.s = A.s + (P.s - A.s) * u;
+  return P;
+}
+function fillBuf(t) {
+  for (const name in ROLES) {
+    const R = ROLES[name], tr = TR[name]; let j = 0; for (let q = 1; q < tr.length; q++) if (tr[q].at <= t) j = q;
+    for (let k = 0; k < R.n; k++) { const i = R.start + k, P = evalTrack(tr, j, t, i, k, R.n, 0), o = i * 6; buf[o] = P.x; buf[o + 1] = P.y; buf[o + 2] = P.b > 0 ? P.b : 0; buf[o + 3] = P.a; buf[o + 4] = P.w; buf[o + 5] = P.s; }
+  }
+}
+
+// ---- captions: [from, to, class, x, y, html] on the 1920 x 1080 stage; statements rise word by word
+function captions() {
+  const C = [], cap = (a, b, cls, x, y, h) => C.push({a, b, cls, x, y, h});
+  const c = x => L('cold', x), F = x => L('flash', x), Rc = x => L('recall', x), K = x => L('skills', x), A = x => L('audit', x), R = x => L('round', x), Z = x => L('resolve', x);
+  const [s1, s2] = SESS;
+  cap(s1.start, s1.end, 'mono', 120, 104, 'MONDAY');
+  cap(s1.ts, s1.tfix + .3, 'mono amb c', 960, 770, 'TEST DATABASE NOT RESET');
+  cap(NOTE.inT + .2, NOTE.outT + .3, 'mono s', NOTE.x0, NOTE.y - 74, 'YOU');
+  cap(NOTE.inT + .5, NOTE.outT + .3, 'mono q', NOTE.x0 + 22, NOTE.y - 14, 'Reset the test database first.');
+  cap(s1.tfix, c(7.9), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
+  cap(c(8), s1.end, 'mono c', 960, 770, 'CHAT ENDS');
+  cap(s2.start, c(11.9), 'mono', 120, 104, 'THURSDAY · NEW SESSION');
+  cap(s2.ts, START.flash, 'mono amb c', 960, 770, 'TEST DATABASE NOT RESET');
+  cap(c(12), START.flash, 'stmt', 120, 84, 'Every session starts from <em>zero</em>');
+  cap(c(12.6), START.flash, 'mono', 124, 168, 'THE CORRECTION LIVED IN THE CHAT. THE CHAT ENDED.');
+  cap(F(1.8), F(6.8), 'mono grn', 1440, 340, 'FLASHING');
+  ['CLAUDE.md', 'AGENTS.md', '.claude/reference/', '.claude/skills/', '.agents/skills/'].forEach((f, j) => cap(F(2.2 + j * .35), F(6.8), 'mono file', 1440, 380 + j * 30, f));
+  cap(F(2), F(6.8), 'mono c', 960, 832, 'HARNESS FIRMWARE');
+  cap(F(3.8), F(10), 'stmt', 120, 84, 'Memory, skills and review, built into the <em>repository</em>');
+  cap(F(7.8), R(10), 'mono s', 384, 842, 'YOUR REPOSITORY');
+  ['CLAUDE.md · AGENTS.md', '.claude/reference/architecture.md', '.claude/reference/pitfalls.md', '.claude/skills/', '.agents/skills/'].forEach((f, r) => cap(F(8 + r * .12), R(10), 'mono s file', 404, ROWY[r] - 10, f));
+  cap(Rc(.2), Rc(7), 'mono', 120, 104, 'NEXT SESSION · WITH HARNESS FIRMWARE');
+  cap(Rc(1.7), Rc(6.6), 'mono q', 748, 772, 'pitfalls.md · 2026-03-14<br><b>Reset the test database first.</b>');
+  cap(TB3[5] - .3, Rc(7.2), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
+  cap(Rc(7.2), Rc(11), 'stmt', 120, 84, 'What one session learns, the next one <em>reads</em>');
+  cap(K(.8), K(10), 'mono s', 440, 252, 'SKILL INDEX · ONE LINE EACH');
+  cap(K(.8), K(10), 'mono s c', 1560, 252, 'CONTEXT');
+  cap(K(2.1), K(4), 'mono amb c', 1560, 782, 'FULL');
+  cap(K(2.1), K(4), 'mono amb', 1100, 470, 'LOAD EVERY PLAYBOOK?');
+  cap(K(4.2), K(6), 'mono c', 700, 150, 'NEW TASK · REVIEW THE DIFF');
+  cap(K(4.8), K(10), 'mono s grn r', 426, 462, 'codex-review');
+  cap(K(5.6), K(10), 'mono s', 880, 252, 'codex-review/SKILL.md · LOADED ON CALL');
+  cap(K(6.2), K(10), 'stmt', 120, 84, 'Skills load only when a task <em>needs</em> them');
+  cap(A(.9), A(2.7), 'mono s', 985, 508, 'SELF-REPORTED');
+  cap(A(1.1), A(2.7), 'mono grn c big', 860, 500, 'DONE');
+  cap(A(2.9), A(10.6), 'stmt', 120, 84, 'The builder never grades its own <em>work</em>');
+  cap(A(4.2), A(10.4), 'mono amb', 1300, 322, 'CODEX · FRESH CONTEXT');
+  cap(A(5.4), A(6.6), 'mono amb', 1300, 350, 'FINDINGS: 1'); cap(A(6.6), A(8.6), 'mono amb', 1300, 350, 'FINDINGS: 2');
+  cap(A(8.6), A(10.3), 'mono grn', 1300, 350, 'FIXED · RECHECKING'); cap(A(10.3), A(14), 'mono grn', 1300, 350, 'VERIFIED');
+  cap(A(11), A(14), 'mono s c', 1580, 680, 'YOU'); cap(A(12.1), A(14), 'mono grn c', 1580, 706, 'APPROVED');
+  cap(A(10.9), A(14), 'stmt', 120, 84, 'A second model checks it. <em>You</em> approve');
+  ['Recall', 'Plan', 'Execute', 'Audit', 'Integrate'].forEach((nm, j) => { const a = (-90 + 72 * j) * Math.PI / 180; cap(R(.6 + j * .1), R(10), 'lbl c', RC.x + Math.cos(a) * (RC.r + 62), RC.y + Math.sin(a) * (RC.r + 62) - 11, nm); });
+  LAPS.forEach((l, j) => cap(l[0], j === 2 ? R(9.8) : l[1], 'mono c', RC.x, RC.y - 12, `ROUND ${j + 1}`));
+  TG.forEach((tg, m) => cap(tg + 1.3, tg + 3, 'mono s grn', SEG[m][0], ROWY[SEG[m][2]] - 30, '+1 LESSON'));
+  cap(R(5), R(10), 'stmt', 120, 84, 'Each round starts from what the last one <em>learned</em>');
+  cap(Z(2.2), TOTAL + 1, 'stmt c big', 960, 606, 'Better outcomes, every <em>round</em>');
+  cap(Z(3.2), TOTAL + 1, 'mono c', 960, 730, 'HARNESS FIRMWARE · FOR CLAUDE CODE AND CODEX');
+  cap(Z(3.6), TOTAL + 1, 'mono grn c url', 960, 772, 'harnessfirmware.com');
+  return C;
+}
+function splitWords(el) {
+  const out = [];
+  const walk = n => { for (const c of [...n.childNodes]) { if (c.nodeType === 3) { const fr = document.createDocumentFragment(); for (const p of c.textContent.split(/(\s+)/)) { if (!p) continue; if (/^\s+$/.test(p)) fr.append(p); else { const s = document.createElement('span'); s.className = 'w'; s.textContent = p; out.push(s); fr.append(s); } } c.replaceWith(fr); } else walk(c); } };
+  walk(el); return out;
+}
+
+// ---- WebGL2
+const FS_VS = `#version 300 es
+out vec2 v;void main(){vec2 p=vec2(gl_VertexID==1?3.:-1.,gl_VertexID==2?3.:-1.);v=p*.5+.5;gl_Position=vec4(p,0,1);}`;
+const SHADERS = {
+  pv: `#version 300 es
+layout(location=0) in vec4 a_p;layout(location=1) in vec2 a_q;uniform float u_px,u_ps,u_gain;uniform vec3 u_g,u_am,u_pa;out vec3 vc;
+void main(){gl_Position=vec4(a_p.x/960.-1.,1.-a_p.y/540.,0,1);gl_PointSize=a_p.z>.002?max(1.5,a_q.y*u_ps*u_px):0.;vc=mix(mix(u_g,u_am,clamp(a_p.w,0.,1.)),u_pa,clamp(a_q.x,0.,1.))*a_p.z*u_gain;}`,
+  pf: `#version 300 es
+precision highp float;in vec3 vc;out vec4 o;void main(){float d=length(gl_PointCoord-.5)*2.;o=vec4(vc*exp(-d*d*3.5)*step(d,1.),1);}`,
+  decay: `#version 300 es
+precision highp float;uniform sampler2D u_t;uniform float u_k;in vec2 v;out vec4 o;void main(){o=texture(u_t,v)*u_k;}`,
+  blur: `#version 300 es
+precision highp float;uniform sampler2D u_t;uniform vec2 u_d;in vec2 v;out vec4 o;
+void main(){vec4 c=texture(u_t,v)*.227027;c+=(texture(u_t,v+u_d*1.384615)+texture(u_t,v-u_d*1.384615))*.316216;c+=(texture(u_t,v+u_d*3.230769)+texture(u_t,v-u_d*3.230769))*.070270;o=c;}`,
+  comp: `#version 300 es
+precision highp float;uniform sampler2D u_a,u_b,u_c;uniform float u_bloom,u_exp,u_grain,u_vig,u_fade,u_time;uniform vec3 u_ink;uniform vec2 u_res;in vec2 v;out vec4 o;
+float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+void main(){vec3 x=texture(u_a,v).rgb*u_exp+(texture(u_b,v).rgb+texture(u_c,v).rgb*.6)*u_bloom;vec3 m=1.-exp(-x*1.25);float l=max(max(x.r,x.g),x.b);m+=vec3(max(l-1.2,0.)*.12);
+vec2 q=v-.5;vec3 col=(u_ink+m)*(1.-u_vig*dot(q,q)*2.2)*u_fade;col+=(h(floor(v*u_res)+fract(u_time)*97.)-.5)*u_grain;o=vec4(col,1);}`,
+};
+function renderer(canvas) {
+  const gl = canvas.getContext('webgl2', {antialias: false, alpha: false, premultipliedAlpha: false});
+  if (!gl) return null;
+  const HF = !!gl.getExtension('EXT_color_buffer_float');
+  const shd = (ty, s) => { const x = gl.createShader(ty); gl.shaderSource(x, s); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+  const prog = (vs, fs) => {
+    const p = gl.createProgram(); gl.attachShader(p, shd(gl.VERTEX_SHADER, vs)); gl.attachShader(p, shd(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {}; for (let j = 0; j < gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); j++) { const a = gl.getActiveUniform(p, j); u[a.name] = gl.getUniformLocation(p, a.name); } return {p, u};
+  };
+  const PP = prog(SHADERS.pv, SHADERS.pf), PD = prog(FS_VS, SHADERS.decay), PB = prog(FS_VS, SHADERS.blur), PC = prog(FS_VS, SHADERS.comp);
+  const vaoFs = gl.createVertexArray(), vaoPts = gl.createVertexArray(), vbo = gl.createBuffer();
+  gl.bindVertexArray(vaoPts); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, buf.byteLength, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 24, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 16); gl.bindVertexArray(null);
+  const target = (w, h) => {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, HF ? gl.RGBA16F : gl.RGBA8, w, h, 0, gl.RGBA, HF ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE, null);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return {t, f, w, h};
+  };
+  let cw = 0, ch = 0, acc = [], q1, q2, e1, e2, cur = 0, reset = true;
+  const pass = (P, dst, src, set) => { gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.f : null); gl.viewport(0, 0, dst ? dst.w : cw, dst ? dst.h : ch); gl.useProgram(P.p); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); set(); gl.bindVertexArray(vaoFs); gl.drawArrays(gl.TRIANGLES, 0, 3); };
+  const blur = (d, s, x, y) => pass(PB, d, s, () => { gl.uniform1i(PB.u.u_t, 0); gl.uniform2f(PB.u.u_d, x / s.w, y / s.h); });
+  return {
+    reset() { reset = true; },
+    size(w, h) {
+      if (w === cw && h === ch) return; cw = canvas.width = w; ch = canvas.height = h;
+      for (const o of [...acc, q1, q2, e1, e2]) if (o) { gl.deleteTexture(o.t); gl.deleteFramebuffer(o.f); }
+      acc = [target(w, h), target(w, h)]; q1 = target(w >> 2 || 1, h >> 2 || 1); q2 = target(w >> 2 || 1, h >> 2 || 1); e1 = target(w >> 3 || 1, h >> 3 || 1); e2 = target(w >> 3 || 1, h >> 3 || 1); reset = true;
+    },
+    draw(t, dtF, fade) {
+      if (!cw) return;
+      const k = Math.pow(TRAIL, Math.max(.2, dtF)), A = acc[cur], B = acc[1 - cur]; gl.disable(gl.BLEND);
+      if (reset) { gl.bindFramebuffer(gl.FRAMEBUFFER, A.f); gl.viewport(0, 0, cw, ch); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+      else pass(PD, A, B, () => { gl.uniform1i(PD.u.u_t, 0); gl.uniform1f(PD.u.u_k, k); });
+      gl.bindFramebuffer(gl.FRAMEBUFFER, A.f); gl.viewport(0, 0, cw, ch); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.useProgram(PP.p);
+      gl.uniform1f(PP.u.u_px, cw / W); gl.uniform1f(PP.u.u_ps, POINT_SIZE); gl.uniform1f(PP.u.u_gain, reset ? 1 : 1 - k);
+      gl.uniform3fv(PP.u.u_g, GREEN); gl.uniform3fv(PP.u.u_am, AMBER); gl.uniform3fv(PP.u.u_pa, PAPER);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, buf); gl.bindVertexArray(vaoPts); gl.drawArrays(gl.POINTS, 0, N); gl.disable(gl.BLEND);
+      reset = false; cur = 1 - cur;
+      blur(q1, A, 1.5, 0); blur(q2, q1, 0, 1.5); blur(e1, q2, 1.5, 0); blur(e2, e1, 0, 1.5);
+      pass(PC, null, A, () => {
+        gl.uniform1i(PC.u.u_a, 0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, q2.t); gl.uniform1i(PC.u.u_b, 1); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, e2.t); gl.uniform1i(PC.u.u_c, 2);
+        gl.uniform1f(PC.u.u_bloom, BLOOM); gl.uniform1f(PC.u.u_exp, EXPOSURE); gl.uniform1f(PC.u.u_grain, GRAIN); gl.uniform1f(PC.u.u_vig, VIGNETTE);
+        gl.uniform1f(PC.u.u_fade, fade); gl.uniform1f(PC.u.u_time, t); gl.uniform3fv(PC.u.u_ink, INK); gl.uniform2f(PC.u.u_res, cw, ch);
+      });
+    },
+  };
+}
+
+// ---- mount
+function mount(root) {
+  const stage = root.querySelector('.film-stage'), canvas = root.querySelector('.film-canvas'), ov = root.querySelector('.film-ov');
+  const playBtn = root.querySelector('.film-play'), timeEl = root.querySelector('.film-time'), range = root.querySelector('.film-scrub'), ticks = root.querySelector('.film-ticks');
+  const chapterBtns = [...document.querySelectorAll('[data-film-chapter]')];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  alloc(innerWidth >= 1100 ? 22000 : 12000);
+  let gl = null;
+  try { gl = renderer(canvas); } catch (err) { console.error(err); }
+  if (!gl) { root.dataset.state = 'unsupported'; return; }
+  timeline();
+  const caps = captions().map(c => {
+    const el = document.createElement('div'); el.className = 'fc ' + c.cls; el.style.left = c.x + 'px'; el.style.top = c.y + 'px'; el.innerHTML = c.h;
+    const tx = /\bc\b/.test(c.cls) ? 'translateX(-50%)' : /\br\b/.test(c.cls) ? 'translateX(-100%)' : '';
+    const words = c.cls.includes('stmt') ? splitWords(el) : null; if (words) el.style.transform = tx; ov.append(el);
+    return {el, a: c.a, b: c.b, tx, words, vis: false};
+  });
+  const starts = CHAPTERS.map(([id]) => START[id]);
+  for (const s of starts) { const i = document.createElement('i'); i.style.left = s / TOTAL * 100 + '%'; ticks.append(i); }
+
+  let t = reduced ? TOTAL : 0, state = 'idle', onScreen = false, userPaused = false, raf = 0, last = 0, settle = 0, chapter = -1;
+  const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+  const running = () => state === 'playing' && onScreen && !document.hidden;
+  function setState(s) { state = s; root.dataset.state = s; playBtn.textContent = s === 'playing' ? 'Pause' : s === 'ended' ? 'Replay' : 'Play'; playBtn.setAttribute('aria-label', `${playBtn.textContent} the film`); }
+  function paintUI() {
+    timeEl.textContent = `${fmt(Math.min(t, TOTAL))} / ${fmt(TOTAL)}`;
+    if (document.activeElement !== range) range.value = Math.round(Math.min(t, TOTAL) / TOTAL * 1000);
+    range.style.setProperty('--p', range.value / 1000);
+    range.setAttribute('aria-valuetext', fmt(Math.min(t, TOTAL)));
+    let c = 0; for (let j = 0; j < starts.length; j++) if (t >= starts[j]) c = j;
+    if (c !== chapter) { chapter = c; root.dataset.chapter = c + 1; for (const b of chapterBtns) b.classList.toggle('is-current', +b.dataset.filmChapter === c + 1); }
+    const IN = .7;
+    for (const cp of caps) {
+      let o = 0; if (t >= cp.a && t < cp.b) o = (cp.words ? 1 : eo((t - cp.a) / IN)) * (1 - sm((t - (cp.b - .45)) / .45));
+      if (o <= 0) { if (cp.vis) { cp.el.style.opacity = 0; cp.vis = false; } continue; }
+      cp.vis = true; cp.el.style.opacity = o;
+      if (cp.words) cp.words.forEach((w, j) => { const p = eo((t - cp.a - j * .07) / IN); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 16}px)`; });
+      else cp.el.style.transform = `${cp.tx} translateY(${(1 - eo((t - cp.a) / IN)) * 8}px)`;
+    }
+  }
+  function frame(now) {
+    raf = 0; const dt = last ? Math.min(.1, (now - last) / 1000) : 1 / 60; last = now;
+    if (running()) { t += dt; if (t >= TOTAL) { t = TOTAL; setState('ended'); settle = 30; } }
+    fillBuf(Math.min(t, TOTAL - .001)); gl.draw(t, dt * 60, sm(t / .8)); paintUI();
+    // Keep drawing while playing, and for a moment after a pause or seek so the trails settle.
+    if (running() || --settle > 0) raf = requestAnimationFrame(frame); else last = 0;
+  }
+  const wake = (frames = 45) => { settle = Math.max(settle, frames); if (!raf) raf = requestAnimationFrame(frame); };
+  function play() { if (state === 'ended' || t >= TOTAL) { t = 0; gl.reset(); } userPaused = false; setState('playing'); wake(); }
+  function pause() { userPaused = true; setState('paused'); wake(); }
+  function seek(x) { t = clamp(x, 0, TOTAL); gl.reset(); if (state === 'ended' && t < TOTAL) setState('paused'); wake(); }
+
+  playBtn.addEventListener('click', () => state === 'playing' ? pause() : play());
+  range.addEventListener('input', () => seek(range.value / 1000 * TOTAL));
+  for (const b of chapterBtns) b.addEventListener('click', () => { seek(starts[+b.dataset.filmChapter - 1] + .01); play(); if (!onScreen) root.scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block: 'center'}); });
+  stage.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); playBtn.click(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + 5); } else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(t - 5); }
+  });
+  stage.addEventListener('click', () => playBtn.click());
+  const layout = () => {
+    const w = stage.clientWidth, h = stage.clientHeight; if (!w) return;
+    ov.style.transform = `scale(${w / W})`; const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(h * d)); wake(3);
+  };
+  new ResizeObserver(layout).observe(stage); layout();
+  // Starts once half the stage shows; keeps playing while any of it shows.
+  new IntersectionObserver(([e]) => {
+    onScreen = e.isIntersecting;
+    if (e.intersectionRatio >= .5 && state === 'idle' && !reduced) play();
+    else if (running()) wake();
+  }, {threshold: [0, .5]}).observe(stage);
+  document.addEventListener('visibilitychange', () => { if (running()) { last = 0; wake(); } });
+  setState('idle'); if (reduced) root.dataset.state = 'idle';
+  wake(45);
+}
+
+const root = document.getElementById('film');
+if (root) mount(root);
