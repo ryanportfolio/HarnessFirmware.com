@@ -27,8 +27,9 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .about-hero .lede{margin:0;max-width:30em;justify-self:end;font-size:clamp(15px,1.05vw,18px);line-height:1.45;color:#c2c9ba}
 
 /* ---- the film */
-/* The stage fits the viewport height below the opening, so the whole picture shows at once. */
-.film{padding:0 var(--gutter);--fw:min(100%,calc((100svh - 330px)*16/9))}
+/* The stage fits the viewport height below the opening, so the whole picture shows at once; on a
+   short screen (a phone held sideways) it keeps at least 60% of the width and the page scrolls. */
+.film{padding:0 var(--gutter);--fw:min(100%,max(calc((100svh - 330px)*16/9),60%))}
 .film-stage,.film-transport{width:var(--fw);margin-inline:auto}
 .film-stage{position:relative;aspect-ratio:16/9;background:var(--ink);overflow:hidden;cursor:pointer;
   box-shadow:0 0 0 1px var(--line),0 40px 120px -40px #53db7626}
@@ -88,6 +89,10 @@ section.chapters,section.tree,section.start{padding:140px var(--gutter) 0}
 .ch-meta:after{content:'Watch ▸';margin-left:auto;opacity:0;color:var(--green);transition:opacity .2s}
 .chapter-list button:hover .ch-meta:after,.chapter-list button:focus-visible .ch-meta:after{opacity:1}
 .chapter-list button.is-current .ch-meta:after{content:'Now playing';opacity:1}
+/* Without WebGL2 the chapters are plain text: no film to seek. */
+.chapter-list button:disabled{cursor:default}
+.chapter-list button:disabled .ch-meta:after{display:none}
+.chapter-list button:disabled .ch-line{color:var(--paper)}
 .ch-line{font:var(--display-weight) clamp(26px,2.3vw,40px)/1.06 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
 .chapter-list button:hover .ch-line{color:#fff}
 .ch-body{display:grid;gap:12px;align-content:start;font-size:16px;line-height:1.55;color:#c2c9ba}

@@ -481,7 +481,7 @@ function mount(root) {
   alloc(innerWidth >= 1100 ? 22000 : 12000);
   let gl = null;
   try { gl = renderer(canvas); } catch (err) { console.error(err); }
-  if (!gl) { root.dataset.state = 'unsupported'; return; }
+  if (!gl) { root.dataset.state = 'unsupported'; for (const b of chapterBtns) b.disabled = true; return; }
   timeline();
   const caps = captions().map(c => {
     const el = document.createElement('div'); el.className = 'fc ' + c.cls; el.style.left = c.x + 'px'; el.style.top = c.y + 'px'; el.innerHTML = c.h;
@@ -492,13 +492,13 @@ function mount(root) {
   const starts = CHAPTERS.map(([id]) => START[id]);
   for (const s of starts) { const i = document.createElement('i'); i.style.left = s / TOTAL * 100 + '%'; ticks.append(i); }
 
-  let t = reduced ? TOTAL : 0, state = 'idle', onScreen = false, userPaused = false, raf = 0, last = 0, settle = 0, chapter = -1;
+  let t = reduced ? TOTAL : 0, state = 'idle', onScreen = false, raf = 0, last = 0, settle = 0, chapter = -1, scrubbing = false;
   const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
   const running = () => state === 'playing' && onScreen && !document.hidden;
   function setState(s) { state = s; root.dataset.state = s; playBtn.textContent = s === 'playing' ? 'Pause' : s === 'ended' ? 'Replay' : 'Play'; playBtn.setAttribute('aria-label', `${playBtn.textContent} the film`); }
   function paintUI() {
     timeEl.textContent = `${fmt(Math.min(t, TOTAL))} / ${fmt(TOTAL)}`;
-    if (document.activeElement !== range) range.value = Math.round(Math.min(t, TOTAL) / TOTAL * 1000);
+    if (!scrubbing) range.value = Math.round(Math.min(t, TOTAL) / TOTAL * 1000);
     range.style.setProperty('--p', range.value / 1000);
     range.setAttribute('aria-valuetext', fmt(Math.min(t, TOTAL)));
     let c = 0; for (let j = 0; j < starts.length; j++) if (t >= starts[j]) c = j;
@@ -520,12 +520,16 @@ function mount(root) {
     if (running() || --settle > 0) raf = requestAnimationFrame(frame); else last = 0;
   }
   const wake = (frames = 45) => { settle = Math.max(settle, frames); if (!raf) raf = requestAnimationFrame(frame); };
-  function play() { if (state === 'ended' || t >= TOTAL) { t = 0; gl.reset(); } userPaused = false; setState('playing'); wake(); }
-  function pause() { userPaused = true; setState('paused'); wake(); }
+  function play() { if (state === 'ended' || t >= TOTAL) { t = 0; gl.reset(); } setState('playing'); wake(); }
+  function pause() { setState('paused'); wake(); }
   function seek(x) { t = clamp(x, 0, TOTAL); gl.reset(); if (state === 'ended' && t < TOTAL) setState('paused'); wake(); }
 
   playBtn.addEventListener('click', () => state === 'playing' ? pause() : play());
   range.addEventListener('input', () => seek(range.value / 1000 * TOTAL));
+  // While a pointer holds the thumb, the frame loop leaves the range alone; focus alone does not count.
+  range.addEventListener('pointerdown', () => { scrubbing = true; });
+  addEventListener('pointerup', () => { scrubbing = false; });
+  addEventListener('pointercancel', () => { scrubbing = false; });
   for (const b of chapterBtns) b.addEventListener('click', () => { seek(starts[+b.dataset.filmChapter - 1] + .01); play(); if (!onScreen) root.scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block: 'center'}); });
   stage.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); playBtn.click(); }
