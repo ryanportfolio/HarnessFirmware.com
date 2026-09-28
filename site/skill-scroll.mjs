@@ -1,6 +1,6 @@
 import {mountSmoothScroll} from './smooth-scroll.mjs';
 
-// Skill pages share the homepage's smooth scroll without its homepage-only scenes.
+// Skill pages and /about share the homepage's smooth scroll without its homepage-only scenes.
 // Reduced motion keeps these pages on native scroll.
 const preference = matchMedia('(prefers-reduced-motion: reduce)');
 const header = document.querySelector('.site-header');

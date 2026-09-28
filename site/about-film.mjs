@@ -44,8 +44,7 @@ function blockCenters(cx, cy) { const rows = [4, 3, 2, 1], ys = [130, 34, -62, -
 // ---- particles: seeded randoms, roles as fixed index ranges, shapes sampled once
 const MARK = ['M47 65 123 21v168l-76-30Z', 'M232 21l76 44v103l-76-28Z', 'M47 172l76 30v108l-76-25Z', 'M134 115l174 64v105l-76 26v-84l-98-32Z'];
 const ROWY = [898, 924, 950, 976, 1002], ROWEND = [1330, 1190, 1080, 1150, 990];
-const IDXLEN = []; { const r = mulberry(31); for (let j = 0; j < 24; j++) IDXLEN.push(140 + r() * 150); }
-let N, R1, R2, R3, R4, ROLES, MX, MY, ME, BX, BY, BB, BBR, SX, SY, SK, PX, PY, PB, IR, IU, buf;
+let N, R1, R2, R3, R4, ROLES, MX, MY, ME, BX, BY, BB, BBR, SX, SY, SK, CC, CL, CU, buf;
 function alloc(count) {
   N = count; const r = mulberry(7);
   R1 = new Float32Array(N); R2 = new Float32Array(N); R3 = new Float32Array(N); R4 = new Float32Array(N);
@@ -53,7 +52,7 @@ function alloc(count) {
   let off = 0; ROLES = {};
   for (const [k, f] of [['SPARK', .02], ['BUILD', .25], ['RING', .12], ['SLAB', .16], ['AUX', .13]]) { const n = Math.floor(N * f); ROLES[k] = {start: off, n}; off += n; }
   ROLES.DUST = {start: off, n: N - off};
-  sampleMark(off); sampleBlocks(ROLES.BUILD.n); sampleSlab(ROLES.SLAB.n); samplePanel(ROLES.BUILD.n); sampleIndex(ROLES.AUX.n);
+  sampleMark(off); sampleBlocks(ROLES.BUILD.n); sampleSlab(ROLES.SLAB.n); sampleColumns(ROLES.BUILD.n);
   buf = new Float32Array(N * 6);
 }
 // The H mark, rasterised at 2x: half the points on its edges (drawn brighter), half inside.
@@ -86,25 +85,18 @@ function sampleSlab(n) {
     SX[k] = s[0] + u; SY[k] = ROWY[s[2]] + (r() - .5) * 2; SK[k] = s[2];
   }
 }
-// One loaded playbook: an outline, a title bar and fifteen lines.
-function samplePanel(n) {
-  const r = mulberry(51), lines = []; for (let l = 0; l < 15; l++) lines.push([r() < .3 ? 928 : 904, 120 + r() * 280]);
-  PX = new Float32Array(n); PY = new Float32Array(n); PB = new Float32Array(n);
+// Token-efficient: three columns of text, one per thing the agent reads or writes. Each has 16
+// lines broken into words; COLS lists the lines that survive the cut and how long they stay.
+const COLS = [{x: 300, keep: [0, 2, 3, 6, 9], len: .55}, {x: 720, keep: [0, 5, 11], len: .8}, {x: 1140, keep: [0, 2, 4, 7, 10, 13], len: .42, outline: true}];
+const COL_Y = 300, COL_W = 340, COL_LH = 20, COL_LEN = [];
+function sampleColumns(n) {
+  const r = mulberry(51), words = [];
+  for (let l = 0; l < 48; l++) { COL_LEN.push(COL_W * (.45 + r() * .55)); const w = []; let u = 0; while (u < 1) { const len = Math.min(.08 + r() * .16, 1 - u); w.push([u, len]); u += len + .045; } words.push(w); }
+  CC = new Uint8Array(n); CL = new Uint8Array(n); CU = new Float32Array(n);
   for (let k = 0; k < n; k++) {
-    const q = r();
-    if (q < .22) { const [x, y] = rectPt(r(), 880, 290, 1360, 760); PX[k] = x; PY[k] = y; PB[k] = .7; }
-    else if (q < .3) { PX[k] = 904 + r() * 250; PY[k] = 318 + (r() - .5) * 3; PB[k] = 1.05; }
-    else { const l = Math.floor(r() * 15); PX[k] = lines[l][0] + r() * lines[l][1]; PY[k] = 350 + l * 26 + (r() - .5) * 1.5; PB[k] = .5; }
-  }
-}
-// The skill index: 24 lines, each broken into words, so a line reads as text even when it thickens.
-function sampleIndex(n) {
-  IR = new Uint8Array(n); IU = new Float32Array(n); const r = mulberry(61), words = [];
-  for (let row = 0; row < 24; row++) { const w = []; let u = 0; while (u < 1) { const len = Math.min(.09 + r() * .16, 1 - u); w.push([u, len]); u += len + .045; } words.push(w); }
-  for (let k = 0; k < n; k++) {
-    const row = Math.min(23, Math.floor(k * 24 / n)), w = words[row], tot = w.reduce((s, x) => s + x[1], 0);
+    const line = Math.min(47, Math.floor(k * 48 / n)), w = words[line], tot = w.reduce((s, x) => s + x[1], 0);
     let u = r() * tot, pos = 0; for (const [a, len] of w) { if (u <= len) { pos = a + u; break; } u -= len; }
-    IR[k] = row; IU[k] = pos;
+    CC[k] = line >> 4; CL[k] = line & 15; CU[k] = pos;
   }
 }
 
@@ -112,8 +104,8 @@ function sampleIndex(n) {
 const Pd = {x: 0, y: 0, b: 0, a: 0, w: 0, s: 1};
 function dust(t, i, P) {
   const r1 = R1[i], r3 = R3[i], r4 = R4[i];
-  P.x = ((r1 * 2100 + t * (5 + r3 * 14) * DRIFT) % 2100) - 90;
-  P.y = R2[i] * 1100 - 10 + Math.sin(t * .21 + r4 * 6.283) * 22 * DRIFT + Math.sin(t * .05 + r1 * 9) * 26 * DRIFT;
+  P.x = ((r1 * 3300 + t * (5 + r3 * 14) * DRIFT) % 3300) - 690;
+  P.y = R2[i] * 1700 - 310 + Math.sin(t * .21 + r4 * 6.283) * 22 * DRIFT + Math.sin(t * .05 + r1 * 9) * 26 * DRIFT;
   P.b = DUST * (.25 + .75 * r4 * r4) * (.7 + .3 * Math.sin(t * 1.3 + r3 * 40)) * (1 - .55 * sm((t - START.resolve) / 2));
   P.a = 0; P.w = 0; P.s = .6 + r3 * .6;
 }
@@ -204,16 +196,20 @@ function recallBuild(t, i, k, n, P) {
 function recallSpark(t, i, k, n, P) { if (t < T.ign3) { hidden(t, i, k, n, P); return; } const p = SP3(t); spark(P, t, i, p.x, p.y, eo((t - T.ign3) / .35) * (1 + 1.4 * Math.exp(-(((t - (TB3[5] - .15)) / .14) ** 2))), 0); }
 function thread(t, i, k, n, P) { const u = (R1[i] + t * .9) % 1; P.x = 720 + (R2[i] - .5) * 6; P.y = lerp(945, 772, u); P.b = Math.sin(Math.PI * u) * .85; P.w = .2; }
 
-// Token-efficient: a skill index of one line each; loading every playbook fills the context; the task
-// calls one, which unfolds into a playbook while the meter barely moves.
-const expandE = t => sm((t - T.exA) / .6) * (1 - ei((t - T.exZ) / .45));
-const level = t => .05 + .95 * expandE(t) + .08 * eo((t - T.call) / .8);
-function index(t, i, k, n, P) {
-  // Loading every playbook: each line spreads into three longer lines of text.
-  const r = IR[k], e = expandE(t), sub = Math.floor(R2[i] * 3);
-  P.x = 440 + IU[k] * IDXLEN[r] * (1 + e * (.5 + .4 * sub)); P.y = 290 + r * 20 + (sub - 1) * 5.5 * e;
-  P.b = (.42 + e * .3) * twinkle(t, i); P.a = e * .85;
-  if (r === 9) { const h = sm((t - T.hl9) / .3); P.b += h * .9; P.w = h * .3; }
+// Token-efficient: a reply, a command's output and a large file read fill the context meter; caveman,
+// RTK and STK each cut one down in turn and the meter falls.
+const level = t => .05 + .7 * sm((t - T.colIn) / 1.4) - .2 * T.cut.reduce((s, tc) => s + sm((t - tc) / .6), 0);
+function columns(t, i, k, n, P) {
+  const c = CC[k], l = CL[k], col = COLS[c], L = COL_LEN[c * 16 + l], x = col.x + CU[k] * L, y = COL_Y + l * COL_LH, tc = T.cut[c];
+  P.x = x; P.y = y; P.b = .5 * twinkle(t, i); P.a = .55;
+  if (t > tc - .7 && t < tc + .1) { const sy = lerp(COL_Y - 20, COL_Y + 16 * COL_LH, (t - tc + .7) / .7); P.b += .9 * Math.exp(-(((y - sy) / 14) ** 2)); }
+  if (t <= tc) return;
+  const ki = col.keep.indexOf(l);
+  if (ki >= 0 && CU[k] * L <= col.len * COL_W) {
+    const q = eio((t - tc) / .7);
+    P.x = lerp(x, x + (col.outline && ki % 2 ? 26 : 0), q); P.y = lerp(y, COL_Y + ki * COL_LH, q);
+    P.a = .55 * (1 - q); P.b += .3 * q + .9 * Math.exp(-(((t - tc - .35) / .25) ** 2)); alive(P, t, c);
+  } else toDust(P, t, tc + R3[i] * .2, .7, i, col.x + COL_W / 2, COL_Y + 160, .4);
 }
 function meter(t, i, k, n, P) {
   const lv = level(t), no = Math.floor(n * .35);
@@ -221,8 +217,6 @@ function meter(t, i, k, n, P) {
   else { const f = (k - no) / (n - no); P.x = 1545 + R2[i] * 30; P.y = f < lv ? 756 - f * 462 : 756 - lv * 462; P.b = f < lv ? .8 : 0; }
   P.a = sm((lv - .45) / .3);
 }
-function row9(t, i, k, n, P) { P.x = 440 + R1[i] * IDXLEN[9]; P.y = 470 + (R2[i] - .5) * 2; P.b = .8; P.w = .2; }
-function panel(t, i, k, n, P) { P.x = PX[k] + Math.sin(t * .8 + R1[i] * 6) * .6; P.y = PY[k]; P.b = PB[k] * twinkle(t, i); alive(P, t, 0); }
 let SP4 = null;
 function skillsSpark(t, i, k, n, P) { if (t < T.task) { hidden(t, i, k, n, P); return; } const p = SP4(t); spark(P, t, i, p.x, p.y, eo((t - T.task) / .3) * (1 - ei((t - T.taskEnd) / .4)), 0); }
 
@@ -306,10 +300,10 @@ function timeline() {
   });
   NOTE = {x0: 1250, x1: 1640, y: 560, inT: C(3.8), readA: C(4.8), readZ: C(5.7), outT: C(8.3), ghost: C(11.6)};
   TB3 = [...Array(10)].map((_, j) => Rc(4) + j * .34);
-  T = {ign3: Rc(.4), readA: Rc(1.4), readZ: Rc(3.4), exA: K(1.8), exZ: K(3.8), task: K(4.2), taskEnd: K(5.6), hl9: K(4.7), call: K(5), slam: A(1.1), crack: A(2.7), verified: A(10.2), approve: A(12)};
+  T = {ign3: Rc(.4), readA: Rc(1.4), readZ: Rc(3.4), colIn: K(.8), cut: [K(3), K(4.3), K(5.6)], task: K(.2), taskEnd: K(6.4), slam: A(1.1), crack: A(2.7), verified: A(10.2), approve: A(12)};
   const k3 = [[T.ign3, 960, 420], [Rc(1.3), 720, 760], [Rc(3.2), 720, 760]];
   for (let j = 0; j < 10; j++) { k3.push([TB3[j], C1[j].x, C1[j].y - 6]); k3.push([TB3[j] + .12, C1[j].x, C1[j].y - 6]); }
-  SP3 = path(k3); SP4 = path([[T.task, 700, 200], [K(4.75), 430, 470]]);
+  SP3 = path(k3); SP4 = path([[T.task, 960, 430], ...T.cut.flatMap((tc, c) => [[tc - .8, COLS[c].x + 170, 272], [tc + .1, COLS[c].x + 170, 272]]), [K(6.3), 960, 230]]);
   CA = blockCenters(860, 540); FLAG = {3: [A(5.3), A(7.9)], 7: [A(6.6), A(8.6)]};
   LENS = path([[A(4), 1350, 420], [A(4.5), 1350, 420], [A(5.3), 1142, 640], [A(5.7), 1142, 640], [A(6.6), 766, 470], [A(7), 766, 470], [A(7.6), 480, 420], [A(9.3), 480, 420], [A(10.2), 1350, 420]]);
   SP5 = path([[A(0), 860, 316], [A(7.5), 860, 316], [A(7.9), 1142, 664], [A(8.2), 1142, 664], [A(8.6), 766, 472], [A(8.9), 766, 472], [A(9.3), 860, 316]]);
@@ -319,10 +313,10 @@ function timeline() {
   const toC7 = kf(L('resolve', 0), markFn(960, 410, 1.05, {sheen: L('resolve', 2.8)}), 2.4, .55);
   TR = {
     SPARK: [kf(0, coldSpark), kf(F(0), hidden), kf(Rc(0), recallSpark), kf(K(0), skillsSpark), kf(A(0), auditSpark), kf(R(0), orbitSpark), toC7],
-    BUILD: [kf(0, coldBuild), toC2, out2, kf(Rc(0), recallBuild), out(K(0)), kf(K(4.6), row9, .7, .3), kf(K(5.3), panel, 1, .3), kf(A(0), auditBuild), kf(R(0), packets), toC7],
+    BUILD: [kf(0, coldBuild), toC2, out2, kf(Rc(0), recallBuild), kf(K(0), columns, 1.6, .5), kf(A(0), auditBuild), kf(R(0), packets), toC7],
     RING: [kf(0, dustFn), toC2, out2, kf(K(0), meter), kf(A(.2), stamp, .6, .2), out(A(3.9)), kf(A(10.8), person, 1, .3), kf(R(0), loopRing), toC7],
     SLAB: [kf(0, dustFn), toC2, kf(F(7.2), slab, 1.6, .5), toC7],
-    AUX: [kf(0, coldNote), toC2, out2, kf(Rc(1.3), thread, .7, .3), out(Rc(3.3), .7, .4), kf(K(0), index), out(A(0)), kf(A(4), lens, .8, .25), out(A(10.5), .6, .3), kf(A(10.9), connector, .8, .3), kf(R(0), nodes), toC7],
+    AUX: [kf(0, coldNote), toC2, out2, kf(Rc(1.3), thread, .7, .3), out(Rc(3.3), .7, .4), out(A(0)), kf(A(4), lens, .8, .25), out(A(10.5), .6, .3), kf(A(10.9), connector, .8, .3), kf(R(0), nodes), toC7],
     DUST: [kf(0, dustFn)],
   };
 }
@@ -371,14 +365,14 @@ function captions() {
   cap(Rc(1.7), Rc(6.6), 'mono q', 748, 772, 'pitfalls.md · 2026-03-14<br><b>Reset the test database first.</b>');
   cap(TB3[5] - .3, Rc(7.2), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
   cap(Rc(7.2), Rc(11), 'stmt', 120, 84, 'What one session learns, the next one <em>reads</em>');
-  cap(K(.8), K(10), 'mono s', 440, 252, 'SKILL INDEX · ONE LINE EACH');
+  [['REPLY', 'CAVEMAN · NO FILLER'], ['COMMAND OUTPUT', 'RTK · FILTERED OUTPUT'], ['LARGE FILE READ', 'STK · OUTLINE FIRST']].forEach(([name, tool], c) => {
+    cap(K(.8), K(10), 'mono s', COLS[c].x, 252, name);
+    cap(T.cut[c] + .5, K(10), 'mono s grn', COLS[c].x, COL_Y + COLS[c].keep.length * COL_LH + 14, tool);
+  });
   cap(K(.8), K(10), 'mono s c', 1560, 252, 'CONTEXT');
-  cap(K(2.1), K(4), 'mono amb c', 1560, 782, 'FULL');
-  cap(K(2.1), K(4), 'mono amb', 1100, 470, 'LOAD EVERY PLAYBOOK?');
-  cap(K(4.2), K(6), 'mono c', 700, 150, 'NEW TASK · REVIEW THE DIFF');
-  cap(K(4.8), K(10), 'mono s grn r', 426, 462, 'codex-review');
-  cap(K(5.6), K(10), 'mono s', 880, 252, 'codex-review/SKILL.md · LOADED ON CALL');
-  cap(K(6.2), K(10), 'stmt', 120, 84, 'Skills load only when a task <em>needs</em> them');
+  cap(K(2.1), T.cut[1], 'mono amb c', 1560, 782, 'FILLING');
+  cap(K(6.2), K(10), 'stmt', 120, 84, 'Replies, command output and file reads, <em>trimmed</em>');
+  cap(K(7), K(10), 'mono s', 300, 700, 'SKILLS, TOO, LOAD ONLY WHEN A TASK CALLS THEM');
   cap(A(.9), A(2.7), 'mono s', 985, 508, 'SELF-REPORTED');
   cap(A(1.1), A(2.7), 'mono grn c big', 860, 500, 'DONE');
   cap(A(2.9), A(10.6), 'stmt', 120, 84, 'The builder never grades its own <em>work</em>');
@@ -407,8 +401,8 @@ const FS_VS = `#version 300 es
 out vec2 v;void main(){vec2 p=vec2(gl_VertexID==1?3.:-1.,gl_VertexID==2?3.:-1.);v=p*.5+.5;gl_Position=vec4(p,0,1);}`;
 const SHADERS = {
   pv: `#version 300 es
-layout(location=0) in vec4 a_p;layout(location=1) in vec2 a_q;uniform float u_px,u_ps,u_gain;uniform vec3 u_g,u_am,u_pa;out vec3 vc;
-void main(){gl_Position=vec4(a_p.x/960.-1.,1.-a_p.y/540.,0,1);gl_PointSize=a_p.z>.002?max(1.5,a_q.y*u_ps*u_px):0.;vc=mix(mix(u_g,u_am,clamp(a_p.w,0.,1.)),u_pa,clamp(a_q.x,0.,1.))*a_p.z*u_gain;}`,
+layout(location=0) in vec4 a_p;layout(location=1) in vec2 a_q;uniform float u_px,u_ps,u_gain;uniform vec3 u_view;uniform vec2 u_size;uniform vec3 u_g,u_am,u_pa;out vec3 vc;
+void main(){vec2 q=(a_p.xy*u_view.x+u_view.yz)/u_size;gl_Position=vec4(q.x*2.-1.,1.-q.y*2.,0,1);gl_PointSize=a_p.z>.002?max(1.5,a_q.y*u_ps*u_px):0.;vc=mix(mix(u_g,u_am,clamp(a_p.w,0.,1.)),u_pa,clamp(a_q.x,0.,1.))*a_p.z*u_gain;}`,
   pf: `#version 300 es
 precision highp float;in vec3 vc;out vec4 o;void main(){float d=length(gl_PointCoord-.5)*2.;o=vec4(vc*exp(-d*d*3.5)*step(d,1.),1);}`,
   decay: `#version 300 es
@@ -442,11 +436,13 @@ function renderer(canvas) {
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return {t, f, w, h};
   };
-  let cw = 0, ch = 0, acc = [], q1, q2, e1, e2, cur = 0, reset = true;
+  let cw = 0, ch = 0, acc = [], q1, q2, e1, e2, cur = 0, reset = true, view = [1, 0, 0];
   const pass = (P, dst, src, set) => { gl.bindFramebuffer(gl.FRAMEBUFFER, dst ? dst.f : null); gl.viewport(0, 0, dst ? dst.w : cw, dst ? dst.h : ch); gl.useProgram(P.p); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); set(); gl.bindVertexArray(vaoFs); gl.drawArrays(gl.TRIANGLES, 0, 3); };
   const blur = (d, s, x, y) => pass(PB, d, s, () => { gl.uniform1i(PB.u.u_t, 0); gl.uniform2f(PB.u.u_d, x / s.w, y / s.h); });
   return {
     reset() { reset = true; },
+    // Stage-to-canvas mapping in device pixels: scale, then the offset of the letterboxed stage.
+    view(s, ox, oy) { view = [s, ox, oy]; },
     size(w, h) {
       if (w === cw && h === ch) return; cw = canvas.width = w; ch = canvas.height = h;
       for (const o of [...acc, q1, q2, e1, e2]) if (o) { gl.deleteTexture(o.t); gl.deleteFramebuffer(o.f); }
@@ -458,7 +454,7 @@ function renderer(canvas) {
       if (reset) { gl.bindFramebuffer(gl.FRAMEBUFFER, A.f); gl.viewport(0, 0, cw, ch); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
       else pass(PD, A, B, () => { gl.uniform1i(PD.u.u_t, 0); gl.uniform1f(PD.u.u_k, k); });
       gl.bindFramebuffer(gl.FRAMEBUFFER, A.f); gl.viewport(0, 0, cw, ch); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.useProgram(PP.p);
-      gl.uniform1f(PP.u.u_px, cw / W); gl.uniform1f(PP.u.u_ps, POINT_SIZE); gl.uniform1f(PP.u.u_gain, reset ? 1 : 1 - k);
+      gl.uniform1f(PP.u.u_px, view[0]); gl.uniform3fv(PP.u.u_view, view); gl.uniform2f(PP.u.u_size, cw, ch); gl.uniform1f(PP.u.u_ps, POINT_SIZE); gl.uniform1f(PP.u.u_gain, reset ? 1 : 1 - k);
       gl.uniform3fv(PP.u.u_g, GREEN); gl.uniform3fv(PP.u.u_am, AMBER); gl.uniform3fv(PP.u.u_pa, PAPER);
       gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, buf); gl.bindVertexArray(vaoPts); gl.drawArrays(gl.POINTS, 0, N); gl.disable(gl.BLEND);
       reset = false; cur = 1 - cur;
@@ -530,15 +526,28 @@ function mount(root) {
   range.addEventListener('pointerdown', () => { scrubbing = true; });
   addEventListener('pointerup', () => { scrubbing = false; });
   addEventListener('pointercancel', () => { scrubbing = false; });
-  for (const b of chapterBtns) b.addEventListener('click', () => { seek(starts[+b.dataset.filmChapter - 1] + .01); play(); if (!onScreen) root.scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block: 'center'}); });
+  for (const b of chapterBtns) b.addEventListener('click', () => { seek(starts[+b.dataset.filmChapter - 1] + .01); play(); if (!onScreen) reveal(); });
+  // Bring the film to the top by scrolling the document. Under the smooth-scroll layer (skill-scroll.mjs) the
+  // film sits in a fixed, translated layer, so its document position is measured against the layer.
+  const reveal = () => {
+    const layer = root.closest('[data-scroll-layer]'), r = root.getBoundingClientRect();
+    const top = r.top - (layer ? layer.getBoundingClientRect().top : -scrollY);
+    window.scrollTo({top: Math.max(0, top), behavior: reduced ? 'auto' : 'smooth'});
+  };
   stage.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); playBtn.click(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); seek(t + 5); } else if (e.key === 'ArrowLeft') { e.preventDefault(); seek(t - 5); }
   });
   stage.addEventListener('click', () => playBtn.click());
+  // The canvas fills the section, which sits below the fixed header; the 1920 x 1080 stage is fitted into
+  // the part above the transport, and the dust fills the rest of the screen.
+  const transport = root.querySelector('.film-transport');
   const layout = () => {
     const w = stage.clientWidth, h = stage.clientHeight; if (!w) return;
-    ov.style.transform = `scale(${w / W})`; const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(h * d)); wake(3);
+    const room = Math.max(1, h - transport.offsetHeight);
+    const s = Math.min(w / W, room / H), ox = (w - W * s) / 2, oy = (room - H * s) / 2;
+    ov.style.left = ox + 'px'; ov.style.top = oy + 'px'; ov.style.transform = `scale(${s})`;
+    const d = Math.min(devicePixelRatio || 1, 1.5); gl.size(Math.round(w * d), Math.round(h * d)); gl.view(s * d, ox * d, oy * d); wake(3);
   };
   new ResizeObserver(layout).observe(stage); layout();
   // Starts once half the stage shows; keeps playing while any of it shows.

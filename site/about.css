@@ -14,25 +14,29 @@ a:focus-visible,button:focus-visible,.film-stage:focus-visible,input:focus-visib
 code{font-family:var(--font-mono);font-size:.92em;letter-spacing:.01em}
 .skip{position:fixed;top:-100px;left:20px;z-index:100;background:var(--paper);color:var(--ink);padding:10px 16px}
 .skip:focus{top:10px}
+html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-smooth-scroll] [data-scroll-spacer]{overflow-anchor:none}
 main{display:block}
 main:focus{outline:none}
 .kicker{margin:0 0 18px;font:12px/1.4 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+h1,h2,h3,.ch-line,.fc.stmt{text-wrap:balance}
 h1,h2,h3{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track);margin:0}
 h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-weight);font-style:var(--accent-style);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
 
 /* ---- opening */
-.about-hero{padding:128px var(--gutter) 34px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 5vw;align-items:end}
-.about-hero .kicker{grid-column:1/-1;margin:0}
-.about-hero h1{font-size:clamp(38px,3.4vw,62px);line-height:1;white-space:nowrap}
+.about-hero{padding:120px var(--gutter) 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 5vw;align-items:end}
+.about-hero h1{font-size:clamp(38px,3.4vw,62px);line-height:1}
 .about-hero .lede{margin:0;max-width:30em;justify-self:end;font-size:clamp(15px,1.05vw,18px);line-height:1.45;color:#c2c9ba}
 
 /* ---- the film */
-/* The stage fits the viewport height below the opening, so the whole picture shows at once; on a
-   short screen (a phone held sideways) it keeps at least 60% of the width and the page scrolls. */
-.film{padding:0 var(--gutter);--fw:min(100%,max(calc((100svh - 330px)*16/9),60%))}
-.film-stage,.film-transport{width:var(--fw);margin-inline:auto}
-.film-stage{position:relative;aspect-ratio:16/9;background:var(--ink);overflow:hidden;cursor:pointer;
-  box-shadow:0 0 0 1px var(--line),0 40px 120px -40px #53db7626}
+/* The film fills the screen: the canvas covers the section, and about-film.mjs fits the 16:9 stage
+   into the room between the fixed header and the transport laid over the bottom edge. */
+/* --hh is the fixed header's height. skill-scroll.mjs reserves it above the scroll layer; without that
+   layer (reduced motion, no script) main reserves it instead. */
+:root{--hh:90px}
+@media(max-width:600px){:root{--hh:76px}}
+@media(prefers-reduced-motion:reduce),(scripting:none){main{padding-top:var(--hh)}}
+.film{position:relative;height:min(calc(100svh - var(--hh)),calc(100vw*9/16 + 64px));min-height:300px}
+.film-stage{position:absolute;inset:0;background:var(--ink);overflow:hidden;cursor:pointer}
 .film-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .film-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
 .film-fallback{display:none;position:absolute;inset:0;margin:0;place-items:center;padding:10%;text-align:center;font:15px/1.6 var(--font-mono);color:var(--muted)}
@@ -53,15 +57,13 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .fc.mono.q b{font-weight:400;color:var(--paper)}
 .fc.mono.big{font-size:30px;letter-spacing:.2em}
 .fc.mono.url{font-size:24px;letter-spacing:.06em}
-.fc.amb{color:var(--amber)}.fc.grn{color:var(--green)}
+.fc.fc.amb{color:var(--amber)}.fc.fc.grn{color:var(--green)}
 .fc.lbl{font:600 22px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
 /* Transport */
-.film-transport{display:flex;align-items:center;gap:20px;padding:18px 0 0;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
+.film-transport{position:absolute;left:var(--gutter);right:var(--gutter);bottom:0;height:64px;display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
 .film-play{min-width:92px;padding:11px 16px;border:1px solid #3c5a44;border-radius:999px;color:var(--paper);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transition:border-color .2s,background .2s}
 .film-play:hover{border-color:var(--green);background:#53db7614}
 .film-time{min-width:92px;font-variant-numeric:tabular-nums}
-.film-note{white-space:nowrap;opacity:.7}
-.film-note-small{display:none;margin:12px auto 0;width:var(--fw);font:11px/1.5 var(--font-mono);letter-spacing:.06em;color:var(--muted)}
 .film-track{position:relative;flex:1;height:28px}
 .film-ticks i{position:absolute;top:8px;height:12px;border-left:1px solid #53db7680}
 .film-scrub{--p:0;position:absolute;inset:0;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
@@ -135,7 +137,6 @@ section.tree,section.start{padding:140px var(--gutter) 0}
   .about-hero{grid-template-columns:1fr;padding-top:120px}.about-hero h1{white-space:normal}.about-hero .lede{justify-self:start}
 }
 @media(max-width:900px){
-  .film-note-small{display:block}
   .section-head{grid-template-columns:1fr;gap:18px}
   .chapter-list li{grid-template-columns:1fr}
   .chapter-list li:before{left:-12px}
@@ -143,7 +144,6 @@ section.tree,section.start{padding:140px var(--gutter) 0}
   .steps li+li{padding-left:0;border-left:0;border-top:1px solid var(--line)}
   .facts dl{grid-template-columns:1fr 1fr}
   .facts dl>div,.facts dl>div+div{padding:20px 16px 20px 0;border-left:0}
-  .film-note{display:none}
   section.chapters,section.tree,section.start{padding-top:96px}
 }
 @media(max-width:520px){.film-transport{gap:12px}.film-time{min-width:0}.facts dl{grid-template-columns:1fr}}
