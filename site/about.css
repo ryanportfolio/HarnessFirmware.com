@@ -26,15 +26,16 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- the film */
-/* The film fills the page width. about-film.mjs scales the 1920 x 1080 stage to the width and crops its
-   empty bands above y 50 and below y 1040, so the stage box is 1920 x 990; the controls sit below it. */
+/* The film fills the screen below the header, never taller than the page width needs. about-film.mjs
+   fits the stage band y 50 to 880 (1920 x 830, graphics drawn at 80%) inside it both ways; dust fills any side margin and the
+   left-aligned captions move to the page gutter (--lx). */
 /* --hh is the fixed header's height. skill-scroll.mjs reserves it above the scroll layer; without that
    layer (reduced motion, no script) main reserves it instead. */
 :root{--hh:90px}
 @media(max-width:600px){:root{--hh:76px}}
 @media(prefers-reduced-motion:reduce),(scripting:none){main{padding-top:var(--hh)}}
-.film{position:relative}
-.film-stage{position:relative;aspect-ratio:1920/990;background:var(--ink);overflow:hidden;cursor:pointer}
+.film{position:relative;height:min(calc(100svh - var(--hh)),calc(100vw*830/1920 + 64px));min-height:300px}
+.film-stage{position:absolute;inset:0;background:var(--ink);overflow:hidden;cursor:pointer}
 .film-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .film-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
 .film-fallback{display:none;position:absolute;inset:0;margin:0;place-items:center;padding:10%;text-align:center;font:15px/1.6 var(--font-mono);color:var(--muted)}
@@ -43,6 +44,7 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .film[data-state=unsupported] .film-stage{cursor:default}
 /* Captions, set on the 1920 x 1080 stage and scaled with it. */
 .fc{position:absolute;opacity:0;white-space:nowrap}
+.fc.l{margin-left:var(--lx,0px)}
 .fc.stmt{font:400 68px/1.04 var(--font-display);letter-spacing:-.01em;color:var(--paper);white-space:normal;max-width:1640px}
 .fc.stmt.c{white-space:nowrap;max-width:none}
 .fc.stmt.big{font-size:80px}
@@ -58,7 +60,7 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .fc.fc.amb{color:var(--amber)}.fc.fc.grn{color:var(--green)}
 .fc.lbl{font:600 22px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
 /* Transport */
-.film-transport{height:64px;padding:0 var(--gutter);display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
+.film-transport{position:absolute;left:0;right:0;bottom:0;height:64px;padding:0 var(--gutter);display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
 .film-play{min-width:92px;padding:11px 16px;border:1px solid #3c5a44;border-radius:999px;color:var(--paper);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transition:border-color .2s,background .2s}
 .film-play:hover{border-color:var(--green);background:#53db7614}
 .film-time{min-width:92px;font-variant-numeric:tabular-nums}
