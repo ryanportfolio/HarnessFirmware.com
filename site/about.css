@@ -98,9 +98,9 @@ section.tree,section.start{padding:140px var(--gutter) 0}
 .chapter-list button:disabled .ch-line{color:var(--paper)}
 .ch-line{font:var(--display-weight) clamp(26px,2.3vw,40px)/1.06 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
 .chapter-list button:hover .ch-line{color:#fff}
-.ch-body{display:grid;gap:12px;align-content:start;font-size:16px;line-height:1.55;color:#c2c9ba}
-.ch-body p{margin:0}
-.ch-where{font-size:14px;color:var(--muted)}
+.ch-body{display:grid;gap:16px;align-content:start;font-size:clamp(18px,1.3vw,21px);line-height:1.5;color:#d3d8cc}
+.ch-body p{margin:0;text-wrap:pretty}
+.ch-where{font-size:15px;color:var(--muted)}
 .ch-where a,.start a,.start-alt a,.facts a{border-bottom:1px solid #53db7666;transition:border-color .2s,color .2s}
 .ch-where a:hover,.start a:hover,.start-alt a:hover,.facts a:hover{color:var(--green);border-color:var(--green)}
 .ch-cta{font:13px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
