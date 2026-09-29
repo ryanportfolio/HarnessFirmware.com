@@ -60,7 +60,7 @@ function sampleBlocks(n) {
 // The repository slab: an outline and five rows of words.
 function sampleSlab(n) {
   const r = mulberry(41), segs = []; let tot = 0;
-  for (let row = 0; row < 5; row++) { let x = 790; while (x < ROWEND[row]) { const w = Math.min(24 + r() * 70, ROWEND[row] - x); segs.push([x, x + w, row]); tot += w; x += w + 12; } }
+  for (let row = 0; row < 5; row++) { let x = 860; while (x < ROWEND[row]) { const w = Math.min(24 + r() * 70, ROWEND[row] - x); segs.push([x, x + w, row]); tot += w; x += w + 12; } }
   SX = new Float32Array(n); SY = new Float32Array(n); SK = new Int8Array(n);
   for (let k = 0; k < n; k++) {
     if (r() < .22) { const [x, y] = rectPt(r(), 380, 870, 1540, 1024); SX[k] = x; SY[k] = y; SK[k] = -1; continue; }
@@ -233,7 +233,7 @@ function auditSpark(t, i, k, n, P) { const p = SP5(t); spark(P, t, i, p.x, p.y, 
 
 // Every round: the five-stage loop, three laps that speed up, each finding dropped into the repository.
 let LAPS = [], TG = [];
-const SEG = [[1100, 1210, 2], [1170, 1280, 3], [1230, 1340, 2]], RC = {x: 1100, y: 510, r: 260};
+const SEG = [[1100, 1210, 2], [1170, 1280, 3], [1230, 1340, 2]], RC = {x: 960, y: 530, r: 260};
 function phi(t) {
   if (t < LAPS[0][0]) return 0;
   for (let j = 0; j < 3; j++) { const [a, b] = LAPS[j]; if (t < b) { const u = (t - a) / (b - a); return j + (j === 0 ? 2 * u * u - u * u * u : j === 2 ? u + u * u - u * u * u : u); } }
@@ -281,14 +281,14 @@ function timeline() {
     if (resume) { keys.push(at(5, tb[6] - p2 * .9)); for (let j = 6; j < 10; j++) { keys.push(at(j, tb[j])); keys.push(at(j, tb[j] + p2 * .35)); } }
     return {start, end, tb, ts: tb[5], tfix: fix ? C(fix) : Infinity, td: en ? end - .9 : Infinity, path: path(keys)};
   });
-  NOTE = {x0: 1250, x1: 1640, y: 560, inT: C(3.8), readA: C(4.8), readZ: C(5.7), outT: C(8.3), ghost: C(11.6)};
+  NOTE = {x0: 1250, x1: 1772, y: 560, inT: C(3.8), readA: C(4.8), readZ: C(5.7), outT: C(8.3), ghost: C(11.6)};
   TB3 = [...Array(10)].map((_, j) => Rc(4) + j * .34);
   T = {ign3: Rc(.4), readA: Rc(1.4), readZ: Rc(3.4), colIn: K(.8), cut: [K(3), K(4.3), K(5.6)], task: K(.2), taskEnd: K(6.4), slam: A(1.1), crack: A(2.7), verified: A(10.2), approve: A(12)};
   const k3 = [[T.ign3, 960, 420], [Rc(1.3), 720, 760], [Rc(3.2), 720, 760]];
   for (let j = 0; j < 10; j++) { k3.push([TB3[j], C1[j].x, C1[j].y - 6]); k3.push([TB3[j] + .12, C1[j].x, C1[j].y - 6]); }
   SP3 = path(k3); SP4 = path([[T.task, 960, 430], ...T.cut.flatMap((tc, c) => [[tc - .8, COLS[c].x + 170, 272], [tc + .1, COLS[c].x + 170, 272]]), [K(6.3), 960, 230]]);
   CA = blockCenters(860, 540); FLAG = {3: [A(5.3), A(7.9)], 7: [A(6.6), A(8.6)]};
-  LENS = path([[A(4), 1350, 420], [A(4.5), 1350, 420], [A(5.3), 1142, 640], [A(5.7), 1142, 640], [A(6.6), 766, 470], [A(7), 766, 470], [A(7.6), 480, 420], [A(9.3), 480, 420], [A(10.2), 1350, 420]]);
+  LENS = path([[A(4), 1350, 440], [A(4.5), 1350, 440], [A(5.3), 1142, 640], [A(5.7), 1142, 640], [A(6.6), 766, 470], [A(7), 766, 470], [A(7.6), 480, 420], [A(9.3), 480, 420], [A(10.2), 1350, 440]]);
   SP5 = path([[A(0), 860, 316], [A(7.5), 860, 316], [A(7.9), 1142, 664], [A(8.2), 1142, 664], [A(8.6), 766, 472], [A(8.9), 766, 472], [A(9.3), 860, 316]]);
   LAPS = [[1.2, 4], [4, 6.2], [6.2, 7.8]].map(([a, b]) => [R(a), R(b)]);
   TG = [0, 1, 2].map(m => { let lo = LAPS[m][0], hi = LAPS[m][1]; for (let q = 0; q < 40; q++) { const mid = (lo + hi) / 2; phi(mid) < m + .6 ? lo = mid : hi = mid; } return lo; });
@@ -332,20 +332,20 @@ function captions() {
   cap(s1.ts, s1.tfix + .3, 'mono amb c', 960, 770, 'TEST DATABASE NOT RESET');
   cap(NOTE.inT + .2, NOTE.outT + .3, 'mono s', NOTE.x0, NOTE.y - 74, 'YOU');
   cap(NOTE.inT + .5, NOTE.outT + .3, 'mono q', NOTE.x0 + 22, NOTE.y - 14, 'Reset the test database first.');
-  cap(s1.tfix, c(7.9), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
+  cap(s1.tfix + .3, c(7.9), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
   cap(c(8), s1.end, 'mono c', 960, 770, 'CHAT ENDS');
   cap(s2.start, c(11.9), 'mono', 120, 104, 'THURSDAY · NEW SESSION');
   cap(s2.ts, START.flash, 'mono amb c', 960, 770, 'TEST DATABASE NOT RESET');
   cap(c(12), START.flash, 'stmt', 120, 84, 'Every session starts from <em>zero</em>');
   cap(c(12.6), START.flash, 'mono', 124, 168, 'THE CORRECTION LIVED IN THE CHAT. THE CHAT ENDED.');
   cap(F(1.8), F(6.8), 'mono grn', 1440, 340, 'FLASHING');
-  ['CLAUDE.md', 'AGENTS.md', '.claude/reference/', '.claude/skills/', '.agents/skills/'].forEach((f, j) => cap(F(2.2 + j * .35), F(6.8), 'mono file', 1440, 380 + j * 30, f));
+  ['CLAUDE.md', 'AGENTS.md', '.claude/reference/', '.claude/skills/', '.agents/skills/'].forEach((f, j) => cap(F(2.2 + j * .35), F(6.8), 'mono file', 1440, 380 + j * 34, f));
   cap(F(2), F(6.8), 'mono c', 960, 832, 'HARNESS FIRMWARE');
   cap(F(3.8), F(10), 'stmt', 120, 84, 'Memory, skills and review, built into the <em>repository</em>');
   cap(F(7.8), R(10), 'mono s', 384, 842, 'YOUR REPOSITORY');
   ['CLAUDE.md · AGENTS.md', '.claude/reference/architecture.md', '.claude/reference/pitfalls.md', '.claude/skills/', '.agents/skills/'].forEach((f, r) => cap(F(8 + r * .12), R(10), 'mono s file', 404, ROWY[r] - 10, f));
   cap(Rc(.2), Rc(7), 'mono', 120, 104, 'NEXT SESSION · WITH HARNESS FIRMWARE');
-  cap(Rc(1.7), Rc(6.6), 'mono q', 748, 772, 'pitfalls.md · 2026-03-14<br><b>Reset the test database first.</b>');
+  cap(Rc(1.7), TB3[5] - .3, 'mono q', 748, 772, 'pitfalls.md · 2026-03-14<br><b>Reset the test database first.</b>');
   cap(TB3[5] - .3, Rc(7.2), 'mono grn c', 960, 770, 'TEST DATABASE RESET ✓');
   cap(Rc(7.2), Rc(11), 'stmt', 120, 84, 'What one session learns, the next one <em>reads</em>');
   [['REPLY', 'CAVEMAN · NO FILLER'], ['COMMAND OUTPUT', 'RTK · FILTERED OUTPUT'], ['LARGE FILE READ', 'STK · OUTLINE FIRST']].forEach(([name, tool], c) => {
@@ -359,9 +359,9 @@ function captions() {
   cap(A(.9), A(2.7), 'mono s', 985, 508, 'SELF-REPORTED');
   cap(A(1.1), A(2.7), 'mono grn c big', 860, 500, 'DONE');
   cap(A(2.9), A(10.6), 'stmt', 120, 84, 'The builder never grades its own <em>work</em>');
-  cap(A(4.2), A(10.4), 'mono amb', 1300, 322, 'CODEX · FRESH CONTEXT');
-  cap(A(5.4), A(6.6), 'mono amb', 1300, 350, 'FINDINGS: 1'); cap(A(6.6), A(8.6), 'mono amb', 1300, 350, 'FINDINGS: 2');
-  cap(A(8.6), A(10.3), 'mono grn', 1300, 350, 'FIXED · RECHECKING'); cap(A(10.3), A(14), 'mono grn', 1300, 350, 'VERIFIED');
+  cap(A(4.2), A(10.4), 'mono amb', 1300, 306, 'CODEX · FRESH CONTEXT');
+  cap(A(5.4), A(6.6), 'mono amb', 1300, 344, 'FINDINGS: 1'); cap(A(6.6), A(8.6), 'mono amb', 1300, 344, 'FINDINGS: 2');
+  cap(A(8.6), A(10.3), 'mono grn', 1300, 344, 'FIXED · RECHECKING'); cap(A(10.3), A(14), 'mono grn', 1300, 344, 'VERIFIED');
   cap(A(11), A(14), 'mono s c', 1580, 680, 'YOU'); cap(A(12.1), A(14), 'mono grn c', 1580, 706, 'APPROVED');
   cap(A(10.9), A(14), 'stmt', 120, 84, 'A second model checks it. <em>You</em> approve');
   ['Recall', 'Plan', 'Execute', 'Audit', 'Integrate'].forEach((nm, j) => { const a = (-90 + 72 * j) * Math.PI / 180; cap(R(.6 + j * .1), R(10), 'lbl c', RC.x + Math.cos(a) * (RC.r + 62), RC.y + Math.sin(a) * (RC.r + 62) - 11, nm); });
