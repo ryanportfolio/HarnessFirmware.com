@@ -49,15 +49,15 @@ h1 em,h2 em,h3 em{font-family:var(--font-accent);font-weight:var(--accent-weight
 .fc.stmt.big{font-size:80px}
 .fc.stmt em{font:var(--accent-style) var(--accent-weight) 1.1em/1 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
 .fc.stmt .w{display:inline-block;opacity:0}
-.fc.mono{font:17px/1.5 var(--font-mono);letter-spacing:.12em;color:rgba(243,243,236,.62)}
-.fc.mono.s{font-size:14px;letter-spacing:.1em;color:rgba(243,243,236,.5)}
+.fc.mono{font:24px/1.3 var(--font-mono);letter-spacing:.06em;color:rgba(243,243,236,.88)}
+.fc.mono.s{font-size:20px;letter-spacing:.05em;color:rgba(243,243,236,.82)}
 .fc.mono.file{letter-spacing:.02em}
-.fc.mono.q{letter-spacing:.04em;color:rgba(243,243,236,.66)}
+.fc.mono.q{letter-spacing:.02em;color:rgba(243,243,236,.84)}
 .fc.mono.q b{font-weight:400;color:var(--paper)}
-.fc.mono.big{font-size:30px;letter-spacing:.2em}
-.fc.mono.url{font-size:24px;letter-spacing:.06em}
+.fc.mono.big{font-size:40px;letter-spacing:.16em}
+.fc.mono.url{font-size:30px;letter-spacing:.04em}
 .fc.fc.amb{color:var(--amber)}.fc.fc.grn{color:var(--green)}
-.fc.lbl{font:600 22px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
+.fc.lbl{font:600 26px/1 var(--font-text);color:var(--paper);letter-spacing:-.01em}
 /* Transport */
 .film-transport{position:absolute;left:0;right:0;bottom:0;height:64px;padding:0 var(--gutter);display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
 .film-play{min-width:92px;padding:11px 16px;border:1px solid #3c5a44;border-radius:999px;color:var(--paper);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transition:border-color .2s,background .2s}
