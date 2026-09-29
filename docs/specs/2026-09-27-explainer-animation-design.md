@@ -634,7 +634,9 @@ keeps scrolling, and the section's content stays still on screen for a stretch o
 
 - Length: with the smooth-scroll layer (`html[data-smooth-scroll]`), `explainer.css` gives the section a
   `::after` block 150svh tall (150vh where svh is unsupported), last in the phone column (`order: 3`).
-  `app.mjs` sets the attribute before the first paint, so the section has its final height then.
+  `app.mjs` sets the attribute before the first paint, so the section has its final height then. If the
+  module never adds `.is-live`, the block closes to 0 after 8 s, with the end-state fallback (Timing),
+  so no empty tail is left to scroll through.
 - Reading position (round 14, unchanged): the scroll offset at which the reading block, the union of
   `.ex-bottom` (the note row with Pause and Replay), `.ex-art-box` and `.ex-beats`, sits below the fixed
   `.site-header`, centred in the room left under the header when it fits:

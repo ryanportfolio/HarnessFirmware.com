@@ -16,8 +16,11 @@
 /* Scroll hold (explainer.mjs hold()): with the smooth-scroll layer the section runs 150svh longer, and its
    content rides with the scroll for that length from the reading position, as the Planned card row pins.
    Keyed on html[data-smooth-scroll], which the render-blocking app.mjs sets, so the height is final at
-   first paint. order puts it last in the phone column. */
+   first paint. order puts it last in the phone column. If the module never runs (no .is-live), the block
+   closes after 8 s with the end-state fallback below, so no empty tail is left to scroll through. */
 html[data-smooth-scroll] .explainer::after{content:"";display:block;order:3;height:150vh;height:150svh}
+html[data-smooth-scroll] .explainer:not(.is-live)::after{animation:ex-hold-off 0s 8s forwards}
+@keyframes ex-hold-off{to{height:0}}
 .explainer :where(h2,h3,p,ol,li,small){margin:0;padding:0}
 .explainer :focus-visible{outline:2px solid #5fb775;outline-offset:4px}
 
