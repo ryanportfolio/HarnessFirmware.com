@@ -96,7 +96,7 @@ section.tree,section.start{padding:140px var(--gutter) 0}
 .chapter-list button:disabled{cursor:default}
 .chapter-list button:disabled .ch-meta:after{display:none}
 .chapter-list button:disabled .ch-line{color:var(--paper)}
-.ch-line{font:var(--display-weight) clamp(26px,2.3vw,40px)/1.06 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
+.ch-line{font:var(--display-weight) clamp(30px,3.05vw,54px)/1.04 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
 .chapter-list button:hover .ch-line{color:#fff}
 .ch-body{display:grid;gap:16px;align-content:start;font-size:clamp(18px,1.3vw,21px);line-height:1.5;color:#d3d8cc}
 .ch-body p{margin:0;text-wrap:pretty}
