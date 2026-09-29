@@ -7,7 +7,8 @@ fill their column, no one-word last lines) and in round 13 (amendment v7: the ow
 a layout per beat, caption lines revealed in step with the drawing, and a length of 90 to 110 s; it
 replaces v5's 26-word budget and one-sentence body) and in round 14 (amendment v5's visual polish: beat 1
 drawn larger, focal dimming, a drawing event for every caption line, 10px phone labels, and a detent
-landing that never slices the title). Build rounds follow this file; where it gives a number, use it, and where it says "adjust",
+landing that never slices the title) and in round 18 (amendment v10: the Planned card row's scroll hold
+replaces the wheel detent). Build rounds follow this file; where it gives a number, use it, and where it says "adjust",
 the screenshot check decides.
 
 A new dark section sits directly after the hero loop (`section.living-system#loop`). It autoplays once
@@ -625,84 +626,42 @@ element stands for "your own words".
 | 9 | In audited rounds, "done"... | 2400 | a check stamp lands on S4 (2400-2700) |
 | 9 | Plain files, MIT licensed... | 3800 | S4's note lines write in (3800-4500) |
 
-### Scroll detent
+### Scroll hold
 
-Amendment v8, the owner's request: when a visitor scrolls down to the explainer and overshoots, the page
-stays on it until they scroll some more. Amendment v9, after two failed attempts: no lock on touch. Only
-mouse-wheel and trackpad scrolling is held.
+Amendment v10, the owner's request: the wheel detent (amendments v8 and v9) still let visitors past the
+explainer by accident. It is replaced by the hold the Planned card row uses (`card-row.mjs`): the page
+keeps scrolling, and the section's content stays still on screen for a stretch of it.
 
-- Reading position (round 14): the scroll offset at which the reading block, the union of `.ex-bottom`
-  (the note row with Pause and Replay), `.ex-art-box` and `.ex-beats`, sits below the fixed
+- Length: with the smooth-scroll layer (`html[data-smooth-scroll]`), `explainer.css` gives the section a
+  `::after` block 150svh tall (150vh where svh is unsupported), last in the phone column (`order: 3`).
+  `app.mjs` sets the attribute before the first paint, so the section has its final height then. If the
+  module never adds `.is-live`, the block closes to 0 after 8 s, with the end-state fallback (Timing),
+  so no empty tail is left to scroll through.
+- Reading position (round 14, unchanged): the scroll offset at which the reading block, the union of
+  `.ex-bottom` (the note row with Pause and Replay), `.ex-art-box` and `.ex-beats`, sits below the fixed
   `.site-header`, centred in the room left under the header when it fits:
   `docTop - hb - max(0, (innerHeight - hb - (bottom - top)) / 2)`, with `hb` the header's bottom, `top` and
   `bottom` the block's edges and `docTop` its top in document coordinates. When the section title (`h2`)
   fits in that room together with the block (`bottom` minus the title's top at most `innerHeight - hb`),
   the title joins the block and the union of both is centred instead. Otherwise the title must sit wholly
   under the header: the offset is at least the title's bottom minus `hb`, in document coordinates. The
-  header never slices the title, and the note row never starts under the header. The result, clamped to
-  the scrollable range and rounded, is published as `#explainer[data-reading]` (px) each time it is
-  measured. Measured on mount, `resize`, `load`, `harness:motion-ready`, font load and when the section or
-  the scroll layer changes size; never in the frame loop, and a scroll event triggers no measurement. The
-  header height is read, not hard-coded. The title joins the block at 1920x1080, 1440x900 and 768x1024; at
-  1280x800, 1024x768 and on phones it sits wholly under the header.
-- Hold (wheel and trackpad only): the module acts on the `wheel` event before the browser scrolls. Each
-  event's `deltaY` is converted to pixels (lines as 40 px, pages as the viewport height) and added to
-  where the gesture's wheel input has sent the page so far (its target), which runs ahead of `scrollY`
-  while the browser animates a notch. The target counts only while the page is still on its way to it:
-  `scrollY` lies between its value at the gesture's previous wheel event and the target, give or take
-  8 px. Anywhere else, a key, anchor, scrollbar or script scroll has moved the page since, so the target
-  is dropped and the event is measured from `scrollY`. Whether the event crosses is judged from
-  `scrollY`, never from the target: the page is short of the reading position and the event takes it
-  there or past, in either direction. The one exception is a notch the browser ran long: the target
-  still counts, the page was short of the reading position at the previous event, and it is now at it
-  or at most 8 px past it. On a crossing the module calls `preventDefault()` and places the page at the
-  reading position with
-  `window.scrollTo({behavior: 'instant'})`. With the smooth-scroll layer the spring eases to that native
-  position; under reduced motion (no layer) the instant scroll is final.
-- Rest of the gesture: every later wheel event in the same gesture is cancelled, so the page stays held.
-  Chrome makes the later events of a trackpad scroll sequence uncancelable when the sequence's first
-  event was not cancelled; for those the module scrolls back the event's own distance with
-  `scrollBy({behavior: 'instant'})` instead. Neither path moves the page anywhere else, so a script's
-  scroll during a held gesture keeps its position.
-- Gesture end: 300 ms with no wheel event. Notches spun off one flick of a wheel come tens of ms apart and
-  trackpads send about one event per frame, so 300 ms keeps one flick one gesture, while a second scroll
-  after a pause is free (the check waits 1.2 s before its second fling and 700 ms before its release
-  wheel).
-- Pause (owner request after testing the PR preview: a stop released by the next wheel click could not be
-  felt, because the smooth-scroll layer's glide hides a short hold and a Windows wheel set to 7 lines sends
-  about 233 px a click): after a stop, every wheel event for the next 2000 ms (`PAUSE`) is absorbed, in
-  either direction, however large. A key, link, scrollbar or script that moves the page off the reading
-  position ends the pause early.
-- Release: after the pause, wheel input scrolls on. The detent re-arms only after the page leaves the band where the
-  whole block stays on screen (the centring margin, at least 120 px each way), checked on each wheel
-  event, or when the explainer moves more than two viewports from the screen. Small moves near the
-  reading position are never caught twice.
-- Listener: the `wheel` listener is non-passive, which makes the browser wait for the main thread before
-  it scrolls each wheel sequence. An IntersectionObserver (`rootMargin: 200% 0px`) attaches it only while
-  the explainer is within two viewports of the screen, farther than one wheel event reaches, and removes
-  it otherwise, so everywhere else wheel scrolling keeps the browser's passive fast path.
-- Never held: touch drags and flicks, taps and clicks, keyboard scrolling, anchor links (clicked or
-  tapped, with the smooth-scroll layer or without), incoming fragments, `hashchange` and `popstate`, the
-  scrollbar, focus scrolling, scroll anchoring, and every programmatic scroll: `window.scrollTo`,
-  `scrollBy` or `scrollIntoView`, instant or smooth, including one made during or right after a held
-  wheel gesture. The detent has no `scroll`, touch, key or pointer listeners, so none of these reaches it.
-  Nor does the next wheel event undo one made during an unheld gesture: its crossing is judged from
-  where the page now is (see Hold), so it is held only if its own input carries the page from there to
-  the reading position or past, and then the page moves on to the reading position, in the event's
-  direction. The one bound: a non-wheel scroll that leaves the page at most 8 px past the reading
-  position, right after a notch aimed within 8 px of it, reads as that notch running long, and the next
-  wheel event places the page back at the reading position, at most 8 px.
-- Dead end (rounds 8 and 9): clamping `scrollY` on `scroll` events and inferring from time windows and
-  delta budgets which steps the gesture caused. It could not tell an in-budget programmatic jump from
-  wheel scrolling (an instant `scrollTo(R + 600)` right after four notches was held, and so was a smooth
-  `scrollTo`), and it trapped repeated touch flicks. CSS scroll snapping was tried before that and does
-  not hold either: one large wheel or a burst of notches runs straight through a
-  `scroll-snap-stop: always` marker (`reviews/probe-snap.mjs`).
-- Dead end (round 11): dropping the target only when the page moved further than the gesture's input
-  could carry it (3 times the input in flight plus this event's, plus 40 px). A crossing was still
-  judged across the old target, so a non-wheel jump inside that allowance to the other side of the
-  reading position was undone (wheel down from R - 300, `scrollTo(R + 50)`, wheel down landed on R).
-  Any threshold on how far the page may move keeps that hole open.
+  result, clamped to the scrollable range and rounded, is published as `#explainer[data-reading]` (px).
+  Measured on mount, `resize`, `load`, font load and when the section or the scroll layer changes size,
+  with the hold's current shift taken out; never in the frame loop.
+- Hold: from the reading position, for the `::after` block's height of scroll, every child of the section
+  (the title, `.ex-stage`, `.ex-bottom`) is translated down by how far the rendered spring offset is past
+  the reading position, so the block stays still on screen. After that it scrolls on from the bottom of
+  the section, and the next section follows with no gap. It follows the rendered offset
+  (`window.harnessScroll.y`), so it lines up with what is on screen, and it runs the same in either
+  direction.
+- Input: nothing is cancelled and there are no input listeners. Wheel, trackpad, touch, keys, anchor
+  links, the scrollbar and scripts all move the page as usual; the hold depends on the scroll position
+  alone.
+- Native scroll (reduced motion, or the smooth-scroll layer failed to mount): no `::after` block and no
+  hold, as with the card row. The sequence still plays (amendment v2), and `data-reading` is absent.
+- Dead end (rounds 8 to 16): the wheel detent. It cancelled the wheel event that would carry the page
+  across the reading position, placed the page there and absorbed wheel input for 2 s. It never held
+  touch, keys or links, and the owner still found it easy to scroll past.
 
 ## Reduced motion and no-JS
 
@@ -880,10 +839,10 @@ Module shape (mirrors card-art.mjs):
   type and palette), `resize` listeners that re-read the header height (and, for the start trigger, the caption and art
   boxes), and one `visibilitychange` listener. No
   reduced-motion listener: the preference does not change playback (amendment v2).
-- `detent(root)`, the scroll detent (see Scroll detent): one non-passive `wheel` listener on `window`,
-  attached and removed by an IntersectionObserver on the section (`rootMargin: 200% 0px`), and one
-  ResizeObserver on the section and the scroll layer that re-measures the reading position. No `scroll`,
-  touch, key or pointer listeners. It reads no layout during scrolling and adds nothing to the frame loop.
+- `hold(root)`, the scroll hold (see Scroll hold): one subscription to the smooth-scroll layer's rendered
+  offset, which writes the children's transform only when the shift changes, and one ResizeObserver on the
+  section and the scroll layer that re-measures the reading position. No input listeners. It reads no
+  layout during scrolling and adds nothing to the frame loop. Without the layer it does nothing.
 
 Observable hooks (built in round 4; checks and tests read these, so keep them stable):
 
@@ -893,8 +852,8 @@ Observable hooks (built in round 4; checks and tests read these, so keep them st
   script the attribute is absent.
 - `#explainer[data-beat]`: the beat on screen, `1` to `9`, written with the captions on every paint. It
   is `1` in `idle` (the painted start state), and the markup's `9` stands for the no-JS end state.
-- `#explainer[data-reading]` (round 14): the detent's reading position in px of scroll offset, rewritten
-  whenever it is measured. Absent without the module.
+- `#explainer[data-reading]` (round 14): where the scroll hold starts, in px of scroll offset, rewritten
+  whenever it is measured. Absent without the module or without the smooth-scroll layer.
 - Element hooks: every animated SVG element carries `data-p="<name>"` (for example `strip`, `ref`,
   `tA`, `tile`, `brief`, `stampt`, `scan5`); `parts(svg)` collects by these names in both drawings. The
   scan lines (`scan3`, `scan5`, `scancx`, `scan7`) exist only for the animation and sit at opacity 0 in
@@ -993,6 +952,13 @@ to the drawing's middle. `arm()` now also reads the caption and art boxes on mou
 that span does not fit, starts on beat 1's caption alone (see Timing, Autoplay and playback). Viewports
 that can show both keep round 7's rule. Nothing was added to the frame loop and there is no scroll
 listener; the drawing, captions, timing and `detent()` are unchanged.
+
+Round 18 (amendment v10): the wheel detent is deleted. The owner still found it easy to scroll past the
+explainer and asked for the Planned card row's pattern instead. With the smooth-scroll layer the section
+is 150svh longer, and from the reading position its content stays still on screen for that length of
+scroll, then scrolls on (see Scroll hold). No input is cancelled, so the hold works the same for wheel,
+touch and keys. Under reduced motion there is no hold. The drawing, captions, timing and playback are
+unchanged.
 
 Accessibility:
 

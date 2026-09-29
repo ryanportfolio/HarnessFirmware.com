@@ -18,19 +18,11 @@
 // timed to the drawing cue that shows what it says. Both are painted from t alone, beside frame().
 // Pattern from card-art.mjs: parts(svg) collects elements once, frame(parts, t) is pure and writes
 // attributes only when they change, one rAF loop with dt capped at 64 ms runs only while playing.
-// Scroll detent (amendments v8 and v9, detent() below): a mouse-wheel or trackpad scroll that would
-// carry the page across the reading position (bottom row, drawing and captions together below the
-// header, centred in the room left, with the title when it fits, else the title wholly under the header;
-// published as #explainer[data-reading]) stops there, in either direction, and later wheel input in that
-// gesture stays held. A gesture ends 300 ms after its last wheel event; the next one scrolls on, and
-// the detent re-arms only once the page has left the band where the whole block stays on screen (at
-// least 120 px each way). A non-passive wheel listener, attached only while the explainer is within
-// two viewports, cancels the crossing event and places the page at the reading position with a native
-// instant scroll, which the smooth-scroll layer eases to (under reduced motion it is final). Only wheel
-// events are held. Never held: touch drags and flicks, taps and clicks, keyboard scrolling, anchor
-// links, incoming fragments, hashchange and popstate, the scrollbar, and every window.scrollTo,
-// scrollBy or scrollIntoView, instant or smooth, including one made during or right after a held
-// gesture.
+// Scroll hold (amendment v10, hold() below), as the Planned card row pins: with the smooth-scroll layer
+// the section is 150svh longer, and from the reading position (bottom row, drawing and captions together
+// below the header, centred in the room left, with the title when it fits, else the title wholly under
+// the header; published as #explainer[data-reading]) the section's content stays still on screen for that
+// length of scroll, in either direction, then scrolls on. No input is cancelled.
 
 const GREEN = '#53db76';
 const BRIGHT = '#72f28c';
@@ -658,41 +650,36 @@ function mount(root) {
   });
 }
 
-// Scroll detent (amendments v8, v9). A mouse-wheel or trackpad gesture that would carry the page across the
-// reading position stops there, and every wheel event for the next PAUSE ms is absorbed, in either direction
-// and whatever the wheel's lines-per-click setting (owner request: the smooth-scroll layer's glide hid shorter
-// holds). After the pause wheel scrolling works as usual. It acts on the wheel event before the browser
-// scrolls, never on scroll events, so nothing that is not a wheel event can be held.
-const GESTURE_GAP = 300; // ms without a wheel event that ends a gesture
-const LINE = 40; // px per line, for deltaMode 1
-const SLACK = 8; // px a notch may land off its target and still count as on its way there
-const PAUSE = 2000; // ms after a stop during which wheel input does not scroll
-function detent(root) {
-  const header = document.querySelector('.site-header');
+// Scroll hold (amendment v10, the Planned card row's pattern). With the smooth-scroll layer, the section is
+// 150svh longer (explainer.css, keyed on html[data-smooth-scroll] so the height is there at first paint).
+// Once the page reaches the reading position, the title, stage and controls ride with the rendered spring
+// offset for that length of scroll, so the block holds still on screen, then scroll on from the bottom of
+// the section. It reads position only: no input is cancelled, and wheel, touch, keys, links, the scrollbar
+// and scripts all scroll through it the same way, in either direction. Native scroll (reduced motion, or no
+// layer) has no hold.
+function hold(root) {
+  const engine = window.harnessScroll;
   const layer = document.querySelector('[data-scroll-layer]');
+  const header = document.querySelector('.site-header');
   const boxes = ['.ex-bottom', '.ex-art-box', '.ex-beats'].map(sel => root.querySelector(sel)).filter(Boolean);
   const title = root.querySelector('h2');
-  if (!boxes.length) return;
-  // armed: a crossing will be held. pauseUntil: wheel input is absorbed until this event time. aim: where the
-  // gesture's wheel input has sent the page so far (a notch animates, so scrollY lags behind it), null until
-  // its first event and whenever the page is no longer on its way there. was: scrollY at the gesture's
-  // previous wheel event.
-  let reading = 0, band = 0, armed = true, pauseUntil = 0, aim = null, was = 0, dir = 0, last = -Infinity, attached = false;
+  const riders = [...root.children].filter(el => el.tagName !== 'NOSCRIPT');
+  if (!engine || !layer || !boxes.length) return;
+  // reading: the scroll offset where the hold starts; len: how long it lasts; shift: the offset applied now.
+  let reading = 0, len = 0, shift = 0;
 
   // Reading position: the reading block (the bottom row with the note and controls, the drawing and the
   // captions) sits below the header, centred in the room left under it when it fits. When the section title
   // fits in that room together with the block, the title joins it; otherwise the title sits wholly under the
   // header, never sliced by it. Published as #explainer[data-reading] (the scroll offset in px). Measured on
-  // mount, resize, load, font load and layout changes, never while scrolling. band is how far the page can
-  // move from it with the whole block still on screen (at least 120 px); a wheel event beyond the band
-  // re-arms the detent.
+  // mount, resize, load, font load and layout changes, never while scrolling; the shift in place is taken
+  // out, so the measure is the same wherever the page is.
   const measure = () => {
     const hb = header ? header.getBoundingClientRect().bottom : 0;
     const room = innerHeight - hb;
+    const base = layer.getBoundingClientRect().top + shift; // viewport y of the document's top, unshifted
     const rects = boxes.map(el => el.getBoundingClientRect());
     const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
-    const smooth = layer && document.documentElement.hasAttribute('data-smooth-scroll');
-    const base = smooth ? layer.getBoundingClientRect().top : -scrollY; // viewport y of the document's top
     const spare = Math.max(0, (room - (bottom - top)) / 2);
     const t = title?.getBoundingClientRect();
     let y = top - base - hb - spare;
@@ -700,83 +687,27 @@ function detent(root) {
     else if (t) y = Math.max(y, t.bottom - base - hb);
     const max = document.documentElement.scrollHeight - innerHeight;
     reading = Math.round(Math.min(Math.max(0, y), Math.max(0, max)));
-    band = Math.max(120, spare);
+    len = parseFloat(getComputedStyle(root, '::after').height) || 0;
     if (root.dataset.reading !== String(reading)) root.dataset.reading = String(reading);
+    update(-engine.y.get());
+  };
+  const update = shown => {
+    const next = Math.min(len, Math.max(0, shown - reading));
+    if (next === shift) return;
+    shift = next;
+    for (const el of riders) el.style.transform = shift ? `translate3d(0,${shift}px,0)` : '';
   };
 
-  const wheel = event => {
-    if (event.ctrlKey) return; // pinch zoom, not scrolling
-    if (event.timeStamp - last > GESTURE_GAP) { aim = null; dir = 0; }
-    last = event.timeStamp;
-    const d = event.deltaY * (event.deltaMode === 1 ? LINE : event.deltaMode === 2 ? innerHeight : 1);
-    if (!d) return;
-    const y = scrollY;
-    // The pause after a stop. A key, link, scrollbar or script that moved the page off the reading position
-    // ends it early, so the next wheel event scrolls from wherever the page now is. An uncancelable wheel
-    // event may already have moved it by up to its own delta (and the previous one's) before settle() puts
-    // it back, so that drift does not count.
-    if (pauseUntil) {
-      if (event.timeStamp < pauseUntil && Math.abs(y - reading) <= SLACK + 2 * Math.abs(d)) { hold(event); return; }
-      pauseUntil = 0;
-    }
-    if (!armed && Math.abs(y - reading) > band) armed = true;
-    if (Math.sign(d) !== dir) { dir = Math.sign(d); aim = null; }
-    // aim holds only while the page is still on its way to it: scrollY between the previous event's
-    // position and aim, give or take SLACK. Anywhere else, a key, anchor, scrollbar or script scroll has
-    // moved the page since, so this event is measured from where the page is now.
-    if (aim !== null && (y < Math.min(was, aim) - SLACK || y > Math.max(was, aim) + SLACK)) aim = null;
-    // A notch that ran long: the page was short of the reading position at the previous event and is now
-    // at it or at most SLACK past it, still on its way to aim.
-    const ranLong = aim !== null && (d > 0 ? was < reading && y >= reading : was > reading && y <= reading) && Math.abs(y - reading) <= SLACK;
-    was = y;
-    const from = aim ?? y;
-    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
-    aim = Math.min(Math.max(0, from + d), max);
-    // Crossing, judged from where the page is now: it is short of the reading position and this event
-    // takes it there or past. The start side is always scrollY, never the earlier aim, so a stale aim
-    // cannot make a crossing.
-    const crosses = ranLong || (d > 0 ? y < reading && aim >= reading : y > reading && aim <= reading);
-    if (!armed || !crosses) return;
-    armed = false;
-    pauseUntil = event.timeStamp + PAUSE;
-    // With the smooth-scroll layer the spring eases to the new native position; without it this is final.
-    window.scrollTo({top: reading, behavior: 'instant'});
-    hold(event);
-  };
-  // Held at the stop and during the pause. Chrome makes the later events of a trackpad scroll sequence
-  // uncancelable when its first event was not cancelled, and the browser applies those itself, before or
-  // after this handler runs; settle() puts the page back on the reading position on the next frame, once
-  // the browser has applied it.
-  let settling = 0;
-  const settle = () => {
-    if (!settling) settling = requestAnimationFrame(() => { settling = 0; window.scrollTo({top: reading, behavior: 'instant'}); });
-  };
-  const hold = event => {
-    if (event.cancelable) event.preventDefault();
-    else settle();
-  };
-
-  // A non-passive wheel listener makes the browser wait for the main thread before it scrolls each wheel
-  // sequence, so it is attached only while the explainer is within two viewports of the screen (farther
-  // than any one wheel event reaches) and removed otherwise; elsewhere wheel scrolling keeps its fast path.
-  new IntersectionObserver(entries => {
-    const near = entries[entries.length - 1].isIntersecting;
-    if (near === attached) return;
-    attached = near;
-    if (near) addEventListener('wheel', wheel, {passive: false});
-    else { removeEventListener('wheel', wheel); armed = true; pauseUntil = 0; }
-  }, {rootMargin: '200% 0px'}).observe(root);
-
+  engine.y.on('change', y => update(-y));
   measure();
   addEventListener('resize', measure);
   addEventListener('load', measure);
-  addEventListener('harness:motion-ready', measure);
   document.fonts?.ready.then(measure);
   const resized = new ResizeObserver(measure);
   resized.observe(root);
-  // Anything above the section that changes height moves it; the layer's (or body's) height follows.
-  resized.observe(layer || document.body);
+  // Anything above the section that changes height moves it; the layer's height follows.
+  resized.observe(layer);
 }
 
 const root = document.getElementById('explainer');
-if (root) { mount(root); detent(root); }
+if (root) { mount(root); hold(root); }
