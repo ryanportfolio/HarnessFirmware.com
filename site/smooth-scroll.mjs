@@ -1,5 +1,5 @@
 // Spring smooth scroll. Every page reaches it through effects.mjs (/), memory-scroll.mjs
-// (/memory) or skill-scroll.mjs (/skills, /new, arena, long-horizon); those modules skip it under
+// (/memory) or skill-scroll.mjs (/skills, /new, /about, arena, long-horizon); those modules skip it under
 // prefers-reduced-motion, leaving the document on native scroll.
 //
 // Native scrolling stays in charge: wheel, touch, keyboard, scrollbar and window.scrollTo all

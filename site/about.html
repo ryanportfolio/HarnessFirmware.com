@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0f1210"><title>About Harness Firmware · The 77-second film</title><meta name="description" content="Harness Firmware in 77 seconds, then a field log of seven real sessions that built a production site: the skills they ran, the pitfalls they saved and the reviews that caught bugs."><link rel="canonical" href="https://harnessfirmware.com/about"><meta property="og:type" content="website"><meta property="og:site_name" content="Harness Firmware"><meta property="og:title" content="About Harness Firmware · The 77-second film"><meta property="og:description" content="A coding agent forgets a correction, then a repository that remembers it, trims what the agent reads and writes, and has a second model check the work."><meta property="og:url" content="https://harnessfirmware.com/about"><meta property="og:image" content="https://harnessfirmware.com/assets/about-preview.jpg"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640"><meta property="og:image:alt" content="The Harness Firmware mark drawn in green light, above the line: Better outcomes, every round."><meta name="twitter:card" content="summary_large_image"><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="preload" href="/assets/fonts/lineal/Lineal-VF.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/fraunces/Fraunces-Italic.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/harness-text/HarnessText-VF.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/departure-mono/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="about.css"><link rel="stylesheet" href="site-header.css"><link rel="stylesheet" href="site-footer.css"><script type="module" src="site-header.mjs"></script><script type="module" src="skill-scroll.mjs"></script><script type="module" src="about-film.mjs"></script><script type="module" src="field-log.mjs"></script><script type="module" src="site-footer.mjs"></script></head><body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header"><a class="brand" href="/" aria-label="Harness Firmware home"><svg class="harness-mark" viewBox="30 5 295 320" aria-hidden="true"><path d="M47 65 123 21v168l-76-30Z M232 21l76 44v103l-76-28Z M47 172l76 30v108l-76-25Z M134 115l174 64v105l-76 26v-84l-98-32Z"/></svg><span>Harness<br>Firmware</span></a><nav aria-label="Main navigation"><a href="/#converge-block">How it works</a><a href="/skills">Skills</a><a href="/memory">Memory</a><a href="/about" aria-current="page">About</a><a href="https://github.com/ryanportfolio/Harness-Firmware" class="github">GitHub ↗</a><a class="nav-start" href="/new">Get started<span>↗</span></a></nav></header>
+<main id="main" tabindex="-1">
+
+
+
+<section id="film" class="film" aria-labelledby="about-title" data-state="idle">
+  <h1 id="about-title" class="visually-hidden">About Harness Firmware: the 77-second film</h1>
+  <div class="film-stage" tabindex="0" role="img" aria-label="A 77-second silent film drawn in green light: every session starts from zero; memory, skills and review, built into the repository; what one session learns, the next one reads; replies, command output and file reads, trimmed; the builder never grades its own work; each round starts from what the last one learned; better outcomes, every round.">
+    <canvas class="film-canvas"></canvas>
+    <div class="film-ov" aria-hidden="true"></div>
+    <p class="film-fallback">This film needs WebGL2, which this browser does not offer. It shows a coding agent that forgets a correction, then a repository that remembers it, trims what the agent reads and writes, and has a second model check the work.</p>
+  </div>
+  <div class="film-transport">
+    <button class="film-play" type="button">Play</button>
+    <span class="film-time" aria-live="off">0:00 / 1:17</span>
+    <div class="film-track"><div class="film-ticks" aria-hidden="true"></div><input class="film-scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="Film position"></div>
+  </div>
+  </section>
+
+<section id="log" class="log" aria-labelledby="log-title">
+  <h2 id="log-title" class="visually-hidden">Field log: seven sessions that built a production site</h2>
+  <div class="log-stage">
+    <canvas class="log-canvas" aria-hidden="true"></canvas>
+    <div class="log-ov" aria-hidden="true"></div>
+    <div class="log-foot"><div class="log-bar" aria-hidden="true"></div><button class="log-skip" type="button" aria-label="Skip past the field log">Skip ↓</button></div>
+  </div>
+  <ol class="log-text">
+    <li><h3>Seven sessions, three days, one production <em>site</em></h3><p>Each session worked its own lane. The tunnel and the hero ran <code>/long-horizon</code>, <code>/init-project</code> and <code>/wow-loop</code>; the masthead ran <code>/perf-loop</code> and <code>/refine</code>; the About page took 80 rounds of <code>/long-horizon-workflows</code>. An orchestrator ran <code>/codex-review</code> before every merge, then a performance pass (<code>/perf-loop</code>, <code>/codex-fullreview</code>) and a study engine (<code>/why</code>, <code>/long-horizon-swarm</code>) came last.</p></li>
+    <li><h3>Each session hands the plan on; one lands it <em>all</em></h3><p>Each session wrote the brief for the next, and every handoff was checked against GitHub; <code>/codex-review</code> caught one bug on the way. One pull request of 575 files landed the work, and six PRs landed in all.</p></li>
+    <li><h3>A lesson saved in one session protects the <em>next</em></h3><p>At 16:52 the performance pass ran recall, which read the pitfalls, architecture and commands notes. At 22:40 a forced removal wiped the shared <code>node_modules</code>. The session restored it and saved two pitfalls: never force-remove a worktree whose <code>node_modules</code> is a junction, and Git Bash rewrites <code>/about</code> into a path, so set <code>MSYS_NO_PATHCONV=1</code>. At 22:51 the study engine's recall read <code>pitfalls.md</code>, and at 23:49 it met the same trap and avoided it, 69 minutes after the wipe.</p></li>
+    <li><h3>Another model catches what the builder <em>missed</em></h3><p>Six same-model audits in <code>/long-horizon</code> passed the page. <code>/codex-review</code>, a model from another vendor, found a door-hole layering bug; it was fixed, then reviewed again. On one page, <code>/codex-review</code> and <code>/astra-review</code> found 10 real bugs, all fixed.</p></li>
+    <li><h3>Judged blind, measured before and <em>after</em></h3><p>In <code>/wow-loop</code> a blind judge compared new against old, and the new version won 23 of 24 rounds. <code>/perf-loop</code> made one measured change per round: the masthead went from 6.01 to 0.06 ms per frame, the home page from 4.10 to 2.43 MB per full scroll, and the About page from 50.8 to 64.9 fps on an integrated GPU. In <code>/long-horizon-workflows</code> a judge flagged a round that had tuned its code to pass its own check.</p></li>
+    <li><h3>The work showed what had gone <em>stale</em></h3><p>Project rules and notes had gone stale, so <code>CLAUDE.md</code> and <code>AGENTS.md</code> were reviewed in the firmware. A review skill named a retired model, so <code>/refine</code> updated the review skills. A reviewer with write access deleted the build, so reviewers are now read-only. Project setup had never been run, so <code>/init-project</code> now runs before release work.</p></li>
+    <li><h3>Rules load every turn; detail loads when it is <em>needed</em></h3><p>Loading every note and playbook on every turn would cost about 87,000 tokens. The firmware loads about 3,400: <code>CLAUDE.md</code> and one index line for each of its 36 skills. For a build bug, recall adds the pitfalls and architecture notes (4,100 tokens), then one playbook when the task calls for it (2,160), about 9,700 in all.</p></li>
+    <li><h3>What one project learns, the firmware <em>keeps</em></h3><p>Every new repository starts from the fixes, and <code>/sync-starter</code> brings them into existing ones.</p></li>
+  </ol>
+</section>
+
+<section class="log-end">
+  <a class="cta" href="/new">Start a repository with the firmware ↗</a>
+  <p>MIT licensed, for Claude Code and Codex. Already have a repository? Copy the skills you want from the <a href="https://github.com/ryanportfolio/Harness-Firmware/tree/main/.claude/skills">firmware repository ↗</a>.</p>
+</section>
+
+</main>
+<footer class="site-footer" id="footer" data-motion="paused">
+  <div class="sf-heading"><div class="sf-emblem" aria-hidden="true"></div><h2>Better outcomes,<br>every round</h2></div>
+  <div class="sf-ticker" aria-hidden="true"><div class="sf-track"></div><div class="sf-track"></div></div>
+  <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
+  <nav aria-label="Footer"><a href="/skills">Explore the skills</a><a href="https://github.com/ryanportfolio/Harness-Firmware">View source ↗</a><a href="https://fullbuild.ai/">Made by Fullbuild ↗</a></nav>
+  <a class="sf-top" href="#main">Back to top <span aria-hidden="true">↑</span></a></div>
+  <div class="sf-bottom"><span>Open source · Human directed</span></div>
+</footer>
+</body></html>
