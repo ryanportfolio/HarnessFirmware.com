@@ -13,6 +13,11 @@
 
 .explainer{--ex-pad:clamp(20px,calc(20px + 40*(100vw - 402px)/1518),60px);position:relative;box-sizing:border-box;margin:0;padding:clamp(72px,11vh,140px) var(--ex-pad);padding:clamp(72px,11svh,140px) var(--ex-pad);background:#0b100c;color:#f2efdf;border-top:1px solid #53db7633;font-family:var(--font-text);font-weight:var(--text-weight)}
 .explainer *,.explainer *::before,.explainer *::after{box-sizing:border-box}
+/* Scroll hold (explainer.mjs hold()): with the smooth-scroll layer the section runs 150svh longer, and its
+   content rides with the scroll for that length from the reading position, as the Planned card row pins.
+   Keyed on html[data-smooth-scroll], which the render-blocking app.mjs sets, so the height is final at
+   first paint. order puts it last in the phone column. */
+html[data-smooth-scroll] .explainer::after{content:"";display:block;order:3;height:150vh;height:150svh}
 .explainer :where(h2,h3,p,ol,li,small){margin:0;padding:0}
 .explainer :focus-visible{outline:2px solid #5fb775;outline-offset:4px}
 
