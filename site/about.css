@@ -1,5 +1,5 @@
-/* About page: the film (about-film.mjs) as the page's centre, its chapters as a transcript that seeks
-   the film, then the files, the three steps and the project facts. Tokens match styles.css. */
+/* About page: the film (about-film.mjs), then the field log (field-log.mjs) and where to start.
+   Tokens match styles.css. */
 :root{--ink:#0f1210;--paper:#f3f3ec;--green:#53db76;--amber:#efc87e;--muted:#b2b5ab;--line:rgba(243,243,236,.16);
   --gutter:max(4.3vw,calc((100vw - 1500px)/2));color-scheme:dark;font-family:var(--font-text);font-weight:var(--text-weight);background:var(--ink);color:var(--paper)}
 *{box-sizing:border-box}
@@ -17,10 +17,9 @@ code{font-family:var(--font-mono);font-size:.92em;letter-spacing:.01em}
 html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-smooth-scroll] [data-scroll-spacer]{overflow-anchor:none}
 main{display:block}
 main:focus{outline:none}
-.kicker{margin:0 0 18px;font:12px/1.4 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
-h1,h2,h3,.ch-line,.fc.stmt{text-wrap:balance}
+h1,h2,h3,.fc.stmt{text-wrap:balance}
 h1,h2,h3{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track);margin:0}
-h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-weight);font-style:var(--accent-style);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
+h1 em,h2 em,h3 em{font-family:var(--font-accent);font-weight:var(--accent-weight);font-style:var(--accent-style);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
 
 /* The page title stays for search and screen readers; the film is the visible opening. */
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
@@ -72,74 +71,50 @@ h1 em,h2 em,.ch-line em{font-family:var(--font-accent);font-weight:var(--accent-
 .film-scrub::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5px;border-radius:50%;background:var(--green);box-shadow:0 0 12px #53db76}
 .film-scrub::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--green);box-shadow:0 0 12px #53db76}
 
-/* ---- sections below the film */
-section.chapters{padding:96px var(--gutter) 0}
-section.tree,section.start{padding:140px var(--gutter) 0}
-.section-head{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0 6vw;align-items:end;margin-bottom:56px}
-.section-head .kicker{grid-column:1/-1}
-.section-head h2{font-size:clamp(34px,3.6vw,60px);line-height:1}
-.section-head p:not(.kicker){margin:0;max-width:34em;font-size:17px;line-height:1.55;color:#c2c9ba}
-
-/* Chapters: time and title, the chapter's statement, then what it shows and the practice. The row
-   playing now carries a green rule; every row stays fully readable. */
-.chapter-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
-.chapter-list li{position:relative;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px 6vw;padding:34px 0 38px;border-bottom:1px solid var(--line)}
-.chapter-list li:before{content:'';position:absolute;left:-22px;top:34px;bottom:38px;width:2px;background:var(--green);box-shadow:0 0 14px #53db76;transform:scaleY(0);transform-origin:top;transition:transform .45s cubic-bezier(.22,1,.36,1)}
-.chapter-list li:has(.is-current):before{transform:none}
-.chapter-list button{display:grid;gap:16px;text-align:left;align-content:start}
-.ch-meta{display:flex;gap:18px;font:12px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.ch-time{color:var(--green);font-variant-numeric:tabular-nums}
-.ch-meta:after{content:'Watch ▸';margin-left:auto;opacity:0;color:var(--green);transition:opacity .2s}
-.chapter-list button:hover .ch-meta:after,.chapter-list button:focus-visible .ch-meta:after{opacity:1}
-.chapter-list button.is-current .ch-meta:after{content:'Now playing';opacity:1}
-/* Without WebGL2 the chapters are plain text: no film to seek. */
-.chapter-list button:disabled{cursor:default}
-.chapter-list button:disabled .ch-meta:after{display:none}
-.chapter-list button:disabled .ch-line{color:var(--paper)}
-.ch-line{font:var(--display-weight) clamp(30px,3.05vw,54px)/1.04 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);transition:color .3s}
-.chapter-list button:hover .ch-line{color:#fff}
-.ch-body{display:grid;gap:16px;align-content:start;font-size:clamp(18px,1.3vw,21px);line-height:1.5;color:#d3d8cc}
-.ch-body p{margin:0;text-wrap:pretty}
-.ch-where{font-size:15px;color:var(--muted)}
-.ch-where a,.start a,.start-alt a,.facts a{border-bottom:1px solid #53db7666;transition:border-color .2s,color .2s}
-.ch-where a:hover,.start a:hover,.start-alt a:hover,.facts a:hover{color:var(--green);border-color:var(--green)}
-.ch-cta{font:13px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
-
-/* The files, as a tree in the film's light. */
-.tree-art{margin:0;padding:44px clamp(20px,4vw,64px);overflow-x:auto;background:#0b0e0c;box-shadow:0 0 0 1px var(--line);font:clamp(13px,1.05vw,17px)/1.9 var(--font-mono);color:var(--paper)}
-.tree-art .g{color:#53db7699}
-.tree-art .d{color:var(--green);text-shadow:0 0 12px #53db7666}
-.tree-art .f{color:var(--paper)}
-.tree-art .n{color:var(--muted)}
-
-/* Three steps */
-.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line)}
-.steps li{padding:30px 34px 36px 0;display:grid;gap:14px;align-content:start}
-.steps li+li{padding-left:34px;border-left:1px solid var(--line)}
-.step-n{font:12px var(--font-mono);letter-spacing:.14em;color:var(--green)}
-.steps h3{font-size:clamp(22px,1.8vw,30px);line-height:1.08}
-.steps h3 code{font-size:.85em;color:var(--green)}
-.steps p{margin:0;font-size:16px;line-height:1.55;color:#c2c9ba}
-.start-alt{margin:26px 0 0;font-size:15px;color:var(--muted)}
-
-/* Facts */
-.facts{padding:140px var(--gutter) 150px}
-.facts h2.kicker{font-family:var(--font-mono);font-weight:400;letter-spacing:.14em}
-.facts dl{margin:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line)}
-.facts dl>div{padding:24px 24px 0 0}
-.facts dl>div+div{padding-left:24px;border-left:1px solid var(--line)}
-.facts dt{font:11px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-.facts dd{margin:0;font-size:16px;line-height:1.5}
-
-@media(max-width:900px){
-  .section-head{grid-template-columns:1fr;gap:18px}
-  .chapter-list li{grid-template-columns:1fr}
-  .chapter-list li:before{left:-12px}
-  .steps{grid-template-columns:1fr}
-  .steps li+li{padding-left:0;border-left:0;border-top:1px solid var(--line)}
-  .facts dl{grid-template-columns:1fr 1fr}
-  .facts dl>div,.facts dl>div+div{padding:20px 16px 20px 0;border-left:0}
-  section.chapters,section.tree,section.start{padding-top:96px}
+/* ---- the field log (field-log.mjs): nine screens of scroll with the stage pinned under the header.
+   On native scroll the stage is sticky; under the smooth-scroll layer field-log.mjs translates it. Under
+   reduced motion, without scripting or without WebGL2 ([data-state=static]) the written log shows instead. */
+.log{position:relative;height:calc((100svh - var(--hh)) * 9);min-height:2700px}
+.log-stage{position:sticky;top:var(--hh);height:calc(100svh - var(--hh));min-height:300px;padding:0 var(--gutter);overflow:hidden;background:var(--ink)}
+html[data-smooth-scroll] .log-stage{position:absolute;top:0;left:0;right:0}
+.log-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.log-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
+/* Captions: larger and brighter than the film's, set on the 1920 x 1080 stage and scaled with it. */
+.log-ov .fc.mono{font-size:26px;line-height:1.4;letter-spacing:.06em;color:rgba(243,243,236,.88)}
+.log-ov .fc.mono.s{font-size:22px;letter-spacing:.05em;color:rgba(243,243,236,.8)}
+.log-ov .fc.mono.q{font-size:24px;letter-spacing:.02em;color:var(--paper)}
+.log-ov .fc.mono.big{font-size:44px;letter-spacing:.08em}
+.log-ov .fc.wrap{white-space:normal;max-width:400px}
+.log-ov .fc.c{text-align:center}.log-ov .fc.r{text-align:right}
+.log-ov .fc.fc.fc.amb{color:var(--amber)}.log-ov .fc.fc.fc.grn{color:var(--green)}
+.log-foot{position:absolute;left:var(--gutter);right:var(--gutter);bottom:0;height:56px;display:flex;align-items:center;gap:20px}
+.log-bar{--p:0;position:relative;flex:1;height:2px;background:linear-gradient(90deg,var(--green) calc(var(--p)*100%),rgba(243,243,236,.18) 0)}
+.log-bar i{position:absolute;top:-5px;height:12px;border-left:1px solid #53db7680}
+.log-skip{padding:9px 14px;border:1px solid #3c5a44;border-radius:999px;font:11px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--paper);transition:border-color .2s,background .2s}
+.log-skip:hover{border-color:var(--green);background:#53db7614}
+/* The written log: read aloud in the live state, shown in the static one. */
+.log-text{list-style:none;margin:0;padding:0}
+.log:not([data-state=static]) .log-text{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.log[data-state=static]{height:auto;min-height:0;padding:96px var(--gutter) 0}
+.log[data-state=static] .log-stage{display:none}
+.log[data-state=static] .log-text{border-top:1px solid var(--line)}
+.log-text li{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px 6vw;padding:34px 0 38px;border-bottom:1px solid var(--line)}
+.log-text h3{font-size:clamp(30px,3.05vw,54px);line-height:1.04;color:var(--paper)}
+.log-text p{margin:0;font-size:clamp(18px,1.3vw,21px);line-height:1.5;color:#d3d8cc;text-wrap:pretty}
+@media(prefers-reduced-motion:reduce),(scripting:none){
+  .log{height:auto;min-height:0;padding:96px var(--gutter) 0}
+  .log .log-stage{display:none}
+  .log .log-text{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal;border-top:1px solid var(--line)}
 }
-@media(max-width:520px){.film-transport{gap:12px}.film-time{min-width:0}.facts dl{grid-template-columns:1fr}}
+
+/* ---- after the log: where to start */
+.log-end{padding:120px var(--gutter) 150px;display:grid;gap:18px;justify-items:start}
+.cta{font:clamp(22px,1.8vw,30px)/1.1 var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track);color:var(--green);border-bottom:1px solid #53db7666;transition:border-color .2s}
+.cta:hover{border-color:var(--green)}
+.log-end p{margin:0;max-width:40em;font-size:17px;line-height:1.55;color:#c2c9ba}
+.log-end p a{border-bottom:1px solid #53db7666;transition:border-color .2s,color .2s}
+.log-end p a:hover{color:var(--green);border-color:var(--green)}
+
+@media(max-width:900px){.log-text li{grid-template-columns:1fr}}
+@media(max-width:520px){.film-transport{gap:12px}.film-time{min-width:0}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}html{scroll-behavior:auto}}
