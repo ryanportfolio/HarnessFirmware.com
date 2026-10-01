@@ -5,6 +5,8 @@ import { test } from 'node:test';
 import {
   HARNESS_REMOVAL_RECORD_PATH,
   HARNESS_SESSION_COOKIE,
+  HARNESS_TEMPLATE_MANIFEST_PATH,
+  HarnessManifestError,
   createPkceChallenge,
   createPkceVerifier,
   decryptHarnessPayload,
@@ -12,8 +14,12 @@ import {
   githubAppConfigured,
   handleCreatorRequest,
   isValidRepositoryName,
+  manifestEntryMatches,
+  manifestRemovalProblems,
   mergeSkillOverrides,
   normalizeDisabledSkills,
+  parseTemplateManifest,
+  plannedRepositorySetup,
   plannedSkillSelection,
   removalRecordText,
   sameOriginRequest,
@@ -250,7 +256,204 @@ test('picker ticks what a ticked skill needs', () => {
   assert.deepEqual(harnessRemovalProblems(disabled), []);
 });
 
-test('create endpoint rejects a crafted selection that breaks the removal rules', async () => {
+// ---------------------------------------------------------------------------
+// Template manifest and the project setup commit.
+
+// The manifest as the template spec defines it (version 1).
+function fixtureManifest(overrides = {}) {
+  return {
+    version: 1,
+    template: 'ryanportfolio/Harness-Firmware',
+    requiredFiles: [
+      '.agents/template-manifest.json', 'AGENTS.md', '.agents/skills/init-project/SKILL.md',
+      '.claude/skills/init-project/SKILL.md', '.claude/scripts/sync-codex-skills.mjs',
+    ],
+    projectPaths: ['.agents', '.claude', '.gitattributes', '.gitignore', '.mcp.json', 'AGENTS.md', 'CLAUDE.md', 'docs/codex-skills.md', 'scripts/lib'],
+    templateOnly: [
+      '.claude-plugin', '.github/ISSUE_TEMPLATE', '.github/workflows/validate-template.yml', 'CHANGELOG.md',
+      'CONTRIBUTING.md', 'GUIDE.md', 'LICENSE', 'README.md', 'assets/diagrams', 'assets/readme', 'bootstrap',
+      'docs/research', 'docs/specs', 'docs/superpowers', 'scripts/diagrams', 'scripts/readme',
+    ],
+    readmeStub: '# {name}\n',
+    skills: {
+      groups: [
+        { id: 'core', label: 'Core workflows', description: 'Setup, memory, maintenance, and everyday project control', skills: ['init-project'] },
+        { id: 'discipline', label: 'Quality disciplines', description: 'Planning, review, and dependable long-form execution', skills: ['codex-review'] },
+        { id: 'specialist', label: 'Specialist tools', description: 'Focused modes for design, writing, critique, and delivery', skills: ['lab'] },
+      ],
+      required: ['external-review', 'init-project'],
+      dependencies: {
+        'astra-fullreview': ['codex-fullreview', 'impartial-review'],
+        'astra-review': ['codex-review', 'external-review'],
+        'codex-fullreview': ['impartial-review'],
+        'codex-review': ['external-review'],
+        'merge-ready': ['codex-fullreview', 'codex-review'],
+      },
+      presets: { minimal: { omit: ['advocate', 'enhance-prompt', 'fable-mode', 'forge-repo-ui-skill', 'handoff-audit', 'lab', 'why'] } },
+    },
+    ...overrides,
+  };
+}
+
+// Files under template-only entries, including files nested in template-only folders.
+const TEMPLATE_ONLY_FILES = [
+  '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json',
+  '.github/ISSUE_TEMPLATE/bug_report.md', '.github/workflows/validate-template.yml',
+  'CHANGELOG.md', 'CONTRIBUTING.md', 'GUIDE.md', 'LICENSE', 'README.md',
+  'assets/diagrams/flow.svg', 'assets/readme/hero.svg', 'assets/readme/dark/hero-dark.svg',
+  'bootstrap/new-claude-project.sh', 'bootstrap/NewProjectCore.psm1', 'bootstrap/tests/check-template-manifest.mjs',
+  'docs/research/notes.md', 'docs/specs/2026-10-01-template-manifest-design.md', 'docs/superpowers/plan.md',
+  'scripts/diagrams/build.mjs', 'scripts/readme/build.mjs', 'scripts/readme/lib/svg.mjs',
+];
+// Project files, including names that share a prefix with a template-only entry but are not under it.
+const PROJECT_FILES = [
+  '.agents/removed-skills.json', '.claude/settings.json', '.claude/scripts/sync-codex-skills.mjs',
+  '.gitattributes', '.gitignore', '.mcp.json', 'AGENTS.md', 'CLAUDE.md',
+  'docs/codex-skills.md', 'docs/specs-archive/old.md', 'scripts/lib/launch-chrome.mjs', 'scripts/readme.txt',
+];
+
+// A generated repository: every catalog skill folder, project files, template-only files, the
+// manifest blob (when present), and the folder entries a recursive tree lists.
+function generatedTree({ withManifest = true } = {}) {
+  const blob = (path, sha = `sha-${path}`) => ({ path, mode: '100644', type: 'blob', sha });
+  const entries = [
+    ...fullTree(),
+    ...PROJECT_FILES.map((path) => blob(path)),
+    ...TEMPLATE_ONLY_FILES.map((path) => blob(path)),
+    { path: 'bootstrap', mode: '040000', type: 'tree', sha: 'tree-bootstrap' },
+    { path: 'docs', mode: '040000', type: 'tree', sha: 'tree-docs' },
+  ];
+  if (withManifest) entries.push(blob(HARNESS_TEMPLATE_MANIFEST_PATH, 'manifest-sha'));
+  return entries;
+}
+
+const isTemplateOnly = (manifest, path) => manifest.templateOnly.some((entry) => manifestEntryMatches(entry, path));
+
+// The repository's files after a plan is applied: path -> written content, or true when kept as is.
+function applyPlan(tree, plan) {
+  const deleted = new Set(plan.deletions.map((entry) => entry.path));
+  const files = new Map(tree.filter((entry) => entry.type !== 'tree' && !deleted.has(entry.path)).map((entry) => [entry.path, true]));
+  for (const write of plan.writes) files.set(write.path, write.content);
+  return files;
+}
+
+test('the fixture covers every template-only entry', () => {
+  const manifest = fixtureManifest();
+  for (const entry of manifest.templateOnly) {
+    assert.ok(TEMPLATE_ONLY_FILES.some((path) => manifestEntryMatches(entry, path)), `${entry} has a fixture file`);
+  }
+  for (const path of PROJECT_FILES) assert.equal(isTemplateOnly(manifest, path), false, `${path} is a project file`);
+});
+
+test('setup plan strips every template-only path, keeps required files, and writes the README stub', () => {
+  const manifest = fixtureManifest();
+  const tree = generatedTree();
+  const plan = plannedRepositorySetup({ treeEntries: tree, manifest, repositoryName: 'my-app', settingsText: '{}', disabledSkills: [] });
+  const files = applyPlan(tree, plan);
+
+  for (const path of files.keys()) {
+    if (path === 'README.md') continue;
+    assert.equal(isTemplateOnly(manifest, path), false, `${path} is template-only and must be removed`);
+  }
+  for (const path of TEMPLATE_ONLY_FILES.filter((path) => path !== 'README.md')) assert.equal(files.has(path), false, `${path} removed`);
+  assert.equal(files.get('README.md'), '# my-app\n');
+  for (const path of manifest.requiredFiles) assert.ok(files.has(path), `${path} kept`);
+  for (const path of PROJECT_FILES) assert.equal(files.get(path), true, `${path} kept unchanged`);
+  assert.ok(plan.deletions.every((entry) => entry.sha === null && entry.type === 'blob'));
+  assert.equal(plan.deletions.some((entry) => entry.path === 'README.md'), false, 'README is replaced, not deleted');
+  // With nothing deselected the settings and the removal record stay as the template shipped them.
+  assert.deepEqual(plan.writes.map((write) => write.path), ['README.md']);
+});
+
+test('setup plan also applies skill removals in the same change set', () => {
+  const manifest = fixtureManifest();
+  const tree = generatedTree();
+  const plan = plannedRepositorySetup({ treeEntries: tree, manifest, repositoryName: 'my-app', settingsText: '{}', disabledSkills: ['lab'] });
+  assert.deepEqual(plan.writes.map((write) => write.path), ['README.md', '.claude/settings.json', HARNESS_REMOVAL_RECORD_PATH]);
+  const files = applyPlan(tree, plan);
+  assert.equal(files.has('.claude/skills/lab/SKILL.md'), false);
+  assert.equal(files.has('.agents/skills/lab/SKILL.md'), false);
+  assert.equal(files.has('bootstrap/new-claude-project.sh'), false);
+});
+
+test('setup plan fails when a required file would be missing', () => {
+  const tree = generatedTree().filter((entry) => entry.path !== 'AGENTS.md');
+  const plan = () => plannedRepositorySetup({ treeEntries: tree, manifest: fixtureManifest(), repositoryName: 'x', settingsText: '{}', disabledSkills: [] });
+  assert.throws(plan, /AGENTS\.md/);
+  const strippingRequired = fixtureManifest({ templateOnly: [...fixtureManifest().templateOnly, 'AGENTS.md'] });
+  assert.throws(
+    () => plannedRepositorySetup({ treeEntries: generatedTree(), manifest: strippingRequired, repositoryName: 'x', settingsText: '{}', disabledSkills: [] }),
+    /AGENTS\.md/,
+  );
+});
+
+test('manifest parser accepts version 1 and rejects other versions, unknown keys, and bad paths', () => {
+  assert.ok(parseTemplateManifest(fixtureManifest()));
+  const rejects = (value, pattern) => assert.throws(() => parseTemplateManifest(value), (error) => error instanceof HarnessManifestError && pattern.test(error.message));
+  rejects(fixtureManifest({ version: 2 }), /version 2 is not supported/);
+  rejects(fixtureManifest({ extra: true }), /unknown key "extra"/);
+  rejects(fixtureManifest({ templateOnly: ['bootstrap/'] }), /invalid path/);
+  rejects(fixtureManifest({ templateOnly: ['docs/*.md'] }), /invalid path/);
+  rejects(fixtureManifest({ requiredFiles: ['../AGENTS.md'] }), /invalid path/);
+  rejects(fixtureManifest({ readmeStub: undefined }), /readmeStub/);
+  rejects(fixtureManifest({ skills: { required: [], dependencies: { lab: 'refine' } } }), /dependencies/);
+  rejects([], /not a JSON object/);
+});
+
+test('manifest removal rules use the manifest, not the built-in list', () => {
+  const manifest = fixtureManifest();
+  // Allowed by the built-in rules, which predate merge-ready.
+  assert.deepEqual(harnessRemovalProblems(['astra-fullreview', 'codex-fullreview']), []);
+  assert.deepEqual(manifestRemovalProblems(manifest, ['astra-fullreview', 'codex-fullreview']), [
+    'merge-ready needs codex-fullreview; keep codex-fullreview or remove merge-ready too',
+  ]);
+  assert.deepEqual(manifestRemovalProblems(manifest, ['init-project']), ['init-project is required and cannot be removed']);
+  assert.deepEqual(manifestRemovalProblems(manifest, ['lab']), []);
+});
+
+// A fake GitHub API. Records every request; anything it does not know is reported as unexpected.
+function fakeGithub({ templateManifest = fixtureManifest(), tree = generatedTree(), generatedManifest = fixtureManifest() } = {}) {
+  const requests = [];
+  const unexpected = [];
+  const base64 = (text) => Buffer.from(text, 'utf8').toString('base64');
+  const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  let blobCount = 0;
+  const routes = {
+    'GET /repos/ryanportfolio/Harness-Firmware/contents/.agents/template-manifest.json': () => (
+      templateManifest ? reply(200, templateManifest) : reply(404, { message: 'Not Found' })),
+    'POST /repos/ryanportfolio/Harness-Firmware/generate': () => reply(201, {
+      html_url: 'https://github.com/someone/project', full_name: 'someone/project', private: true, default_branch: 'main',
+    }),
+    'GET /repos/someone/project/contents/.claude/settings.json?ref=main': () => reply(200, { content: base64('{}\n'), encoding: 'base64', sha: 'settings-sha' }),
+    'GET /repos/someone/project/git/ref/heads/main': () => reply(200, { object: { sha: 'head-commit' } }),
+    'GET /repos/someone/project/git/commits/head-commit': () => reply(200, { tree: { sha: 'base-tree' } }),
+    'GET /repos/someone/project/git/trees/base-tree?recursive=1': () => reply(200, { tree, truncated: false }),
+    'GET /repos/someone/project/git/blobs/manifest-sha': () => reply(200, { content: base64(JSON.stringify(generatedManifest)), encoding: 'base64' }),
+    'POST /repos/someone/project/git/blobs': () => reply(201, { sha: `new-blob-${(blobCount += 1)}` }),
+    'POST /repos/someone/project/git/trees': () => reply(201, { sha: 'new-tree' }),
+    'POST /repos/someone/project/git/commits': () => reply(201, { sha: 'new-commit' }),
+    'PATCH /repos/someone/project/git/refs/heads/main': () => reply(200, { object: { sha: 'new-commit' } }),
+  };
+  return {
+    requests,
+    unexpected,
+    find: (key) => requests.filter((request) => request.key === key),
+    handle(method, url, init) {
+      const key = `${method} ${url.pathname}${url.search}`;
+      requests.push({ key, headers: init.headers || {}, body: init.body ? JSON.parse(init.body) : undefined });
+      const route = routes[key];
+      if (!route) {
+        unexpected.push(key);
+        return reply(500, { message: `Unexpected test request ${key}` });
+      }
+      return route();
+    },
+  };
+}
+
+// Runs the creator on a local server with app secrets set. Global fetch reaches only that server
+// and the fake GitHub; any other host throws, so no test can touch the network.
+async function withCreator(github, run) {
   const secret = 'x'.repeat(32);
   const appEnvironment = {
     GITHUB_APP_ID: '1', GITHUB_APP_SLUG: 'harness', GITHUB_APP_CLIENT_ID: 'id',
@@ -258,9 +461,16 @@ test('create endpoint rejects a crafted selection that breaks the removal rules'
   };
   const saved = Object.fromEntries(Object.keys(appEnvironment).map((key) => [key, process.env[key]]));
   Object.assign(process.env, appEnvironment);
+  const realFetch = globalThis.fetch;
   const server = http.createServer((req, res) => handleCreatorRequest(req, res));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+    if (url.origin === origin) return realFetch(input, init);
+    if (url.origin === 'https://api.github.com' && github) return github.handle(init.method || 'GET', url, init);
+    throw new Error(`Network access is disabled in tests: ${url.origin}`);
+  };
   const session = encryptHarnessPayload({
     installationId: 1, owner: 'someone', accessToken: 'token', accessTokenExpiresAt: null, issuedAt: Date.now(),
   }, secret);
@@ -274,6 +484,19 @@ test('create endpoint rejects a crafted selection that breaks the removal rules'
     body: JSON.stringify({ name: 'project', disabledSkills }),
   });
   try {
+    await run(create);
+  } finally {
+    globalThis.fetch = realFetch;
+    await new Promise((resolve) => server.close(resolve));
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+test('create endpoint rejects a crafted selection that breaks the removal rules', async () => {
+  await withCreator(null, async (create) => {
     let response = await create(['codex-fullreview']);
     assert.equal(response.status, 400);
     assert.match((await response.json()).error, /astra-fullreview needs codex-fullreview/);
@@ -282,11 +505,114 @@ test('create endpoint rejects a crafted selection that breaks the removal rules'
     assert.match((await response.json()).error, /external-review is required/);
     response = await create(['not-a-skill']);
     assert.equal(response.status, 422);
-  } finally {
-    server.close();
-    for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
+  });
+});
+
+test('create endpoint rejects a selection that breaks the template manifest rules before generating', async () => {
+  const github = fakeGithub();
+  await withCreator(github, async (create) => {
+    const response = await create(['astra-fullreview', 'codex-fullreview']);
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /merge-ready needs codex-fullreview/);
+  });
+  const [manifestRequest] = github.find('GET /repos/ryanportfolio/Harness-Firmware/contents/.agents/template-manifest.json');
+  assert.equal(manifestRequest.headers.Accept, 'application/vnd.github.raw+json');
+  assert.deepEqual(github.find('POST /repos/ryanportfolio/Harness-Firmware/generate'), [], 'no repository generated');
+  assert.deepEqual(github.unexpected, []);
+});
+
+test('create endpoint refuses to generate when the template manifest is invalid', async () => {
+  const github = fakeGithub({ templateManifest: fixtureManifest({ version: 2 }) });
+  await withCreator(github, async (create) => {
+    const response = await create([]);
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error, /No repository was created because template manifest version 2/);
+  });
+  assert.deepEqual(github.find('POST /repos/ryanportfolio/Harness-Firmware/generate'), []);
+});
+
+test('create flow with no skills removed commits the template-only strip and moves the branch', async () => {
+  const github = fakeGithub();
+  await withCreator(github, async (create) => {
+    const response = await create([]);
+    assert.equal(response.status, 201);
+    const result = await response.json();
+    assert.equal(result.customized, true);
+    assert.equal(result.customizationWarning, null);
+  });
+  assert.deepEqual(github.unexpected, []);
+
+  const [treeRequest] = github.find('POST /repos/someone/project/git/trees');
+  assert.equal(treeRequest.body.base_tree, 'base-tree');
+  const posted = new Map(treeRequest.body.tree.map((entry) => [entry.path, entry]));
+  for (const path of TEMPLATE_ONLY_FILES.filter((path) => path !== 'README.md')) {
+    assert.equal(posted.get(path)?.sha, null, `${path} deleted`);
+  }
+  for (const entry of generatedTree()) {
+    if (entry.type !== 'tree' && posted.get(entry.path)?.sha === null) {
+      assert.ok(isTemplateOnly(fixtureManifest(), entry.path), `${entry.path} is a project file and must stay`);
     }
   }
+  const blobs = github.find('POST /repos/someone/project/git/blobs');
+  assert.equal(blobs.length, 1, 'only the README is written');
+  assert.equal(Buffer.from(blobs[0].body.content, 'base64').toString('utf8'), '# project\n');
+  assert.equal(posted.get('README.md').sha, 'new-blob-1');
+
+  const [commitRequest] = github.find('POST /repos/someone/project/git/commits');
+  assert.match(commitRequest.body.message, /^Set up project from Harness Firmware\n/);
+  assert.deepEqual(commitRequest.body.parents, ['head-commit']);
+  assert.equal(commitRequest.body.tree, 'new-tree');
+  const [refRequest] = github.find('PATCH /repos/someone/project/git/refs/heads/main');
+  assert.deepEqual(refRequest.body, { sha: 'new-commit', force: false });
+});
+
+test('create flow applies skill removals in the same setup commit', async () => {
+  const github = fakeGithub();
+  await withCreator(github, async (create) => {
+    const response = await create(['lab']);
+    assert.equal(response.status, 201);
+    const result = await response.json();
+    assert.equal(result.customized, true);
+    assert.equal(result.disabledSkillCount, 1);
+  });
+  const [treeRequest] = github.find('POST /repos/someone/project/git/trees');
+  const paths = new Map(treeRequest.body.tree.map((entry) => [entry.path, entry.sha]));
+  assert.equal(paths.get('.claude/skills/lab/SKILL.md'), null);
+  assert.equal(paths.get('bootstrap/new-claude-project.sh'), null);
+  assert.ok(paths.get('.claude/settings.json'));
+  assert.ok(paths.get(HARNESS_REMOVAL_RECORD_PATH));
+  assert.equal(github.find('POST /repos/someone/project/git/commits').length, 1);
+});
+
+test('create flow keeps the repository and warns when the generated repository has no manifest', async () => {
+  // The template has not shipped its manifest yet: the built-in rules apply and generation proceeds.
+  const github = fakeGithub({ templateManifest: null, tree: generatedTree({ withManifest: false }) });
+  await withCreator(github, async (create) => {
+    const response = await create(['lab']);
+    assert.equal(response.status, 201);
+    const result = await response.json();
+    assert.equal(result.customized, false);
+    assert.equal(result.disabledSkillCount, 0);
+    assert.match(result.customizationWarning, /template manifest could not be used/);
+    assert.match(result.customizationWarning, /were not removed/);
+    assert.match(result.customizationWarning, /all skills remain enabled/);
+  });
+  assert.equal(github.find('POST /repos/ryanportfolio/Harness-Firmware/generate').length, 1, 'repository created');
+  for (const key of ['POST /repos/someone/project/git/blobs', 'POST /repos/someone/project/git/trees', 'POST /repos/someone/project/git/commits', 'PATCH /repos/someone/project/git/refs/heads/main']) {
+    assert.deepEqual(github.find(key), [], `${key} not called`);
+  }
+  assert.deepEqual(github.unexpected, []);
+});
+
+test('create flow warns without committing when the generated manifest is invalid', async () => {
+  const github = fakeGithub({ generatedManifest: fixtureManifest({ version: 2 }) });
+  await withCreator(github, async (create) => {
+    const response = await create([]);
+    assert.equal(response.status, 201);
+    const result = await response.json();
+    assert.equal(result.customized, false);
+    assert.match(result.customizationWarning, /were not removed\.$/);
+  });
+  assert.deepEqual(github.find('POST /repos/someone/project/git/commits'), []);
+  assert.deepEqual(github.find('PATCH /repos/someone/project/git/refs/heads/main'), []);
 });
