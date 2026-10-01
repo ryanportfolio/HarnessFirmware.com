@@ -1,67 +1,248 @@
-/* Records which skill folders a repository generated from the Harness-Firmware template contains,
-   and the template's skill removal rules, so the /new picker and github-creator.test.mjs can work
-   offline.
+/* Records the skill folders and skill rules of the Harness-Firmware template, so the /new picker
+   and github-creator.test.mjs can work offline, and checks that the site still matches the template.
 
-   node scripts/refresh-upstream-skills.mjs              read main
-   node scripts/refresh-upstream-skills.mjs --ref <ref>  read a branch, tag, or commit instead
+   node scripts/refresh-upstream-skills.mjs                  read main and rewrite the record
+   node scripts/refresh-upstream-skills.mjs --ref <ref>      read a branch, tag, or commit instead
+   node scripts/refresh-upstream-skills.mjs --check [--ref]  compare without writing; exits 1 on drift
 
-   Rewrites site/new/upstream-skills.json and site/new/skill-rules.js. Uses the public GitHub API;
-   set GITHUB_TOKEN to lift the anonymous rate limit. */
+   The refresh reads the template's skill folders (a folder with SKILL.md under .claude/skills for
+   Claude Code, .agents/skills for Codex) and .agents/template-manifest.json, then rewrites
+   site/new/upstream-skills.json and site/new/skill-rules.js. It never edits the hand-written
+   catalog (site/new/skill-catalog.js); it prints what the catalog still gets wrong.
+
+   --check compares the live template with both committed files and with the catalog (names,
+   runtimes, groups, required skills, dependencies), prints every difference, and writes nothing.
+   The scheduled template-drift workflow runs it daily. Uses the public GitHub API; set
+   GITHUB_TOKEN to lift the anonymous rate limit. */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseTemplateManifest } from '../site/github-creator.mjs';
 
-const REPO = 'ryanportfolio/Harness-Firmware';
+export const TEMPLATE_REPOSITORY = 'ryanportfolio/Harness-Firmware';
+export const TEMPLATE_MANIFEST_PATH = '.agents/template-manifest.json';
+export const RECORD_PATH = 'site/new/upstream-skills.json';
+export const RULES_PATH = 'site/new/skill-rules.js';
+const RUNTIME_FOLDERS = { claude: '.claude/skills', codex: '.agents/skills' };
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const headers = {
-  Accept: 'application/vnd.github+json',
-  'User-Agent': 'harnessfirmware.com',
-  ...(process.env.GITHUB_TOKEN && { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }),
-};
+const sorted = (list) => [...list].sort();
+const listText = (list) => (list.length ? list.join(', ') : 'nothing');
 
-const refFlag = process.argv.indexOf('--ref');
-const ref = refFlag === -1 ? 'main' : process.argv[refFlag + 1];
-if (!ref) throw new Error('--ref needs a branch, tag, or commit');
-
-async function get(url) {
-  const response = await fetch(url, { headers });
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  return response.json();
+// Names of the folders directly under `folder` that hold a SKILL.md, sorted. Folders without one
+// (licensed resources kept for a retired skill, for example) are not skills.
+export function skillNames(treeEntries, folder) {
+  const prefix = `${folder}/`;
+  return sorted(new Set(treeEntries
+    .filter((entry) => entry.type === 'blob' && typeof entry.path === 'string' && entry.path.startsWith(prefix))
+    .map((entry) => entry.path.slice(prefix.length).split('/'))
+    .filter((parts) => parts.length === 2 && parts[1] === 'SKILL.md')
+    .map((parts) => parts[0])));
 }
 
-const commit = (await get(`https://api.github.com/repos/${REPO}/commits/${encodeURIComponent(ref)}`)).sha;
-const tree = await get(`https://api.github.com/repos/${REPO}/git/trees/${commit}?recursive=1`);
-if (tree.truncated) throw new Error('GitHub truncated the tree listing');
-
-const skillsIn = (folder) => tree.tree
-  .map((entry) => entry.path.match(new RegExp(`^${folder.replace('.', '\.')}/([^/]+)/SKILL\.md$`))?.[1])
-  .filter(Boolean)
-  .sort();
-
-const capabilities = await get(`https://raw.githubusercontent.com/${REPO}/${commit}/.agents/skill-capabilities.json`);
-const removal = capabilities.removal;
-if (!removal || !Array.isArray(removal.required) || !removal.dependencies || typeof removal.dependencies !== 'object') {
-  throw new Error(`${REPO}@${ref} has no removal block in .agents/skill-capabilities.json`);
+function sortedDependencies(dependencies) {
+  return Object.fromEntries(Object.keys(dependencies).sort().map((name) => [name, sorted(dependencies[name])]));
 }
-const sortedDependencies = Object.fromEntries(Object.keys(removal.dependencies).sort()
-  .map((name) => [name, [...removal.dependencies[name]].sort()]));
 
-const record = {
-  repository: REPO,
-  commit,
-  claude: skillsIn('.claude/skills'),
-  codex: skillsIn('.agents/skills'),
-  retired: Object.keys(capabilities.retired ?? {}).sort(),
-  removal: { required: [...removal.required].sort(), dependencies: sortedDependencies },
-};
-fs.writeFileSync(path.join(root, 'site/new/upstream-skills.json'), `${JSON.stringify(record, null, 2)}\n`);
+// The record written to site/new/upstream-skills.json: skill folders per runtime, the manifest's
+// skill groups (skill names sorted), and its removal rules.
+export function upstreamRecord({ commit, treeEntries, manifest }) {
+  const { skills } = parseTemplateManifest(manifest);
+  if (!Array.isArray(skills.groups)) throw new Error(`${TEMPLATE_MANIFEST_PATH} has no skills.groups`);
+  return {
+    repository: TEMPLATE_REPOSITORY,
+    commit,
+    claude: skillNames(treeEntries, RUNTIME_FOLDERS.claude),
+    codex: skillNames(treeEntries, RUNTIME_FOLDERS.codex),
+    groups: skills.groups.map((group) => ({
+      id: group.id,
+      label: group.label,
+      description: group.description,
+      skills: sorted(group.skills),
+    })),
+    removal: { required: sorted(skills.required), dependencies: sortedDependencies(skills.dependencies) },
+  };
+}
 
-const rules = `// Generated by scripts/refresh-upstream-skills.mjs from the removal block of
-// .agents/skill-capabilities.json in ${REPO}. Do not edit by hand.
+export function recordText(record) {
+  return `${JSON.stringify(record, null, 2)}\n`;
+}
+
+// Exact text of site/new/skill-rules.js for a record. Carries no commit, so it only changes when
+// the rules do.
+export function skillRulesText(record) {
+  return `// Generated by scripts/refresh-upstream-skills.mjs from skills.required and skills.dependencies
+// in ${TEMPLATE_MANIFEST_PATH} of ${record.repository}. Do not edit by hand.
 // Required skills can never be removed. A skill that stays needs every skill listed for it.
 export const HARNESS_REQUIRED_SKILLS = Object.freeze(${JSON.stringify(record.removal.required)});
 
-export const HARNESS_SKILL_DEPENDENCIES = Object.freeze(${JSON.stringify(sortedDependencies, null, 2)});
+export const HARNESS_SKILL_DEPENDENCIES = Object.freeze(${JSON.stringify(record.removal.dependencies, null, 2)});
 `;
-fs.writeFileSync(path.join(root, 'site/new/skill-rules.js'), rules);
-process.stdout.write(`${REPO}@${commit.slice(0, 7)}: ${record.claude.length} Claude Code, ${record.codex.length} Codex, ${record.retired.length} retired, ${record.removal.required.length} required, ${Object.keys(sortedDependencies).length} with dependencies\n`);
+}
+
+function listDifference(label, have, want) {
+  const missing = want.filter((name) => !have.includes(name));
+  const extra = have.filter((name) => !want.includes(name));
+  const lines = [];
+  if (missing.length) lines.push(`${label}: missing ${listText(missing)}`);
+  if (extra.length) lines.push(`${label}: has ${listText(extra)}, which the template does not`);
+  return lines;
+}
+
+function runtimeText(runtimes) {
+  return runtimes.length === 2 ? 'both runtimes' : `${runtimes[0]} only`;
+}
+
+// Differences between the committed record and a live one. The commit itself is not drift: the
+// template moves for reasons that leave the skills alone.
+export function recordDifferences(committed, live) {
+  const name = path.basename(RECORD_PATH);
+  const lines = [];
+  for (const key of Object.keys(committed)) {
+    if (!(key in live)) lines.push(`${name}: has "${key}", which the refresh no longer writes`);
+  }
+  if (committed.repository !== live.repository) lines.push(`${name}: repository is ${committed.repository}, not ${live.repository}`);
+  for (const runtime of ['claude', 'codex']) {
+    lines.push(...listDifference(`${name} ${runtime} skills`, committed[runtime] ?? [], live[runtime]));
+  }
+  if (JSON.stringify(committed.groups) !== JSON.stringify(live.groups)) lines.push(`${name}: skill groups differ from the manifest`);
+  if (JSON.stringify(committed.removal) !== JSON.stringify(live.removal)) lines.push(`${name}: removal rules differ from the manifest`);
+  return lines;
+}
+
+// Differences between the site's catalog (and the rules it imports) and a live record.
+export function catalogDifferences(record, { catalog, groups, required, dependencies }) {
+  const lines = [];
+  const names = catalog.map((skill) => skill.name);
+  for (const duplicate of new Set(names.filter((value, index) => names.indexOf(value) !== index))) {
+    lines.push(`catalog lists ${duplicate} more than once`);
+  }
+  const runtimesOf = (skill) => Object.keys(RUNTIME_FOLDERS).filter((runtime) => record[runtime].includes(skill));
+  const upstreamNames = sorted(new Set([...record.claude, ...record.codex]));
+  for (const skill of upstreamNames.filter((value) => !names.includes(value))) {
+    lines.push(`catalog is missing ${skill} (${runtimeText(runtimesOf(skill))} in the template)`);
+  }
+  for (const skill of names.filter((value) => !upstreamNames.includes(value))) {
+    lines.push(`catalog lists ${skill}, which the template does not have`);
+  }
+
+  const groupOf = new Map();
+  for (const group of record.groups) {
+    for (const skill of group.skills) {
+      if (groupOf.has(skill)) lines.push(`manifest puts ${skill} in both ${groupOf.get(skill)} and ${group.id}`);
+      else groupOf.set(skill, group.id);
+      if (!upstreamNames.includes(skill)) lines.push(`manifest group ${group.id} lists ${skill}, which has no skill folder`);
+    }
+  }
+  for (const skill of catalog.filter((entry) => upstreamNames.includes(entry.name))) {
+    const want = runtimesOf(skill.name);
+    const have = skill.runtime ? [skill.runtime] : Object.keys(RUNTIME_FOLDERS);
+    if (JSON.stringify(have) !== JSON.stringify(want)) {
+      lines.push(`${skill.name} runtime: catalog says ${runtimeText(have)}, template has ${runtimeText(want)}`);
+    }
+    const group = groupOf.get(skill.name);
+    if (!group) lines.push(`${skill.name} has no group in the manifest`);
+    else if (skill.group !== group) lines.push(`${skill.name} group: catalog says ${skill.group}, manifest says ${group}`);
+  }
+
+  const groupLine = (group) => `${group.id} (${group.label}: ${group.description})`;
+  const haveGroups = groups.map(groupLine);
+  const wantGroups = record.groups.map(groupLine);
+  if (JSON.stringify(haveGroups) !== JSON.stringify(wantGroups)) {
+    lines.push(`catalog groups are ${haveGroups.join('; ')}; manifest groups are ${wantGroups.join('; ')}`);
+  }
+
+  if (JSON.stringify(sorted(required)) !== JSON.stringify(record.removal.required)) {
+    lines.push(`required skills: rules say ${listText(sorted(required))}, manifest says ${listText(record.removal.required)}`);
+  }
+  const want = record.removal.dependencies;
+  for (const skill of sorted(new Set([...Object.keys(dependencies), ...Object.keys(want)]))) {
+    const have = sorted(dependencies[skill] ?? []);
+    const needs = want[skill] ?? [];
+    if (JSON.stringify(have) !== JSON.stringify(needs)) {
+      lines.push(`${skill} needs: rules say ${listText(have)}, manifest says ${listText(needs)}`);
+    }
+  }
+  return lines;
+}
+
+// Reads the template at `ref`: the commit it resolves to, its skill folders, and its manifest.
+export async function fetchUpstreamRecord(ref, { fetchImpl = fetch, token = process.env.GITHUB_TOKEN } = {}) {
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'harnessfirmware.com',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+  const get = async (url, accept) => {
+    const response = await fetchImpl(url, { headers: accept ? { ...headers, Accept: accept } : headers });
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    return response.json();
+  };
+  const api = `https://api.github.com/repos/${TEMPLATE_REPOSITORY}`;
+  const commit = (await get(`${api}/commits/${encodeURIComponent(ref)}`)).sha;
+  const tree = await get(`${api}/git/trees/${commit}?recursive=1`);
+  if (tree.truncated) throw new Error('GitHub truncated the tree listing');
+  const manifest = await get(`${api}/contents/${TEMPLATE_MANIFEST_PATH}?ref=${commit}`, 'application/vnd.github.raw+json');
+  return upstreamRecord({ commit, treeEntries: tree.tree, manifest });
+}
+
+async function siteCatalog() {
+  const catalog = await import(pathToFileURL(path.join(root, 'site/new/skill-catalog.js')).href);
+  const rules = await import(pathToFileURL(path.join(root, RULES_PATH)).href);
+  return {
+    catalog: catalog.HARNESS_SKILL_CATALOG,
+    groups: catalog.HARNESS_SKILL_GROUPS,
+    required: rules.HARNESS_REQUIRED_SKILLS,
+    dependencies: rules.HARNESS_SKILL_DEPENDENCIES,
+  };
+}
+
+const readText = (relative) => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n');
+
+async function main(argv) {
+  const refFlag = argv.indexOf('--ref');
+  const ref = refFlag === -1 ? 'main' : argv[refFlag + 1];
+  if (!ref || ref.startsWith('--')) throw new Error('--ref needs a branch, tag, or commit');
+  const check = argv.includes('--check');
+
+  const live = await fetchUpstreamRecord(ref);
+  const source = `${TEMPLATE_REPOSITORY}@${live.commit.slice(0, 7)} (${ref})`;
+  const skillCount = new Set([...live.claude, ...live.codex]).size;
+
+  if (!check) {
+    fs.writeFileSync(path.join(root, RECORD_PATH), recordText(live));
+    fs.writeFileSync(path.join(root, RULES_PATH), skillRulesText(live));
+    process.stdout.write(`${source}: ${live.claude.length} Claude Code, ${live.codex.length} Codex, ${skillCount} skills in ${live.groups.length} groups, ${live.removal.required.length} required, ${Object.keys(live.removal.dependencies).length} with dependencies\n`);
+    // This process loaded the old rules before writing the new ones, so check the catalog
+    // against the rules just written.
+    const pending = catalogDifferences(live, {
+      ...(await siteCatalog()),
+      required: live.removal.required,
+      dependencies: live.removal.dependencies,
+    });
+    if (pending.length) {
+      process.stdout.write(`site/new/skill-catalog.js still differs from the template:\n${pending.map((line) => `- ${line}\n`).join('')}`);
+    }
+    return 0;
+  }
+
+  const committed = JSON.parse(readText(RECORD_PATH));
+  const differences = [...recordDifferences(committed, live)];
+  if (readText(RULES_PATH) !== skillRulesText(live)) {
+    differences.push(`${path.basename(RULES_PATH)}: not what the refresh writes from the live manifest`);
+  }
+  differences.push(...catalogDifferences(live, await siteCatalog()));
+
+  if (!differences.length) {
+    const pinned = committed.commit === live.commit ? '' : ` (the record names ${String(committed.commit).slice(0, 7)}; the skills have not changed since)`;
+    process.stdout.write(`No drift: the catalog, ${path.basename(RECORD_PATH)} and ${path.basename(RULES_PATH)} match ${source}${pinned}. ${skillCount} skills.\n`);
+    return 0;
+  }
+  process.stdout.write(`Template drift against ${source}:\n${differences.map((line) => `- ${line}\n`).join('')}`);
+  process.stdout.write(`${differences.length} ${differences.length === 1 ? 'difference' : 'differences'}. Run node scripts/refresh-upstream-skills.mjs, then update site/new/skill-catalog.js until --check passes.\n`);
+  return 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await main(process.argv.slice(2));
+}

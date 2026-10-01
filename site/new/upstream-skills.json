@@ -1,6 +1,6 @@
 {
   "repository": "ryanportfolio/Harness-Firmware",
-  "commit": "ccac3996771af7023460ef16fdcb908438eb0c74",
+  "commit": "16ff5b3fb7fffb94492fcf8b044a74da81ba1d79",
   "claude": [
     "addskill",
     "adopt-repo",
@@ -15,6 +15,7 @@
     "claude-review",
     "codex-fullreview",
     "codex-review",
+    "compact-review",
     "dare",
     "enhance-prompt",
     "fable-mode",
@@ -25,6 +26,7 @@
     "lab",
     "long-horizon",
     "long-horizon-workflows",
+    "merge-ready",
     "optimize-context",
     "perf-loop",
     "recall",
@@ -60,6 +62,7 @@
     "lab",
     "long-horizon",
     "optimize-context",
+    "opus-fullreview",
     "perf-loop",
     "recall",
     "refine",
@@ -71,11 +74,66 @@
     "writing",
     "writing-plans"
   ],
-  "retired": [
-    "automate-me",
-    "unslop",
-    "verify-this",
-    "writing-skills"
+  "groups": [
+    {
+      "id": "core",
+      "label": "Core workflows",
+      "description": "Setup, memory, maintenance, and everyday project control",
+      "skills": [
+        "addskill",
+        "adopt-repo",
+        "init-project",
+        "optimize-context",
+        "recall",
+        "refine",
+        "sync-starter"
+      ]
+    },
+    {
+      "id": "discipline",
+      "label": "Quality disciplines",
+      "description": "Planning, review, and dependable long-form execution",
+      "skills": [
+        "astra-fullreview",
+        "astra-review",
+        "babysit-ci",
+        "brainstorming",
+        "claude-review",
+        "codex-fullreview",
+        "codex-review",
+        "dare",
+        "external-review",
+        "impartial-review",
+        "long-horizon",
+        "long-horizon-workflows",
+        "merge-ready",
+        "opus-fullreview",
+        "perf-loop",
+        "writing-plans"
+      ]
+    },
+    {
+      "id": "specialist",
+      "label": "Specialist tools",
+      "description": "Focused modes for design, writing, critique, and delivery",
+      "skills": [
+        "advocate",
+        "arena",
+        "bro",
+        "caveman",
+        "compact-review",
+        "enhance-prompt",
+        "fable-mode",
+        "forge-repo-ui-skill",
+        "handoff-audit",
+        "lab",
+        "session-hub",
+        "showpiece",
+        "why",
+        "wow-loop",
+        "writing"
+      ]
+    }
   ],
   "removal": {
     "required": [
@@ -96,6 +154,10 @@
       ],
       "codex-review": [
         "external-review"
+      ],
+      "merge-ready": [
+        "codex-fullreview",
+        "codex-review"
       ]
     }
   }

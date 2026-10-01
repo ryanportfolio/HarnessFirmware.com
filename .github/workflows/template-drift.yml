@@ -1,0 +1,32 @@
+# Template drift check. Once a day, compares the /new skill catalog, site/new/upstream-skills.json
+# and site/new/skill-rules.js with the live Harness-Firmware template (its skill folders and
+# .agents/template-manifest.json on main). A failed run is the alert: its log lists every
+# difference. It never commits; fix drift with node scripts/refresh-upstream-skills.mjs and a
+# catalog edit in a pull request.
+name: template-drift
+
+on:
+  schedule:
+    - cron: '37 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template-drift
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Site matches the live template
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/refresh-upstream-skills.mjs --check

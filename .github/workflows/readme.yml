@@ -28,6 +28,8 @@ jobs:
         run: node scripts/readme/verify.mjs
       - name: Creator tests
         run: node --test site/github-creator.test.mjs
+      - name: Template drift check tests
+        run: node --test scripts/refresh-upstream-skills.test.mjs
       - name: About panel file is valid
         if: github.event_name == 'pull_request'
         run: node scripts/readme/meta.mjs --lint
