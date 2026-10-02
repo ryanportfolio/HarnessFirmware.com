@@ -57,4 +57,6 @@ Copy `.env.example` to `.env`, fill it from a GitHub App whose callback and setu
 node --env-file=site/.env site/server.mjs
 ```
 
-Unit tests: `node --test site/github-creator.test.mjs`.
+The skill catalog (`new/skill-catalog.js`) is written by hand and has to match the template. `node scripts/refresh-upstream-skills.mjs` reads the template's main branch and rewrites `new/upstream-skills.json` (the skill folders in each runtime, plus the manifest's skill groups and removal rules) and `new/skill-rules.js` (the rules the picker and server apply), then lists what the catalog still gets wrong. With `--check` it compares the live template with both files and the catalog, writes nothing, and exits 1 on any difference; the `template-drift` workflow runs it daily and on demand.
+
+Unit tests: `node --test site/github-creator.test.mjs scripts/refresh-upstream-skills.test.mjs`.

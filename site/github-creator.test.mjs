@@ -125,9 +125,22 @@ test('catalog lists exactly the skills a generated repository contains', () => {
   }
 });
 
+test('catalog groups match the template manifest', () => {
+  assert.deepEqual(
+    HARNESS_SKILL_GROUPS.map(({ id, label, description }) => ({ id, label, description })),
+    upstream.groups.map(({ id, label, description }) => ({ id, label, description })),
+  );
+  for (const skill of HARNESS_SKILL_CATALOG) {
+    const groups = upstream.groups.filter((group) => group.skills.includes(skill.name)).map((group) => group.id);
+    assert.deepEqual(groups, [skill.group], `${skill.name} group`);
+  }
+});
+
+// The template keeps no data file of retired names; the catalog-equals-upstream test above keeps
+// every retired skill out. These are names a site visitor might still remember.
 test('catalog names no retired skill', () => {
   const names = new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name));
-  for (const retired of new Set([...upstream.retired, 'verify-this', 'automate-me', 'merge'])) {
+  for (const retired of ['automate-me', 'long-horizon-swarm', 'merge', 'unslop', 'verify-this', 'writing-skills']) {
     assert.equal(names.has(retired), false, `${retired} is retired upstream`);
   }
 });
@@ -189,10 +202,19 @@ test('skill selection rejects removals that break a dependency', () => {
   assert.equal(normalizeDisabledSkills(['impartial-review']), null);
   assert.equal(normalizeDisabledSkills(['impartial-review', 'codex-fullreview']), null);
   assert.equal(normalizeDisabledSkills(['codex-review']), null);
-  assert.deepEqual(normalizeDisabledSkills(['astra-fullreview', 'codex-fullreview']), ['codex-fullreview', 'astra-fullreview']);
-  assert.deepEqual(normalizeDisabledSkills(['astra-review', 'codex-review']), ['codex-review', 'astra-review']);
+  assert.equal(normalizeDisabledSkills(['astra-fullreview', 'codex-fullreview']), null);
+  assert.equal(normalizeDisabledSkills(['astra-review', 'codex-review']), null);
+  assert.deepEqual(
+    normalizeDisabledSkills(['merge-ready', 'astra-fullreview', 'codex-fullreview']),
+    ['codex-fullreview', 'astra-fullreview', 'merge-ready'],
+  );
+  assert.deepEqual(
+    normalizeDisabledSkills(['merge-ready', 'astra-review', 'codex-review']),
+    ['codex-review', 'astra-review', 'merge-ready'],
+  );
   assert.deepEqual(harnessRemovalProblems(['codex-fullreview']), [
     'astra-fullreview needs codex-fullreview; keep codex-fullreview or remove astra-fullreview too',
+    'merge-ready needs codex-fullreview; keep codex-fullreview or remove merge-ready too',
   ]);
   assert.deepEqual(harnessRemovalProblems(['init-project']), ['init-project is required and cannot be removed']);
   const optional = HARNESS_SKILL_CATALOG.filter((skill) => !skill.required).map((skill) => skill.name);
@@ -232,15 +254,50 @@ test('picker keeps a needed skill ticked and names what needs it', () => {
   const all = new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name));
   let result = toggleHarnessSkill(all, 'codex-fullreview', false);
   assert.ok(result.enabled.has('codex-fullreview'));
-  assert.equal(result.note, 'Kept: astra-fullreview needs it');
+  assert.equal(result.note, 'Kept: astra-fullreview, merge-ready need it');
   result = toggleHarnessSkill(all, 'impartial-review', false);
   assert.ok(result.enabled.has('impartial-review'));
-  assert.equal(result.note, 'Kept: codex-fullreview, astra-fullreview need it');
+  assert.equal(result.note, 'Kept: codex-fullreview, astra-fullreview, merge-ready need it');
   result = toggleHarnessSkill(all, 'init-project', false);
   assert.ok(result.enabled.has('init-project'));
-  result = toggleHarnessSkill(toggleHarnessSkill(all, 'astra-fullreview', false).enabled, 'codex-fullreview', false);
+  let enabled = all;
+  for (const name of ['merge-ready', 'astra-fullreview']) enabled = toggleHarnessSkill(enabled, name, false).enabled;
+  result = toggleHarnessSkill(enabled, 'codex-fullreview', false);
   assert.equal(result.enabled.has('codex-fullreview'), false);
   assert.equal(result.note, null);
+});
+
+// The picker and the server read the same rules, so a selection the picker allows is one the
+// server accepts, and a removal the picker refuses is one the server rejects.
+test('picker and server agree on the merge-ready dependency', () => {
+  const all = new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name));
+  const disabledFrom = (enabled) => HARNESS_SKILL_CATALOG.filter((skill) => !enabled.has(skill.name)).map((skill) => skill.name);
+
+  // merge-ready stays ticked: unticking either review it runs is refused on both sides.
+  for (const need of ['codex-review', 'codex-fullreview']) {
+    let enabled = all;
+    for (const dependent of ['astra-review', 'astra-fullreview']) enabled = toggleHarnessSkill(enabled, dependent, false).enabled;
+    const result = toggleHarnessSkill(enabled, need, false);
+    assert.ok(result.enabled.has(need), `${need} stays ticked`);
+    assert.equal(result.note, 'Kept: merge-ready needs it');
+    const crafted = [...disabledFrom(enabled), need];
+    assert.equal(normalizeDisabledSkills(crafted), null, `server rejects removing ${need} while merge-ready stays`);
+    assert.deepEqual(harnessRemovalProblems(crafted), [`merge-ready needs ${need}; keep ${need} or remove merge-ready too`]);
+  }
+
+  // Unticking merge-ready first lets both reviews go (their astra wrappers go too).
+  let enabled = all;
+  for (const name of ['merge-ready', 'astra-review', 'astra-fullreview', 'codex-review', 'codex-fullreview']) {
+    const result = toggleHarnessSkill(enabled, name, false);
+    assert.equal(result.enabled.has(name), false, `${name} unticked`);
+    enabled = result.enabled;
+  }
+  const disabled = disabledFrom(enabled);
+  assert.deepEqual(harnessRemovalProblems(disabled), []);
+  assert.deepEqual(
+    normalizeDisabledSkills(disabled),
+    ['codex-review', 'astra-review', 'codex-fullreview', 'astra-fullreview', 'merge-ready'],
+  );
 });
 
 test('picker ticks what a ticked skill needs', () => {
@@ -400,10 +457,21 @@ test('manifest parser accepts version 1 and rejects other versions, unknown keys
   rejects([], /not a JSON object/);
 });
 
-test('manifest removal rules use the manifest, not the built-in list', () => {
+// The fixture manifest plus a dependency the built-in rules do not have, as when the template
+// adds a rule before the site's record is refreshed.
+function manifestWithNewRule() {
   const manifest = fixtureManifest();
-  // Allowed by the built-in rules, which predate merge-ready.
-  assert.deepEqual(harnessRemovalProblems(['astra-fullreview', 'codex-fullreview']), []);
+  manifest.skills.dependencies = { ...manifest.skills.dependencies, 'wow-loop': ['showpiece'] };
+  return manifest;
+}
+
+test('manifest removal rules use the manifest, not the built-in list', () => {
+  const manifest = manifestWithNewRule();
+  // Allowed by the built-in rules, which lack the new rule.
+  assert.deepEqual(harnessRemovalProblems(['showpiece']), []);
+  assert.deepEqual(manifestRemovalProblems(manifest, ['showpiece']), [
+    'wow-loop needs showpiece; keep showpiece or remove wow-loop too',
+  ]);
   assert.deepEqual(manifestRemovalProblems(manifest, ['astra-fullreview', 'codex-fullreview']), [
     'merge-ready needs codex-fullreview; keep codex-fullreview or remove merge-ready too',
   ]);
@@ -509,11 +577,11 @@ test('create endpoint rejects a crafted selection that breaks the removal rules'
 });
 
 test('create endpoint rejects a selection that breaks the template manifest rules before generating', async () => {
-  const github = fakeGithub();
+  const github = fakeGithub({ templateManifest: manifestWithNewRule() });
   await withCreator(github, async (create) => {
-    const response = await create(['astra-fullreview', 'codex-fullreview']);
+    const response = await create(['showpiece']);
     assert.equal(response.status, 400);
-    assert.match((await response.json()).error, /merge-ready needs codex-fullreview/);
+    assert.match((await response.json()).error, /wow-loop needs showpiece/);
   });
   const [manifestRequest] = github.find('GET /repos/ryanportfolio/Harness-Firmware/contents/.agents/template-manifest.json');
   assert.equal(manifestRequest.headers.Accept, 'application/vnd.github.raw+json');

@@ -1,6 +1,8 @@
-// Mirrors the skill folders in a repository generated from ryanportfolio/Harness-Firmware.
-// site/new/upstream-skills.json records that upstream tree, and github-creator.test.mjs fails when
-// the two drift. Refresh the record with: node scripts/refresh-upstream-skills.mjs
+// Mirrors the skill folders in a repository generated from ryanportfolio/Harness-Firmware, and the
+// skill groups in its .agents/template-manifest.json. site/new/upstream-skills.json records that
+// upstream tree and manifest, and github-creator.test.mjs fails when the two drift. Refresh the
+// record with: node scripts/refresh-upstream-skills.mjs. Compare with the live template, without
+// writing anything, with: node scripts/refresh-upstream-skills.mjs --check
 // runtime is omitted when a skill ships in both .claude/skills and .agents/skills; otherwise it
 // names the one runtime whose folder holds the skill.
 import { HARNESS_REQUIRED_SKILLS, HARNESS_SKILL_DEPENDENCIES } from './skill-rules.js';
@@ -151,6 +153,22 @@ const SKILLS = [
     description: 'The multi-agent Codex review, run on gpt-6-astra at medium reasoning',
   },
   {
+    name: 'opus-fullreview',
+    label: 'Opus full review',
+    group: 'discipline',
+    runtime: 'codex',
+    recent: true,
+    description: 'From Codex, Claude runs a multi-agent review with fresh Opus sub-reviewers, then each finding is verified',
+  },
+  {
+    name: 'merge-ready',
+    label: 'Merge ready',
+    group: 'discipline',
+    runtime: 'claude',
+    recent: true,
+    description: 'Two Codex reviews of an open pull request, fixes for confirmed findings, and reruns until clean; never merges',
+  },
+  {
     name: 'claude-review',
     label: 'Claude review',
     group: 'discipline',
@@ -217,6 +235,14 @@ const SKILLS = [
     label: 'Audit handoff',
     group: 'specialist',
     description: 'Draft a self-contained audit prompt, with exact scope and checks, for another session to run',
+  },
+  {
+    name: 'compact-review',
+    label: 'Compact review',
+    group: 'specialist',
+    runtime: 'claude',
+    recent: true,
+    description: 'Review the session and write custom instructions for /compact that keep what matters',
   },
   {
     name: 'writing',
