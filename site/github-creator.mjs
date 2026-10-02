@@ -237,9 +237,142 @@ export async function githubApi(path, options = {}, token) {
   return response.json();
 }
 
+// ---------------------------------------------------------------------------
+// Template manifest (.agents/template-manifest.json in the template and in every generated
+// repository). It names the template-only paths to strip, the files a project must keep, the README
+// stub, and the skill removal rules.
+
+export const HARNESS_TEMPLATE_MANIFEST_PATH = '.agents/template-manifest.json';
+const MANIFEST_KEYS = new Set(['version', 'template', 'requiredFiles', 'projectPaths', 'templateOnly', 'readmeStub', 'skills']);
+
+export class HarnessManifestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'HarnessManifestError';
+  }
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStringList(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string' && item.length > 0);
+}
+
+// Repo-relative, forward slashes, no leading or trailing slash, no globs, no . or .. segments.
+function isManifestPath(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && !/[\\*?[\]]/.test(value)
+    && value.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+}
+
+// Entry E covers file F when F is E or sits under the folder E.
+export function manifestEntryMatches(entry, path) {
+  return path === entry || path.startsWith(`${entry}/`);
+}
+
+// Checks the version and shape of a parsed manifest. Returns it unchanged or throws
+// HarnessManifestError naming the first problem.
+export function parseTemplateManifest(value) {
+  const fail = (message) => { throw new HarnessManifestError(message); };
+  if (!isPlainObject(value)) fail('the template manifest is not a JSON object');
+  for (const key of Object.keys(value)) {
+    if (!MANIFEST_KEYS.has(key)) fail(`the template manifest has an unknown key "${key}"`);
+  }
+  if (value.version !== 1) fail(`template manifest version ${JSON.stringify(value.version)} is not supported; this creator reads version 1`);
+  if (value.template !== undefined && typeof value.template !== 'string') fail('the template manifest "template" must be a string');
+  for (const key of ['requiredFiles', 'templateOnly', 'projectPaths']) {
+    if (key === 'projectPaths' && value[key] === undefined) continue;
+    if (!Array.isArray(value[key])) fail(`the template manifest "${key}" must be a list of paths`);
+    const bad = value[key].find((path) => !isManifestPath(path));
+    if (bad !== undefined) fail(`the template manifest "${key}" has an invalid path ${JSON.stringify(bad)}`);
+  }
+  if (typeof value.readmeStub !== 'string') fail('the template manifest "readmeStub" must be a string');
+  const skills = value.skills;
+  if (!isPlainObject(skills)) fail('the template manifest "skills" must be an object');
+  if (!isStringList(skills.required)) fail('the template manifest "skills.required" must be a list of skill names');
+  if (!isPlainObject(skills.dependencies) || !Object.values(skills.dependencies).every(isStringList)) {
+    fail('the template manifest "skills.dependencies" must map each skill to a list of skill names');
+  }
+  if (skills.groups !== undefined && !(Array.isArray(skills.groups) && skills.groups.every((group) => (
+    isPlainObject(group) && typeof group.id === 'string' && isStringList(group.skills)
+  )))) {
+    fail('the template manifest "skills.groups" must be a list of groups with an id and skill names');
+  }
+  if (skills.presets !== undefined && !isPlainObject(skills.presets)) fail('the template manifest "skills.presets" must be an object');
+  return value;
+}
+
+// The template's own manifest, read from its default branch before generating. Throws
+// GithubApiError when it cannot be fetched and HarnessManifestError when it is not valid.
+export async function fetchTemplateManifest(token) {
+  let value;
+  try {
+    value = await githubApi(
+      `/repos/${HARNESS_TEMPLATE_OWNER}/${HARNESS_TEMPLATE_REPO}/contents/${HARNESS_TEMPLATE_MANIFEST_PATH}`,
+      { headers: { Accept: 'application/vnd.github.raw+json' } },
+      token,
+    );
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new HarnessManifestError('the template manifest is not valid JSON');
+    throw error;
+  }
+  return parseTemplateManifest(value);
+}
+
+// The manifest's removal rules applied to one selection: a required skill, or a skill that a kept
+// skill needs. Same sentences as harnessRemovalProblems; an empty list means the removal is allowed.
+export function manifestRemovalProblems(manifest, disabledSkills) {
+  const removed = new Set(disabledSkills);
+  const problems = manifest.skills.required
+    .filter((name) => removed.has(name))
+    .map((name) => `${name} is required and cannot be removed`);
+  for (const [name, needs] of Object.entries(manifest.skills.dependencies)) {
+    if (removed.has(name)) continue;
+    for (const need of needs) {
+      if (removed.has(need)) problems.push(`${name} needs ${need}; keep ${need} or remove ${name} too`);
+    }
+  }
+  return problems;
+}
+
+// Every file change that turns a freshly generated repository into a project, for one commit:
+// deletes every file under a templateOnly entry, writes README.md from readmeStub, and applies
+// the skill selection (settings overrides, removal record, skill folder deletions) when any skill
+// is deselected. Throws when a requiredFiles path would be missing afterwards.
+export function plannedRepositorySetup({ treeEntries, manifest, repositoryName, settingsText, disabledSkills }) {
+  const writes = [{ path: 'README.md', content: manifest.readmeStub.replaceAll('{name}', repositoryName) }];
+  const deletions = new Map();
+  for (const entry of treeEntries) {
+    if (typeof entry.path !== 'string' || entry.type === 'tree') continue;
+    if (manifest.templateOnly.some((templatePath) => manifestEntryMatches(templatePath, entry.path))) {
+      deletions.set(entry.path, { path: entry.path, mode: entry.mode, type: entry.type, sha: null });
+    }
+  }
+  if (disabledSkills.length > 0) {
+    const selection = plannedSkillSelection(treeEntries, settingsText, disabledSkills);
+    writes.push(...selection.writes);
+    for (const entry of selection.deletions) deletions.set(entry.path, entry);
+  }
+  // A path written in this commit (README.md) replaces the old file instead of being deleted.
+  for (const write of writes) deletions.delete(write.path);
+
+  const remaining = new Set(treeEntries
+    .filter((entry) => typeof entry.path === 'string' && entry.type !== 'tree' && !deletions.has(entry.path))
+    .map((entry) => entry.path));
+  for (const write of writes) remaining.add(write.path);
+  const missing = manifest.requiredFiles.filter((path) => !remaining.has(path));
+  if (missing.length) throw new Error(`Required project files would be missing: ${missing.join(', ')}`);
+  return { writes, deletions: [...deletions.values()] };
+}
+
 const GENERATED_REPOSITORY_RETRY_DELAYS_MS = [250, 500, 1000, 1500, 2000, 2500, 3000, 3000, 3000, 3000];
 
-export async function applyRepositorySkillSelection({
+// Runs after /generate. Reads the generated repository's own manifest and makes one setup commit:
+// template-only files removed, README replaced by the stub, skill choices applied.
+export async function applyRepositorySetup({
   owner,
   repository,
   branch,
@@ -288,8 +421,32 @@ export async function applyRepositorySkillSelection({
     throw new Error('GitHub did not return the complete generated repository tree');
   }
 
-  // Settings, removal record, and folder deletions land in one commit.
-  const { writes, deletions } = plannedSkillSelection(baseTree.tree, currentSettings, selectedSkills);
+  // The settings poll above already waited for the generated commit, so a manifest missing from
+  // its tree is missing for good, not late.
+  const manifestEntry = baseTree.tree.find((entry) => entry.path === HARNESS_TEMPLATE_MANIFEST_PATH && entry.type === 'blob');
+  if (!manifestEntry?.sha) throw new HarnessManifestError(`the generated repository has no ${HARNESS_TEMPLATE_MANIFEST_PATH}`);
+  const manifestBlob = await githubApi(`${repositoryPath}/git/blobs/${encodeURIComponent(manifestEntry.sha)}`, {}, token);
+  if (!manifestBlob?.content || manifestBlob.encoding !== 'base64') {
+    throw new HarnessManifestError('GitHub did not return the generated repository manifest');
+  }
+  let manifestValue;
+  try {
+    manifestValue = JSON.parse(Buffer.from(manifestBlob.content.replaceAll(/\s/g, ''), 'base64').toString('utf8'));
+  } catch {
+    throw new HarnessManifestError('the generated repository manifest is not valid JSON');
+  }
+  const manifest = parseTemplateManifest(manifestValue);
+  const ruleProblems = manifestRemovalProblems(manifest, selectedSkills);
+  if (ruleProblems.length) throw new HarnessManifestError(ruleProblems.join('. '));
+
+  // Template-only removals, README, settings, removal record, and skill folder deletions land in one commit.
+  const { writes, deletions } = plannedRepositorySetup({
+    treeEntries: baseTree.tree,
+    manifest,
+    repositoryName: repository,
+    settingsText: currentSettings,
+    disabledSkills: selectedSkills,
+  });
   const writeEntries = [];
   for (const write of writes) {
     const blob = await githubApi(`${repositoryPath}/git/blobs`, {
@@ -304,13 +461,19 @@ export async function applyRepositorySkillSelection({
     method: 'POST',
     body: JSON.stringify({ base_tree: headCommit.tree.sha, tree: [...writeEntries, ...deletions] }),
   }, token);
-  if (!tree.sha) throw new Error('GitHub did not create the customized repository tree');
+  if (!tree.sha) throw new Error('GitHub did not create the project setup tree');
 
+  const message = [
+    'Set up project from Harness Firmware',
+    '',
+    'Remove template-only files and replace README.md with a project stub.',
+    ...(selectedSkills.length > 0 ? [`Omit ${selectedSkills.length} deselected skill${selectedSkills.length === 1 ? '' : 's'}: ${selectedSkills.join(', ')}.`] : []),
+  ].join('\n');
   const commit = await githubApi(`${repositoryPath}/git/commits`, {
     method: 'POST',
-    body: JSON.stringify({ message: 'Configure Harness skills', tree: tree.sha, parents: [headCommitSha] }),
+    body: JSON.stringify({ message, tree: tree.sha, parents: [headCommitSha] }),
   }, token);
-  if (!commit.sha) throw new Error('GitHub did not create the Harness configuration commit');
+  if (!commit.sha) throw new Error('GitHub did not create the project setup commit');
 
   await githubApi(`${repositoryPath}/git/refs/heads/${encodedBranch}`, {
     method: 'PATCH',
@@ -620,30 +783,53 @@ const handlers = {
     try {
       const credentials = await currentUserCredentials(session);
       if (credentials.accessToken !== session.accessToken) sessionCookie(reply, { ...session, ...credentials }, secret);
+
+      // Check the selection against the template's current removal rules. Until the template ships
+      // its manifest, the built-in rules above are the only check; an invalid manifest stops here.
+      let templateManifest = null;
+      try {
+        templateManifest = await fetchTemplateManifest(credentials.accessToken);
+      } catch (error) {
+        if (error instanceof GithubApiError && error.status === 401) throw error;
+        if (error instanceof HarnessManifestError) {
+          return reply.json(502, { error: `No repository was created because ${error.message}` });
+        }
+        console.warn('Harness template manifest unavailable before generation; using the built-in skill rules', {
+          status: error instanceof GithubApiError ? error.status : null,
+          message: error instanceof Error ? error.message : 'Unknown manifest error',
+        });
+      }
+      if (templateManifest) {
+        const problems = manifestRemovalProblems(templateManifest, disabledSkills);
+        if (problems.length) return reply.json(400, { error: problems.join('. ') });
+      }
+
       const repository = await githubApi(`/repos/${HARNESS_TEMPLATE_OWNER}/${HARNESS_TEMPLATE_REPO}/generate`, {
         method: 'POST',
         body: JSON.stringify({ owner: session.owner, name, description, private: makePrivate, include_all_branches: false }),
       }, credentials.accessToken);
       let customized = true;
       let customizationWarning = null;
-      if (disabledSkills.length > 0) {
-        try {
-          await applyRepositorySkillSelection({
-            owner: session.owner,
-            repository: name,
-            branch: repository.default_branch || 'main',
-            disabledSkills,
-            token: credentials.accessToken,
-          });
-        } catch (error) {
-          customized = false;
-          customizationWarning = 'Repository created, but skill choices could not be applied. All skills remain enabled.';
-          console.error('Harness skill customization failed after repository creation', {
-            repository: repository.full_name,
-            status: error instanceof GithubApiError ? error.status : null,
-            message: error instanceof Error ? error.message : 'Unknown customization error',
-          });
-        }
+      try {
+        await applyRepositorySetup({
+          owner: session.owner,
+          repository: name,
+          branch: repository.default_branch || 'main',
+          disabledSkills,
+          token: credentials.accessToken,
+        });
+      } catch (error) {
+        customized = false;
+        const cause = error instanceof HarnessManifestError
+          ? 'its template manifest could not be used'
+          : 'project setup could not finish';
+        const skillsNote = disabledSkills.length > 0 ? ' Skill choices were not applied, so all skills remain enabled.' : '';
+        customizationWarning = `Repository created, but ${cause}. Template-only files such as the template README, changelog, and bootstrap scripts were not removed.${skillsNote}`;
+        console.error('Harness project setup failed after repository creation', {
+          repository: repository.full_name,
+          status: error instanceof GithubApiError ? error.status : null,
+          message: error instanceof Error ? error.message : 'Unknown setup error',
+        });
       }
       reply.json(201, {
         repositoryUrl: repository.html_url,
