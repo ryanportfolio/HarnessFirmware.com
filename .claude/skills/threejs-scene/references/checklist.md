@@ -15,10 +15,10 @@ Each line is pass, fail or blocked, with evidence: a file name and time, a `repo
 | The reference board has 3 to 5 real references, each with one named thing to take | A | user or fresh judge |
 | The key frame is described exactly (camera, light, darkest and brightest areas, where the eye lands) | A | user or fresh judge |
 | Pacing: one focus per beat, anticipation, holds of at least 1.2 s and one second per three words, varied timing, camera still during reads, holds breathe without looping | B | user at full speed, or fresh judge on the strip and the real-speed video |
-| Hero length 6 to 12 s before the settled frame, at most four beats | B | user or fresh judge |
+| Hero length 6 to 12 s before the settled frame, at most four beats; or, under the brief's recorded endless exception, the first 6 to 12 s carry the idea alone, the endless part changes visibly in one direction, and a pause control exists | B | user or fresh judge |
 | Beside the reference board and 2 or 3 `/inspiration` standouts, a person would stop scrolling for this one, and the reason is written down | C, final | user or fresh judge |
 | The key frame matches the reference board and the brief in light, material and composition | C | user or fresh judge |
-| The settled frame works as a poster on its own | C, final | user or fresh judge |
+| The settled frame works as a poster on its own (endless exception: the brief's chosen poster frame does) | C, final | user or fresh judge |
 | No banned default (paste and removal tests); every effect has a named job | C, final | user or fresh judge |
 | Blind read: the judge names the idea, the feeling and the signature moment the brief names | final | fresh judge |
 | The tactile response answers within one frame, feels weighted, and works by touch at 390 | final | user (a real device when possible) |
@@ -29,7 +29,7 @@ Each line is pass, fail or blocked, with evidence: a file name and time, a `repo
 | Check | When |
 |---|---|
 | No console errors or warnings | round |
-| Frame 0 matches the load poster under the canvas (no pop at load); the no-WebGL fallback shows the settled frame | round |
+| Frame 0 matches the load poster under the canvas (no pop at load); the no-WebGL fallback, marked `img[data-scene-fallback]`, shows the settled frame (endless exception: the brief's poster frame) | round |
 | `?t=` frames repeat: two shots of the same time match | round |
 | No solid objects intersect at any check time (`intersections()` empty) | round |
 | Labels and captions at least 8 px inside the canvas, below the fold, off overlay text and off each other | round |

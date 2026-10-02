@@ -43,6 +43,8 @@ Same idea and feeling, three different metaphors, each with its own key frame (a
 
 At most four beats for a hero; 6 to 12 s before the settled frame.
 
+- **Endless exception (only when the owner asks for a piece that never settles):** what the first 6 to 12 s say on their own, the one direction the endless part changes in, the pause control, and which frame stands in as the poster and the fallback. Delete this line otherwise.
+
 - **Signature moment:** the one thing a visitor would describe to a friend. Mark its beat; it gets the slowest anticipation and the longest hold.
 
 | Beat | Start s | Anticipation | Action (the one thing moving) | Hold s | Camera (1440) | Camera (390) |

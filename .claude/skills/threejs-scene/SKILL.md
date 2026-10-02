@@ -76,9 +76,9 @@ Numbers and recipes: references/feel.md.
 Hooks the shoot drives. They stay in shipped code.
 
 - `?t=<seconds>` freezes the scene clock, renders, and stops. Motion is a function of scene time plus seeded randomness; state that cannot be (pointer springs, simulations) is listed in the brief as exempt.
-- `?gl=0` forces the fallback.
+- `?gl=0` forces the fallback: an `<img data-scene-fallback>`, which the shoot checks is shown and decoded. A page with more than one canvas passes the scene's to the shoot with `--canvas <css>`.
 - `<html data-scene>` becomes `ready` in the `requestAnimationFrame` after the first frame, or `fallback`. Before `ready`: `await document.fonts.ready` if text is measured or drawn, and `await renderer.compileAsync(scene, camera)` with every beat's objects visible.
-- `window.__scene = { duration, frames, info, labels, intersections }`: timeline length; frame counter; `info()` with `renderer.info`, program count, pixel ratio and drawing-buffer size; `labels()` with screen rects of in-canvas labels; `intersections()` with solid objects whose oriented boxes overlap. Optional `lines()`: screen polylines of light lines (threads, glowing strokes); the shoot fails any that passes under `--overlay` text.
+- `window.__scene = { duration, frames, info, labels, intersections }`: timeline length; frame counter (a number, incremented per rendered frame); `info()` returning one flat object, `{ calls, triangles, programs, geometries, textures, pixelRatio }`, read from `renderer.info.render`, `renderer.info.memory`, `renderer.info.programs.length` and the renderer; `labels()` with screen rects of in-canvas labels; `intersections()` with solid objects whose oriented boxes overlap. Optional `lines()`: screen polylines of light lines (threads, glowing strokes); the shoot fails any that passes under `--overlay` text.
 
 Behaviors, each with the failure it prevents:
 

@@ -1,7 +1,7 @@
 /* Render-and-check capture for one three.js scene (threejs-scene skill, step 4).
 
      node .claude/skills/threejs-scene/scripts/shoot.mjs <url> --times 0,4,9,14 --out <dir>
-       [--labels <css>] [--overlay <css,css>] [--poster] [--final]
+       [--labels <css>] [--overlay <css,css>] [--canvas <css>] [--poster] [--final]
 
    Every round: frozen frames at 1440x900 and 390x844 (DPR 2), each shot twice for repeatability;
    canvas-only crops for the blind read; contact sheets of at most 3 columns, 6 frames per sheet;
@@ -10,6 +10,8 @@
    --labels: CSS selector for DOM labels that track the scene (canvas-drawn labels come from
    __scene.labels()). --overlay: page text that sits over or near the scene; reported when a label
    overlaps it or when it ends below the fold.
+   --canvas: CSS selector for the scene's canvas when the page has more than one (default: canvas,
+   first match). Scene-only crops hide every other element, so page text never reaches the blind read.
    --poster: canvas crop at the last time, for the no-WebGL fallback image.
    --strip <step>: timing sheets at 1440, one scene-only frame every <step> seconds from 0 to
    __scene.duration, 24 per sheet; holds show as runs of near-identical frames, rushed beats as jumps.
@@ -18,22 +20,24 @@
 
    The page follows the skill's build contract: ?t= freezes the clock, ?gl=0 forces the fallback,
    <html data-scene="ready|fallback"> after the first frame, window.__scene = { duration, frames,
-   info(), labels() }, and optionally lines(): screen polylines of light lines, failed when one passes
-   under --overlay text. Headed Chrome through scripts/lib/launch-chrome.mjs, never headless. */
+   info(), labels() } with info() flat ({ calls, triangles, programs, geometries, textures,
+   pixelRatio }), optionally lines(): screen polylines of light lines, failed when one passes under
+   --overlay text, and the fallback image marked <img data-scene-fallback>. Headed Chrome through
+   scripts/lib/launch-chrome.mjs, never headless. */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
 const argv = process.argv.slice(2);
-const VALUE_FLAGS = ['times', 'out', 'labels', 'overlay', 'strip'];
+const VALUE_FLAGS = ['times', 'out', 'labels', 'overlay', 'strip', 'canvas'];
 const opt = (name) => { const i = argv.indexOf(`--${name}`); return i < 0 ? null : argv[i + 1]; };
 const url = argv.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(argv[i - 1]?.slice(2)));
 const times = (opt('times') || '0').split(',').map(Number);
 const out = path.resolve(opt('out') || '.tmp/scene-shots');
-const labelSel = opt('labels'), overlaySel = opt('overlay');
+const labelSel = opt('labels'), overlaySel = opt('overlay'), canvasSel = opt('canvas') || 'canvas';
 const poster = argv.includes('--poster'), final = argv.includes('--final'), stripStep = opt('strip') ? Number(opt('strip')) : null;
-if (!url) throw new Error('usage: shoot.mjs <url> --times 0,4,9 --out <dir> [--labels <css>] [--overlay <css,css>] [--strip <step>] [--poster] [--final]');
+if (!url) throw new Error('usage: shoot.mjs <url> --times 0,4,9 --out <dir> [--labels <css>] [--overlay <css,css>] [--canvas <css>] [--strip <step>] [--poster] [--final]');
 
 const { launchPlacedChrome } = await import(pathToFileURL(path.resolve('scripts/lib/launch-chrome.mjs')).href);
 const VIEWPORTS = [
@@ -43,17 +47,23 @@ const VIEWPORTS = [
 const EDGE_MIN = 8, DRAW_CALL_WARN = 100;
 
 const at = (params) => { const u = new URL(url); for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v); return u.href; };
-const tag = (t) => `t${t.toFixed(1).padStart(4, '0')}`;
+// one decimal when that is exact, otherwise every digit given, so two close times never share a file
+const tag = (t) => `t${(Number.isInteger(t * 10) ? t.toFixed(1) : String(t)).padStart(4, '0')}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-// init scripts run before <html> exists, so observe the document
-const READY_PROBE = `new MutationObserver(() => { if (document.documentElement?.dataset.scene) window.__sceneAt ??= performance.now(); })
+// init scripts run before <html> exists, so observe the document; only a terminal state counts as ready
+const READY_PROBE = `new MutationObserver(() => { if (['ready', 'fallback'].includes(document.documentElement?.dataset.scene)) window.__sceneAt ??= performance.now(); })
   .observe(document, { attributes: true, subtree: true, attributeFilter: ['data-scene'] });
   // capture-only: a phone's transient overlay scrollbar makes two shots of one frozen frame differ, so hide it
   // here rather than in the page's CSS (a real visitor keeps their scrollbar)
   addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = '@media (max-width: 820px) { html { scrollbar-width: none } }'; document.head.append(s); });`;
-// is a fallback still on screen: some image displayed, decoded and not zero-sized
-const FALLBACK_IMAGE = () => [...document.images].filter((i) => i.offsetParent !== null && i.getBoundingClientRect().width > 0 && getComputedStyle(i).visibility !== 'hidden')
-  .map((i) => ({ src: i.currentSrc.split('/').pop(), loaded: i.complete && i.naturalWidth > 0 }));
+// is the scene's own fallback on screen: the img[data-scene-fallback], displayed, visible through
+// every ancestor, decoded and not zero-sized (any other image on the page proves nothing)
+const FALLBACK_IMAGE = () => [...document.querySelectorAll('img[data-scene-fallback]')].map((i) => {
+  let shown = i.offsetParent !== null && i.getBoundingClientRect().width > 0 && getComputedStyle(i).visibility !== 'hidden';
+  for (let e = i; shown && e; e = e.parentElement) if (+getComputedStyle(e).opacity === 0) shown = false;
+  return { src: i.currentSrc.split('/').pop(), shown, loaded: shown && i.complete && i.naturalWidth > 0 };
+});
+const fallbackShown = (imgs) => imgs.some((i) => i.loaded);
 
 async function open(context, href, log, throttle = 1) {
   const page = await context.newPage();
@@ -76,6 +86,16 @@ async function open(context, href, log, throttle = 1) {
 
 const frames = (page) => page.evaluate(() => window.__scene?.frames ?? null);
 const info = (page) => page.evaluate(() => window.__scene?.info?.() ?? null);
+// frames drawn over ms; a missing counter is blocked, never a pass-shaped zero
+async function framesOver(page, ms) {
+  const a = await frames(page); await wait(ms); const b = await frames(page);
+  return Number.isFinite(a) && Number.isFinite(b) ? b - a : 'blocked: __scene.frames is missing or not a number';
+}
+// canvas pixels only: every other element hidden for the shot, so overlay text never reaches a scene crop
+async function sceneShot(page, opts = {}) {
+  const style = await page.addStyleTag({ content: `body * { visibility: hidden !important } ${canvasSel} { visibility: visible !important }` });
+  try { return await page.locator(canvasSel).first().screenshot(opts); } finally { await style.evaluate((s) => s.remove()); }
+}
 
 async function intervals(page, ms) {
   return page.evaluate((ms) => new Promise((done) => {
@@ -91,8 +111,8 @@ const stats = (d) => ({ p50: pct(d, 0.5), p95: pct(d, 0.95), max: pct(d, 1), sam
 
 // labels (DOM via --labels, canvas-drawn via __scene.labels()) against the canvas edge, the
 // overlay text and each other; overlay text against the fold
-function measure([labelSel, overlaySel, edgeMin]) {
-  const c = document.querySelector('canvas').getBoundingClientRect();
+function measure([labelSel, overlaySel, edgeMin, canvasSel]) {
+  const c = document.querySelector(canvasSel).getBoundingClientRect();
   const boxes = (window.__scene?.labels?.() ?? []).map((r) => ({ text: r.text, x: r.x, y: r.y, w: r.w, h: r.h }));
   if (labelSel) for (const el of document.querySelectorAll(labelSel)) {
     const b = el.getBoundingClientRect();
@@ -117,8 +137,18 @@ function measure([labelSel, overlaySel, edgeMin]) {
   const under = [];
   for (const o of over) {
     if (!o.b.width) continue;
-    const r = o.b, inside = (x, y) => x > r.left && x < r.right && y > r.top && y < r.bottom;
-    const crosses = lightLines.some((l) => l.some((p, i) => i > 0 && Array.from({ length: 9 }, (_, k) => k / 8).some((u) => inside(l[i - 1][0] + (p[0] - l[i - 1][0]) * u, l[i - 1][1] + (p[1] - l[i - 1][1]) * u))));
+    // Liang-Barsky clip: does any part of segment a-b fall inside the rectangle, however long the segment
+    const r = o.b;
+    const segHits = ([ax, ay], [bx, by]) => {
+      const dx = bx - ax, dy = by - ay; let t0 = 0, t1 = 1;
+      for (const [p, q] of [[-dx, ax - r.left], [dx, r.right - ax], [-dy, ay - r.top], [dy, r.bottom - ay]]) {
+        if (p === 0) { if (q < 0) return false; continue; }
+        const t = q / p;
+        if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+      }
+      return t0 <= t1;
+    };
+    const crosses = lightLines.some((l) => l.some((p, i) => i > 0 && segHits(l[i - 1], p)));
     if (crosses) under.push(o.sel);
   }
   const fold = over.filter((o) => o.b.bottom > innerHeight).map((o) => ({ sel: o.sel, bottom: Math.round(o.b.bottom), fold: innerHeight }));
@@ -157,7 +187,7 @@ async function strip(browser, ctx, log) {
   const frames = [];
   for (let t = 0; t <= duration + 1e-6; t += stripStep) {
     const page = await open(ctx, at({ t: +t.toFixed(3) }), log);
-    frames.push({ t, png: (await page.locator('canvas').screenshot()).toString('base64') });
+    frames.push({ t, png: (await sceneShot(page)).toString('base64') });
     await page.close();
   }
   const made = [];
@@ -189,9 +219,9 @@ try {
       const page = await open(ctx, at({ t }), r.console);
       const file = `w${name}-${tag(t)}.png`, crop = `scene-w${name}-${tag(t)}.png`;
       const a = await page.screenshot({ path: path.join(out, file) });
-      await page.locator('canvas').screenshot({ path: path.join(out, crop) });
+      await sceneShot(page, { path: path.join(out, crop) });
       r.infoByT[t] = await info(page);
-      r.layout[t] = await page.evaluate(measure, [labelSel, overlaySel, EDGE_MIN]);
+      r.layout[t] = await page.evaluate(measure, [labelSel, overlaySel, EDGE_MIN, canvasSel]);
       if (poster && t === times.at(-1)) await fs.copyFile(path.join(out, crop), path.join(out, `poster-${name}.png`));
       await page.reload(); await page.waitForFunction(() => document.documentElement.dataset.scene === 'ready');
       r.repeatable[t] = a.equals(await page.screenshot());
@@ -211,7 +241,7 @@ try {
     const fb = await open(ctx, at({ gl: 0 }), r.console);
     r.fallbackState = await fb.evaluate(() => document.documentElement.dataset.scene);
     r.fallbackImage = await fb.evaluate(FALLBACK_IMAGE);
-    if (!r.fallbackImage.some((i) => i.loaded)) report.warnings.push(`${name}: ?gl=0 shows no loaded fallback image`);
+    if (!fallbackShown(r.fallbackImage)) report.warnings.push(`${name}: ?gl=0 shows no loaded, visible img[data-scene-fallback]`);
     await fb.screenshot({ path: path.join(out, `w${name}-fallback.png`) });
     await fb.close();
 
@@ -225,15 +255,14 @@ try {
     }
     const d = await intervals(page, 6000);
     r.cappedFrameMs = { ...stats(d), cpuThrottle: throttle, note: throttle > 1 ? 'JS cost only: CPU throttle does not slow the GPU' : 'capped at the display refresh; p50 is the refresh interval' };
-    const below = await page.evaluate(() => {
-      const b = document.querySelector('canvas').getBoundingClientRect().bottom + scrollY + 50;
+    const below = await page.evaluate((sel) => {
+      const b = document.querySelector(sel).getBoundingClientRect().bottom + scrollY + 50;
       scrollTo({ top: b, behavior: 'instant' }); // a page's scroll-behavior:smooth would leave scrollY behind
       return scrollY >= b - 1;
-    });
+    }, canvasSel);
     if (below) {
       await wait(400);
-      const f0 = await frames(page); await wait(1500);
-      r.framesWhileOffscreen = (await frames(page)) - f0;
+      r.framesWhileOffscreen = await framesOver(page, 1500);
     } else r.framesWhileOffscreen = 'not testable: page too short to scroll the canvas away';
     await page.close();
 
@@ -250,16 +279,16 @@ try {
       const frozenPeak = { geometries: peak('geometries'), textures: peak('textures') };
       r.memory = { frozenPeak, afterLiveTimeline: { geometries: m1?.geometries, textures: m1?.textures }, note: 'a leak needs a replay hook to judge' };
       // forced context loss must show the fallback
-      r.contextLoss = await mp.evaluate(async () => {
-        const gl = document.querySelector('canvas').getContext('webgl2') ?? document.querySelector('canvas').getContext('webgl');
+      r.contextLoss = await mp.evaluate(async (sel) => {
+        const c = document.querySelector(sel), gl = c.getContext('webgl2') ?? c.getContext('webgl');
         const ext = gl?.getExtension('WEBGL_lose_context');
         if (!ext) return 'not testable: WEBGL_lose_context missing';
         ext.loseContext();
         await new Promise((r) => setTimeout(r, 500));
         return document.documentElement.dataset.scene;
-      });
+      }, canvasSel);
       r.contextLossImage = await mp.evaluate(FALLBACK_IMAGE);
-      if (r.contextLoss === 'fallback' && !r.contextLossImage.some((i) => i.loaded)) report.warnings.push(`${name}: context loss shows no loaded fallback image`);
+      if (r.contextLoss === 'fallback' && !fallbackShown(r.contextLossImage)) report.warnings.push(`${name}: context loss shows no loaded, visible img[data-scene-fallback]`);
       await mp.screenshot({ path: path.join(out, `w${name}-context-lost.png`) });
       await mp.close();
     }
@@ -268,8 +297,7 @@ try {
     // reduced motion: one frame, no loop
     const rctx = await browser.newContext({ ...ctxOpts, reducedMotion: 'reduce' });
     const rp = await open(rctx, url, r.console);
-    const f0 = await frames(rp); await wait(2000);
-    r.reducedMotionFramesAfterReady = (await frames(rp)) - f0;
+    r.reducedMotionFramesAfterReady = await framesOver(rp, 2000);
     await rp.screenshot({ path: path.join(out, `w${name}-reduced.png`) });
     await rctx.close();
 
@@ -295,11 +323,11 @@ if (final) {
       const ctx = await ub.newContext(ctxOpts);
       const page = await open(ctx, url, []);
       const d = await intervals(page, 4000);
-      const gpu = await page.evaluate(() => {
-        const gl = document.querySelector('canvas').getContext('webgl2') ?? document.querySelector('canvas').getContext('webgl');
+      const gpu = await page.evaluate((sel) => {
+        const c = document.querySelector(sel), gl = c.getContext('webgl2') ?? c.getContext('webgl');
         const dbg = gl?.getExtension('WEBGL_debug_renderer_info');
         return { renderer: gl && gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER), timerQuery: !!gl?.getExtension('EXT_disjoint_timer_query_webgl2'), gpuMs: window.__scene?.gpuMs?.() ?? null };
-      });
+      }, canvasSel);
       report.widths[name].uncappedFrameMs = { ...stats(d), ...gpu, pixelRatio: (await info(page))?.pixelRatio ?? null, note: 'this machine only; says nothing about a phone GPU' };
       await ctx.close();
     }
