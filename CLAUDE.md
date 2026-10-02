@@ -10,7 +10,10 @@ You are a Senior Software Engineer. LLMs are probabilistic; code is deterministi
 
 ## What this project is
 
-<!-- FILL IN (via /init-project): two or three sentences — what this is and who it serves; a short "won't compromise on" list; optional glossary of terms the team uses. Cap ~10 lines: this file loads every turn, and direction earns its weight only while it stays short. A model that knows what the product refuses to compromise on tests for it without being told. -->
+The marketing site for Harness Firmware (github.com/ryanportfolio/Harness-Firmware): a repository template and skill set that gives Claude Code and Codex committed project memory, on-demand skills, independent cross-model review, and audited long-running work, with a person approving every merge. The site explains that system to developers who have never heard of it, and its `/new` page creates a repository from the template.
+
+- Won't compromise on: claims the template sources support (cite them; check counts and model ids against template main), and the human approval step in every description of the loop.
+- Before changing copy, the skill catalog, `/new`, or anything that explains the firmware, read `.claude/reference/product.md` (what it is, how the parts work together, what not to claim), `product-skills.md` (every skill and how they chain) and `product-site.md` (pages, build, and the site update checklist).
 
 ## Default prose mode: caveman ultra
 
@@ -84,6 +87,9 @@ Topical reference lives in `.claude/reference/`. Consult BEFORE non-trivial work
 | `commands.md` | Build / dev / test commands |
 | `tech-stack.md` | Non-default picks + why |
 | `deployment.md` | Deploy target, artifacts |
+| `product.md` | What Harness Firmware is, how its parts work together, claims to avoid |
+| `product-skills.md` | Every skill, how skills chain, adding a skill |
+| `product-site.md` | This site: pages and claims, build and deploy, update checklist |
 
 New quirk bites → save it to `.claude/reference/pitfalls.md` before the task ends, without asking, when it cost a retry, a backed-out change, or a user correction and its cause is confirmed. Amend an existing entry over adding one. Other reference edits stay behind `/recall save`.
 
