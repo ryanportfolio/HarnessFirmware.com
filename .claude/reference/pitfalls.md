@@ -213,3 +213,10 @@ package that `scripts/lib/launch-chrome.mjs` imports. A plain `npm install` (for
 `node scripts/build-site.mjs`) prunes it, and every headed-Chrome check then fails with
 "launch-chrome needs playwright or playwright-core installed". Restore it without touching the
 manifest or lockfile: `npm install --no-save playwright-core`.
+
+## Scripted `scrollTo` lags on this site (2026-10-01)
+
+`styles.css` sets `html { scroll-behavior: smooth }`, so `window.scrollTo(0, y)` from a check script
+animates, and `scrollY` read right after it is still near the old value. An off-screen pause check
+read that, decided the page could not scroll, and skipped itself for a round. Pass
+`scrollTo({ top: y, behavior: 'instant' })` in checks that need the new position at once.
