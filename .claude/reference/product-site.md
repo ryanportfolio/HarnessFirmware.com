@@ -78,8 +78,8 @@ Spawned from the template on 2026-09-22 (initial commit `5f44e39`; `68ae91b` str
 
 ## Working on this repo
 
-1. `product.md`, `product-skills.md` and this file are the identity source. `CLAUDE.md` "What this project is" is empty; do not invent identity text elsewhere.
-2. Template rules on template `main` win over the stale local copies listed above (hook, `AGENTS.md`, scripts, the `--write` instruction in this `CLAUDE.md`). Read the template with `gh api "repos/ryanportfolio/Harness-Firmware/contents/<path>?ref=main"`, never from a local Harness-Firmware checkout.
+1. `product.md`, `product-skills.md` and this file are the identity source. `CLAUDE.md` "What this project is" summarizes them and points here; keep the two in step and do not invent identity text elsewhere.
+2. Template rules on template `main` describe the current firmware, and the local copies listed above (hook, `AGENTS.md`, scripts) may lag them. Read the template with `gh api "repos/ryanportfolio/Harness-Firmware/contents/<path>?ref=main"`, never from a local Harness-Firmware checkout. To run a template command, first bring the firmware here up to date (rule 3), then use the commands the local files actually accept: at `main` `2969a4a`, this repo's `sync-codex-skills.mjs` accepts only `--check` and `--write`, and the template's `--baseline <name>` returns a usage error here.
 3. Refresh local firmware with `/sync-starter` Direction A: pick changes from its numbered list, merge `settings.json`, never bulk-pull `CLAUDE.md` or `.claude/reference/*`, and skip `templateOnly` paths. This repo's README, `scripts/readme/` and `assets/readme/` belong to the site; do not replace them with the template's.
 4. Subagent model floor conflict (`product.md`, "Claims to avoid"): an explicit user instruction in the session decides; otherwise flag the conflict.
 5. Check facts on `main`, not on a lab branch or a dirty local checkout. Base edits on a fresh worktree from `origin/main`.

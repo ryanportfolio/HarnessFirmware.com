@@ -164,7 +164,7 @@ Merge and release stay with a person. `merge-ready` and `babysit-ci` never merge
 
 ### One project to the template and the next project
 
-1. **Start.** Template route: GitHub template, `bootstrap/new-claude-project.sh`, the Windows launchers, Harness-Console or this site's `/new`. Adoption route: `adopt-repo` overlays the firmware onto an existing repo and keeps its history. Every creator reads the manifest, removes `templateOnly` paths and writes a stub README.
+1. **Start.** Template route: GitHub template, `bootstrap/new-claude-project.sh`, the Windows launchers, Harness-Console or this site's `/new`. Adoption route: `adopt-repo` overlays the firmware onto an existing repo and keeps its history. Cleanup differs by route. The scripted creators (`bootstrap/` scripts, the Windows launchers, Harness-Console and this site's `/new`) read the manifest, remove `templateOnly` paths and write a stub README. GitHub's "Use this template" copies every file as is; the template README then sends the user to `init-project`. `adopt-repo` strips `templateOnly` paths from its template clone but keeps the adopted repo's own files, including its `README.md` (template `.claude/skills/adopt-repo/SKILL.md`).
 2. **Configure.** `init-project` fills the FILL IN sections from detected facts, asks only for what it cannot detect, offers a skill profile, generates CI and wires the `starter` remote.
 3. **Work and learn.** Project-only lessons stay local.
 4. **Promote.** `sync-starter` Direction B strips project names, paths and stack assumptions and opens a template PR. Template CI runs on push and pull_request; only squash merges. Bump the plugin version if the shared surface changed.
@@ -178,7 +178,7 @@ Merge and release stay with a person. `merge-ready` and `babysit-ci` never merge
 4. A fresh executor runs on the brief alone. A fresh auditor gets the pre-written brief only, never the executor's report, and returns status, integrity and contract verdicts. A round passes only on complete + clean + aligned.
 5. Passes go to Verified progress. Failures get one recovery round when the auditor marks them repairable; otherwise the approach goes to Dead ends.
 6. To resume after compaction, read the state file and reconcile it with the workspace. If it changed in the last 30 minutes or a worker still runs, ask before taking over.
-7. At phase end run `codex-fullreview` on the phase diff (`codex-review` if small) and fix surviving findings in an audited round; one PR per phase is allowed. A last fresh auditor runs every acceptance check; the report draws only on Verified progress, and "unfinished" is a valid report.
+7. At phase end run the cross-vendor review for the runtime: in Claude Code, `codex-fullreview` on the phase diff (`codex-review` if small); in Codex, `opus-fullreview` (`claude-review` if small), because `codex-fullreview` is disabled for Codex and `codex-review` there is same-vendor (template `.agents/skills/long-horizon/SKILL.md`). Fix surviving findings in an audited round; one PR per phase is allowed. A last fresh auditor runs every acceptance check; the report draws only on Verified progress, and "unfinished" is a valid report.
 8. Parallel sessions coordinate through `session-hub`, an append-only `HUB-<slug>.html` ledger with exclusive scope claims.
 
 ## Runtimes
@@ -295,7 +295,7 @@ From template `CONTRIBUTING.md`, `CHANGELOG.md`, `GUIDE.md` and `.github/workflo
 | `doctor.mjs` | One-command health check: settings and hook, skill frontmatter, Codex registration and drift, skill coverage and removal record, reference library, leftover FILL IN markers, plugin manifests, INFO line for context weight. Exit 1 on any FAIL. Not in CI |
 | `context-weight.sh` | Always-loaded weight, chars/4. Not in CI |
 | `memory-audit.mjs` | Advisory read/write counts from local Claude transcripts. Not in CI |
-| `sync-codex-skills.mjs` | Registration and drift: `--check` (CI), `--baseline <name>`, `--write` |
+| `sync-codex-skills.mjs` | Registration and drift: `--check` (CI), `--baseline <name>`, `--write` (at `bbd0b5f`; this site repo's copy at `2969a4a` accepts only `--check` and `--write`) |
 | `check-codex-skill-copies.mjs` | Read-only byte comparison of personal skill copies against `.agents/skills` (`<personal-skills-root>` argument). Not in CI |
 | `removed-skills.mjs` | Prints the removal record; warns on missing, required or dependency breaks (CI, warn-only) |
 | `write-ci-workflow.mjs` | Builds a project `ci.yml` for Node, Python, Rust, Go; prints by default, `--write`, `--force` |

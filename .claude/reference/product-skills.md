@@ -116,7 +116,7 @@ Ordered checklist, from template `docs/codex-skills.md`, `CONTRIBUTING.md`, `GUI
 5. Put the skill in exactly one group under `skills.groups` in `.agents/template-manifest.json`; add `skills.dependencies` if it needs another skill.
 6. Write the description to name trigger conditions, not the topic; keep it under 240 characters and the Codex catalog within its budget (7,000 characters, `test-codex-contract.mjs`).
 7. Third-party origin: add a row to `.claude/skills/PROVENANCE.md` and keep the upstream LICENSE or NOTICE inside the skill folder, recording what changed.
-8. For a native skill whose Claude source changed (any file in the folder), update the port, then run `node .claude/scripts/sync-codex-skills.mjs --baseline <name>`. A disabled skill skips this.
+8. For a native skill whose Claude source changed (any file in the folder), update the port, then run `node .claude/scripts/sync-codex-skills.mjs --baseline <name>` (template version; a repo whose local script lacks `--baseline` needs a firmware update first, see `product-site.md`, "Working on this repo"). A disabled skill skips this.
 9. Run `node .claude/scripts/sync-codex-skills.mjs --check`, `node .claude/scripts/test-codex-contract.mjs`, and `node --test .claude/scripts/test-sync-codex-skills.mjs .claude/scripts/test-codex-skill-sync.mjs .claude/scripts/test-codex-skill-copies.mjs`. CI fails on drift or a missing registration.
 10. For a large skill, run `bash .claude/scripts/context-weight.sh` before and after and report the numbers in the PR.
 11. In the template, rebuild the README (`node scripts/readme/build.mjs`) so its skill list matches, add a `CHANGELOG.md` entry if user-visible, and bump the plugin version (minor for a new skill, patch for a fix).
