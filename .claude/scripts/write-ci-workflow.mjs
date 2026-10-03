@@ -308,12 +308,16 @@ function detectPython(root) {
   const commands = [];
   let install = [];
   if (uv) {
-    install = ["uv sync --locked"];
     // uv sync installs [project].dependencies and the default groups: dev, unless
-    // [tool.uv] default-groups names others. Extras need --extra, so they do not count.
+    // [tool.uv] default-groups names others. Extras need --extra; the dev, test and tests
+    // extras are selected, as in the pip install below, on both sync and run.
+    const optional = sectionOf(pyproject, "project.optional-dependencies");
+    const uvExtras = ["dev", "test", "tests"].filter((x) => tomlArray(optional, x).trim());
+    const extraFlags = uvExtras.map((x) => ` --extra ${x}`).join("");
+    install = [`uv sync --locked${extraFlags}`];
     const toolUv = sectionOf(pyproject, "tool.uv");
     const groups = sectionOf(pyproject, "dependency-groups");
-    let synced = [projectDeps];
+    let synced = [projectDeps, ...uvExtras.map((x) => tomlArray(optional, x))];
     if (/^\s*default-groups\s*=\s*["']all["']/m.test(toolUv)) synced.push(groups, tomlArray(toolUv, "dev-dependencies"));
     else {
       const named = tomlArray(toolUv, "default-groups");
@@ -323,7 +327,7 @@ function detectPython(root) {
       if (names.includes("dev")) synced.push(tomlArray(toolUv, "dev-dependencies"));
     }
     synced = unmarkedStrings(synced.join("\n"));
-    const uvRun = (tool) => (mentions(synced, tool) ? `uv run ${tool}` : `uv run --with ${tool} ${tool}`);
+    const uvRun = (tool) => (mentions(synced, tool) ? `uv run${extraFlags} ${tool}` : `uv run${extraFlags} --with ${tool} ${tool}`);
     if (typechecker === "mypy") commands.push({ name: "Typecheck", run: `${uvRun("mypy")} .` });
     if (typechecker === "pyright") commands.push({ name: "Typecheck", run: uvRun("pyright") });
     if (hasTests) commands.push({ name: "Test", run: uvRun("pytest") });
@@ -343,7 +347,8 @@ function detectPython(root) {
     const extras = installable ? ["dev", "test", "tests"].filter((x) => extraOf(x).trim()) : [];
     if (installable) install.push(extras.length ? `pip install -e ".[${extras.join(",")}]"` : "pip install -e .");
     // Only what pip installs above counts: other extras and [dependency-groups] are skipped.
-    const unmarked = fromPyproject ? unmarkedStrings : unmarkedLines;
+    // setuptools drops inline `#` comments from setup.cfg requirement lines.
+    const unmarked = fromPyproject ? unmarkedStrings : (text) => unmarkedLines(text.replace(/(^|\s)#.*$/gm, ""));
     const installedFrom = installable ? [depsOf, ...extras.map(extraOf)].map(unmarked) : [];
     const installed = [...main.map(requirementsText), ...installedFrom].join("\n");
     const extra = [];

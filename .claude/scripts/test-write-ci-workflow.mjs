@@ -224,9 +224,12 @@ test("Python tools count as installed only from what the install step installs",
   const py = (body) => `[project]\nname = "x"\nversion = "0.1.0"\ndependencies = []\n\n${body}`;
   const testFile = { "tests/test_a.py": "def test_a():\n    pass\n" };
 
-  // uv sync installs neither extras nor non-default groups.
+  // uv selects the dev, test and tests extras on sync and run; other extras and non-default groups are not installed.
   const uvExtra = yamlFor(project(t, { "pyproject.toml": py('[project.optional-dependencies]\ntest = ["pytest"]\n'), "uv.lock": "", ...testFile }));
-  assert.match(uvExtra, /- name: Test\n {8}run: uv run --with pytest pytest\n/);
+  assert.match(uvExtra, /run: uv sync --locked --extra test\n/);
+  assert.match(uvExtra, /- name: Test\n {8}run: uv run --extra test pytest\n/);
+  const uvOther = yamlFor(project(t, { "pyproject.toml": py('[project.optional-dependencies]\nci = ["pytest"]\n'), "uv.lock": "", ...testFile }));
+  assert.match(uvOther, /- name: Test\n {8}run: uv run --with pytest pytest\n/);
   const uvGroup = yamlFor(project(t, { "pyproject.toml": py('[dependency-groups]\ntest = ["pytest"]\n'), "uv.lock": "", ...testFile }));
   assert.match(uvGroup, /- name: Test\n {8}run: uv run --with pytest pytest\n/);
   // [project].dependencies and groups named in [tool.uv] default-groups are installed.
