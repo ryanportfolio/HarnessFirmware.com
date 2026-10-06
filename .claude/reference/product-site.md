@@ -84,7 +84,7 @@ Spawned from the template on 2026-09-22 (initial commit `5f44e39`; `68ae91b` str
 4. Subagent model floor conflict (`product.md`, "Claims to avoid"): an explicit user instruction in the session decides; otherwise flag the conflict.
 5. Check facts on `main`, not on a lab branch or a dirty local checkout. Base edits on a fresh worktree from `origin/main`.
 6. This is not the template repo, so the normal pitfall rule applies: save confirmed quirks to `.claude/reference/pitfalls.md` without asking.
-7. Visual checks follow `CLAUDE.md` Verification: headed Chrome through `launchPlacedChrome()`, isolated browsers for parallel work, and the pitfalls on preview servers, `scrollHeight` sampling and blur timing.
+7. Visual checks follow `CLAUDE.md` Verification: headed Chrome through `launchPlacedChrome()`, a separate `launchPlacedChrome()` browser for each parallel subagent, and the pitfalls on preview servers, `scrollHeight` sampling and blur timing.
 
 ## Site update checklist
 

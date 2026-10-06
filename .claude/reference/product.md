@@ -18,7 +18,7 @@ This is the identity source for Harness Firmware: what it is, why it helps, how 
 - committed project memory in six `.claude/reference/` files, read and written through the `recall` skill;
 - 36 Claude skills and 33 Codex skills that load on demand (template `README.md`);
 - one SessionStart hook, a caveman output style and a permission allow/deny list (template `.claude/settings.json`);
-- an isolated Playwright MCP server for parallel browser work (template `.mcp.json`);
+- an isolated Playwright MCP server, one browser per session shared by its subagents, plus `launchPlacedChrome()` so each parallel subagent gets its own Chrome (template `.mcp.json`, `scripts/lib/launch-chrome.mjs`);
 - health, sync and context-measurement scripts in `.claude/scripts/`;
 - a manifest that says which files a new project receives (template `.agents/template-manifest.json`);
 - a CI workflow that validates the whole package (template `.github/workflows/validate-template.yml`).
@@ -98,7 +98,7 @@ Inference: this is a closed loop; merged lessons rewrite the kernel, skills and 
 - **Permissions.** Allowed: read-only commands plus `git add/commit/push/merge` and `gh pr create/merge`. Denied: `git push --force*`, `git push -f *`, `gh pr merge --admin*` (template `.claude/settings.json`). Inference: the allow list removes prompts; nothing (hook or permission) enforces review before merge.
 - **Token tools.** `caveman` shortens replies; `context-weight.sh` estimates always-loaded weight as chars/4; `optimize-context` trims it and reports byte deltas apart from token claims. RTK (`rtk-ai/rtk`) and STK (`ryanportfolio/STK`) are separate binaries the firmware points to and does not install.
 
-**Verification wiring.** Visual checks use headed Chrome on the real GPU through `launchPlacedChrome()` (template `scripts/lib/launch-chrome.mjs`, with `scripts/lib/window-place.ps1` placing the window on a monitor the user is not using and handing focus back). Never headless (WebGL falls back to the CPU), never minimized (rAF drops to 1 fps). For subagent or parallel browser work, each agent opens its own browser through `mcp__playwright-iso__*` or `launchPlacedChrome()`. Template `.mcp.json` defines `playwright-iso` as `npx @playwright/mcp@latest --isolated`. The shared Playwright plugin and the desktop Browser pane each hold one browser and deadlock a second user (template `CLAUDE.md` Verification). `@latest` is unpinned, so inference: the MCP version can drift between runs.
+**Verification wiring.** Visual checks use headed Chrome on the real GPU through `launchPlacedChrome()` (template `scripts/lib/launch-chrome.mjs`, with `scripts/lib/window-place.ps1` placing the window on a monitor the user is not using and handing focus back). Never headless (WebGL falls back to the CPU), never minimized (rAF drops to 1 fps). For parallel browser work, each subagent launches its own Chrome through `launchPlacedChrome()`. Template `.mcp.json` defines `playwright-iso` as `npx @playwright/mcp@latest --isolated`: one browser per session, shared by the main session and all its subagents (`--isolated` only keeps the profile in memory), so one agent at a time drives it. The shared Playwright plugin and the desktop Browser pane each hold one browser and deadlock a second user (template `CLAUDE.md` Verification). `@latest` is unpinned, so inference: the MCP version can drift between runs.
 
 ### Layer 2: project memory
 
