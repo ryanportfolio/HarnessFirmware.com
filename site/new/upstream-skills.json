@@ -1,6 +1,6 @@
 {
   "repository": "ryanportfolio/Harness-Firmware",
-  "commit": "16ff5b3fb7fffb94492fcf8b044a74da81ba1d79",
+  "commit": "05034a38dca86a8febea909a18d8d933c4c0da55",
   "claude": [
     "addskill",
     "adopt-repo",
@@ -14,9 +14,11 @@
     "caveman",
     "claude-review",
     "codex-fullreview",
+    "codex-image-gen",
     "codex-review",
-    "compact-review",
     "dare",
+    "deep-plan",
+    "design-prototypes",
     "enhance-prompt",
     "fable-mode",
     "forge-repo-ui-skill",
@@ -26,16 +28,19 @@
     "lab",
     "long-horizon",
     "long-horizon-workflows",
-    "merge-ready",
+    "merge",
     "optimize-context",
     "perf-loop",
     "recall",
+    "redesign-concepts",
     "refine",
+    "servers",
     "session-hub",
     "showpiece",
     "sync-starter",
     "why",
     "wow-loop",
+    "wrapup",
     "writing",
     "writing-plans"
   ],
@@ -52,6 +57,8 @@
     "claude-review",
     "codex-review",
     "dare",
+    "deep-plan",
+    "design-prototypes",
     "enhance-prompt",
     "external-review",
     "fable-mode",
@@ -65,12 +72,15 @@
     "opus-fullreview",
     "perf-loop",
     "recall",
+    "redesign-concepts",
     "refine",
+    "servers",
     "session-hub",
     "showpiece",
     "sync-starter",
     "why",
     "wow-loop",
+    "wrapup",
     "writing",
     "writing-plans"
   ],
@@ -86,7 +96,9 @@
         "optimize-context",
         "recall",
         "refine",
-        "sync-starter"
+        "servers",
+        "sync-starter",
+        "wrapup"
       ]
     },
     {
@@ -102,11 +114,12 @@
         "codex-fullreview",
         "codex-review",
         "dare",
+        "deep-plan",
         "external-review",
         "impartial-review",
         "long-horizon",
         "long-horizon-workflows",
-        "merge-ready",
+        "merge",
         "opus-fullreview",
         "perf-loop",
         "writing-plans"
@@ -121,12 +134,14 @@
         "arena",
         "bro",
         "caveman",
-        "compact-review",
+        "codex-image-gen",
+        "design-prototypes",
         "enhance-prompt",
         "fable-mode",
         "forge-repo-ui-skill",
         "handoff-audit",
         "lab",
+        "redesign-concepts",
         "session-hub",
         "showpiece",
         "why",
@@ -149,15 +164,30 @@
         "codex-review",
         "external-review"
       ],
+      "caveman": [
+        "why"
+      ],
       "codex-fullreview": [
         "impartial-review"
       ],
       "codex-review": [
         "external-review"
       ],
-      "merge-ready": [
+      "deep-plan": [
+        "why"
+      ],
+      "design-prototypes": [
+        "codex-image-gen"
+      ],
+      "merge": [
         "codex-fullreview",
         "codex-review"
+      ],
+      "opus-fullreview": [
+        "impartial-review"
+      ],
+      "wrapup": [
+        "servers"
       ]
     }
   }

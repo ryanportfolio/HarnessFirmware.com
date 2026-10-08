@@ -4,7 +4,7 @@
 
 This is the identity source for Harness Firmware: what it is, why it helps, how its parts fit, and what not to claim. Read it before you change site copy, the `/new` creator, the skill catalog, or any text that explains the firmware. The skill catalog lives in `product-skills.md`; this website repo lives in `product-site.md`.
 
-- **Pinned sources.** Template facts come from `ryanportfolio/Harness-Firmware` at commit `bbd0b5f39565c518ecf5176b44425df2e7c642d6`, read on 2026-10-01. Template paths are written "template `path`"; other paths belong to this repo, `ryanportfolio/HarnessFirmware.com`, at `main` `2969a4a`.
+- **Pinned sources.** Template facts come from `ryanportfolio/Harness-Firmware` at commit `bbd0b5f39565c518ecf5176b44425df2e7c642d6`, read on 2026-10-01. Skill counts, the skill list, and the review and merge rules were re-read at `05034a38dca86a8febea909a18d8d933c4c0da55` on 2026-10-08; other facts still date from `bbd0b5f`. Template paths are written "template `path`"; other paths belong to this repo, `ryanportfolio/HarnessFirmware.com`, at `main` `2969a4a`.
 - **Freshness.** The template changes often. Check every count, version and model id against template `main` before you repeat it. `node scripts/refresh-upstream-skills.mjs --check` covers the skill list.
 - **Labels.** "Inference" marks a conclusion the sources imply but do not state. "Unverified" marks a fact nobody confirmed against a source.
 
@@ -16,7 +16,7 @@ This is the identity source for Harness Firmware: what it is, why it helps, how 
 
 - a thin always-loaded kernel: `CLAUDE.md` for Claude and `AGENTS.md` for Codex;
 - committed project memory in six `.claude/reference/` files, read and written through the `recall` skill;
-- 36 Claude skills and 33 Codex skills that load on demand (template `README.md`);
+- 41 Claude skills and 38 Codex skills that load on demand (template `README.md`);
 - one SessionStart hook, a caveman output style and a permission allow/deny list (template `.claude/settings.json`);
 - an isolated Playwright MCP server, one browser per session shared by its subagents, plus `launchPlacedChrome()` so each parallel subagent gets its own Chrome (template `.mcp.json`, `scripts/lib/launch-chrome.mjs`);
 - health, sync and context-measurement scripts in `.claude/scripts/`;
@@ -40,7 +40,7 @@ Every session starts empty, so quirks, tech picks and commands get rediscovered 
 
 The model that wrote a change defends it, and approves its own work when it reviews itself.
 
-- **What it does.** Review skills hand the diff to reviewers that never saw the conversation. `impartial-review` spreads coverage across buckets and the main session verifies every finding before reporting it. `codex-review` and `codex-fullreview` use a reviewer from a different vendor. `impartial-review`, `merge-ready` and `codex-fullreview` say a self-review or plain prompt cannot stand in for the independent check (template `.claude/skills/{impartial-review,merge-ready,codex-fullreview}/SKILL.md`).
+- **What it does.** Review skills hand the diff to reviewers that never saw the conversation. `impartial-review` spreads coverage across buckets and the main session verifies every finding before reporting it. `codex-review` and `codex-fullreview` use a reviewer from a different vendor. `impartial-review`, `merge` and `codex-fullreview` say a self-review or plain prompt cannot stand in for the independent check (template `.claude/skills/{impartial-review,merge,codex-fullreview}/SKILL.md`).
 - **Proof.** Six same-model `/long-horizon` audits passed the About page; `/codex-review` then found a door-hole layering bug they had missed. On one page `/codex-review` and `/astra-review` found 10 real bugs, all fixed (`site/about.html`). On an 11-round `long-horizon-swarm` run, a review of the finished branch found 3 real defects in a verification tool that eleven rounds of peer review had never examined; the template cited this when it retired the skill in 1.7.0 (template `CHANGELOG.md`, 1.7.0 Removed).
 
 ### Context cost
@@ -109,8 +109,8 @@ Inference: this is a closed loop; merged lessons rewrite the kernel, skills and 
 ### Layer 3: skill library
 
 - Skills live in template `.claude/skills/<name>/SKILL.md` (canonical) and `.agents/skills/<name>/` (Codex). Only the name and description load every turn.
-- Every Claude skill is registered in template `.agents/skill-modes.json` as `native` (hand-maintained Codex port) or `disabled` (Claude only): 38 entries, 33 native and 5 disabled. Template `.agents/skill-sources.json` holds a SHA-256 hash of each covered Claude skill folder (31 entries); editing any file in that folder is drift until the port is updated and re-baselined.
-- The manifest groups 38 skills as core, discipline and specialist: 7, 16 and 15. The README shows 7, 14 and 15 for its 36 Claude skills, leaving out the Codex-only `external-review` and `opus-fullreview` (template `.agents/template-manifest.json`, `README.md`).
+- Every Claude skill is registered in template `.agents/skill-modes.json` as `native` (hand-maintained Codex port) or `disabled` (Claude only): 43 entries, 38 native and 5 disabled (`astra-fullreview`, `codex-fullreview`, `codex-image-gen`, `long-horizon-workflows`, `merge`). Template `.agents/skill-sources.json` holds a SHA-256 hash of each covered Claude skill folder (36 entries); editing any file in that folder is drift until the port is updated and re-baselined.
+- The manifest groups 43 skills as core, discipline and specialist: 9, 17 and 17. The README lists its 41 Claude skills, leaving out the Codex-only `external-review` and `opus-fullreview` (template `.agents/template-manifest.json`, `README.md`).
 - Descriptions are capped at 240 characters and the Codex catalog at 7,000 characters (template `.claude/scripts/test-codex-contract.mjs`). Full catalog: `product-skills.md`.
 
 ### Layer 4: the loop and its supervisor
@@ -127,13 +127,13 @@ The supervisor is `long-horizon`'s stagnation rules: the same step failing audit
 
 ### Layer 5: review and the PR gate
 
-- `codex-review` is a single-context Codex review on `gpt-6.1-sol` at high effort. `codex-fullreview` has Codex run `impartial-review` as Manager over sub-reviewers. `merge-ready` runs both in parallel, fixes confirmed findings, commits and pushes each round, then reruns `codex-review` alone, at most 3 reruns after round 1, and never merges (template `.claude/skills/merge-ready/SKILL.md`). Every review skill verifies each finding locally and reports attribution such as "N of M findings survived verification".
+- `codex-review` is a single-context Codex review on `gpt-6.1-sol` at high effort. `codex-fullreview` has Codex run `impartial-review` as Manager over sub-reviewers. `merge` starts only when the user types `/merge`, which turns on merge mode for the rest of the session. Per PR it runs `codex-fullreview` once, fixes confirmed findings, commits and pushes, then reruns `codex-review` alone on the full PR diff, at most 3 reruns after round 1. When the latest round confirms no blocking or should-fix finding and CI passes on the same head, it squash-merges with `--match-head-commit`; past the cap it stops and leaves the PR open (template `.claude/skills/merge/SKILL.md`, Claude only). Every review skill verifies each finding locally and reports attribution such as "N of M findings survived verification".
 - `babysit-ci` watches checks and fixes failures, capped at 3 fix pushes; it never merges. A project's own `ci.yml` comes from `init-project` through `write-ci-workflow.mjs` and includes a `firmware` job running the Codex sync check. The template runs `validate-template.yml` (gates listed under "Contributing to the template").
-- The user's global `CLAUDE.md` adds that nothing merges before `/codex-review` has run on the PR and its findings are fixed or waived. That rule lives outside the template.
+- Review on every PR (template #214). Template `CLAUDE.md`: opening or updating a PR triggers `/codex-review` on the full PR diff in the same turn, without asking; nothing merges until surviving findings are fixed or waived by the user; reruns need the user's OK, and typing `/merge` gives it for the rest of the session; in merge mode the `/merge` loop replaces this trigger. Template `AGENTS.md`: Codex runs `$claude-review` with `--model opus` at high effort under the same rules. If the reviewer's CLI is unavailable, the agent stops before merging and never substitutes a self-review. These are agent instructions; no hook or permission enforces them.
 
 ### Layer 6: human approval
 
-Merge and release stay with a person. `merge-ready` and `babysit-ci` never merge. Auto-merge needs explicit intent in the current session; Caveman Ultra is a communication default, not permission for side effects (template `AGENTS.md`). Invoking a skill does not authorize commit, push, PR, merge, deploy or installs unless the skill says so; most skills state this (for example `arena`, `lab`, `dare`, `long-horizon`, `init-project`, `adopt-repo`, `addskill`). The site says "a human approves" merge and release (`site/index.html`).
+Merge and release stay with a person. `babysit-ci` never merges. `merge` merges only after the user types `/merge` in that session, and the user can turn merge mode off at any time. Auto-merge needs explicit intent in the current session; Caveman Ultra is a communication default, not permission for side effects (template `AGENTS.md`). Invoking a skill does not authorize commit, push, PR, merge, deploy or installs unless the skill says so; most skills state this (for example `arena`, `lab`, `dare`, `long-horizon`, `init-project`, `adopt-repo`, `addskill`). The site says "a human approves" merge and release (`site/index.html`).
 
 ### Layer 7: refine and sync back to the template
 
@@ -151,8 +151,8 @@ Merge and release stay with a person. `merge-ready` and `babysit-ci` never merge
 4. **Challenge** (optional, on request): `why` checks a recommendation, `advocate` checks a change.
 5. **Commit and open a PR** on "Complete": verified to the environment's limits. Run `gh pr list --head <branch>` first so you never open a second PR.
 6. **Watch CI.** `babysit-ci` diagnoses before it waits: one cause per push, at most one flake rerun, stop after 3 fix pushes.
-7. **Review gate.** `/codex-review`, or `/merge-ready` for the two-review loop. A personal `/merge` skill reads `merge-ready` as its gate; it is not in the template (the template removed its own `merge`, template `.claude/skills/PROVENANCE.md`).
-8. **A person approves**, and the PR squash-merges.
+7. **Review gate.** Opening or updating the PR runs `/codex-review` in the same turn (`$claude-review` with Opus from Codex); confirmed findings are fixed and pushed (template `CLAUDE.md`, `AGENTS.md`).
+8. **A person approves**: they merge the PR, or type `/merge`, which runs `codex-fullreview`, up to 3 `codex-review` reruns and a CI check before it squash-merges.
 
 ### Failure to saved lesson
 
@@ -192,7 +192,7 @@ Merge and release stay with a person. `merge-ready` and `babysit-ci` never merge
 | Subagents | Agent tool | Exposed multi-agent tools with `fork_turns: "none"`; config flags do not prove the tools exist |
 | Workflow tool | Available (`long-horizon-workflows`) | No equivalent |
 | RTK | Applied by an installed rewrite hook | Call `rtk` explicitly; native commands for mutations and exact output |
-| Cross-vendor review | `codex-review`, `codex-fullreview`, `astra-*`, `merge-ready` | `claude-review`, `opus-fullreview` |
+| Cross-vendor review | `codex-review`, `codex-fullreview`, `astra-*`, `merge` | `claude-review`, `opus-fullreview` |
 
 Sources: template `AGENTS.md`, `.agents/CODEX-SKILL-COMPATIBILITY.md`, `.agents/codex-tools.md`. A same-vendor review gives fresh context, not vendor independence, and the result must say so. Never ship a generated adapter; `--write` deletes generated adapters, except under an enabled native skill (template `.claude/scripts/sync-codex-skills.mjs`).
 
@@ -210,7 +210,7 @@ Sources: template `AGENTS.md`, `.agents/CODEX-SKILL-COMPATIBILITY.md`, `.agents/
 
 Helpers: `bootstrap/retarget-fork.sh <owner>/<repo>` repoints a fork's template references. `bootstrap/setup-machine.ps1` (PowerShell only) copies personal files from `bootstrap/machine/home-claude/` into `~/.claude`; it skips `*.example` files, `-Force` overwrites, `-DryRun` previews. At the pinned commit that folder holds only `CLAUDE.md.example` (template `GUIDE.md`).
 
-**The manifest is the hub** (template `.agents/template-manifest.json`, version 1): `requiredFiles` 5; `projectPaths` 9 (including `.mcp.json`, `scripts/lib`, `docs/codex-skills.md`); `templateOnly` 16 (for example `.claude-plugin`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `GUIDE.md`, `LICENSE`, `bootstrap`, `docs/research`, `docs/specs`, `validate-template.yml`); `readmeStub` `# {name}\n`; `skills.required` `external-review`, `init-project`; `skills.dependencies` (for example `codex-review` needs `external-review`; `merge-ready` needs `codex-fullreview` and `codex-review`); `presets.minimal.omit` 7 skills (`advocate`, `enhance-prompt`, `fable-mode`, `forge-repo-ui-skill`, `handoff-audit`, `lab`, `why`). An unknown version or top-level key stops a consumer (template `docs/specs/2026-10-01-template-manifest-design.md`).
+**The manifest is the hub** (template `.agents/template-manifest.json`, version 1): `requiredFiles` 5; `projectPaths` 9 (including `.mcp.json`, `scripts/lib`, `docs/codex-skills.md`); `templateOnly` 16 (for example `.claude-plugin`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `GUIDE.md`, `LICENSE`, `bootstrap`, `docs/research`, `docs/specs`, `validate-template.yml`); `readmeStub` `# {name}\n`; `skills.required` `external-review`, `init-project`; `skills.dependencies` (for example `codex-review` needs `external-review`; `merge` needs `codex-fullreview` and `codex-review`, at `05034a3`); `presets.minimal.omit` 7 skills (`advocate`, `enhance-prompt`, `fable-mode`, `forge-repo-ui-skill`, `handoff-audit`, `lab`, `why`). An unknown version or top-level key stops a consumer (template `docs/specs/2026-10-01-template-manifest-design.md`).
 
 ## Vocabulary
 
@@ -232,16 +232,16 @@ Helpers: `bootstrap/retarget-fork.sh <owner>/<repo>` repoints a fork's template 
 
 ## Claims to avoid or qualify
 
-- **Skill counts.** Say what each number counts. Template `.claude/skills/` holds 37 directories: 36 skills with a `SKILL.md` plus the retired `writing-skills` (reference files only). README: 36 Claude, 33 Codex. Site About page: 36. `site/new.html` and `site/skills.html`: 38, which is those 36 plus the Codex-only `external-review` and `opus-fullreview` (inference, consistent with `skill-modes.json`: 33 native + 5 disabled = 38). Template `.agents/skills/` holds 35 directories: 33 with a `SKILL.md`, plus `writing-skills` and `humanizer` (a leftover `patterns.md` with no `SKILL.md` and no registry entry, kept from the `humanizer` skill folded into `writing`; template `.claude/skills/PROVENANCE.md`). Neither leftover counts toward 36, 33 or 38.
+- **Skill counts.** Say what each number counts. At `05034a3`, template `.claude/skills/` holds 43 directories: 41 skills with a `SKILL.md`, the retired `writing-skills` (reference files only), and `smart-compact`, a Claude Code plugin mod with no `SKILL.md` that replaced the `compact-review` skill (template #208); it is a mod, not a skill. README: 41 Claude, 38 Codex. Site About page: 36 (a measurement from an older catalog). `site/new.html` and `site/skills.html`: 43, which is those 41 plus the Codex-only `external-review` and `opus-fullreview` (consistent with `skill-modes.json`: 38 native + 5 disabled = 43, and with the manifest's 43). Template `.agents/skills/` holds 40 directories: 38 with a `SKILL.md`, plus `writing-skills` and `humanizer` (a leftover `patterns.md` with no `SKILL.md` and no registry entry, kept from the `humanizer` skill folded into `writing`; template `.claude/skills/PROVENANCE.md`). None of the leftovers counts toward 41, 38 or 43.
 - **Token savings.** 87,000 / 3,400 / about 9,700 are site estimates without the template's caveat. Template `GUIDE.md` calls its measure "a source-file trend measure, not runtime billing"; `context-weight.sh` says "an approximation for trend lines, not billing". MCP tools, marketplace descriptions and auto-memory are excluded. `optimize-context` forbids extrapolating local byte cuts into per-turn savings. RTK's "up to 90%" covers bash output only (`rtk-ai/rtk` README). STK's `stk gain` is an upper bound, and STK is unverified on macOS and Linux (`ryanportfolio/STK` README). Caveman's "about 50% shorter" is an estimate with no log (`ryanportfolio/savetokens` README).
 - **"Self-improving."** Improvements are proposed, reviewed and merged by a person, never applied automatically. The `refine` evaluation record's effect on future tasks "remains unmeasured" (template `docs/research/2026-09-13-rsi-harness.md`). Structural checks do not prove behavior.
 - **Field log** numbers come from one project, seven sessions over three days. **Illustrative demos** (hero, explainer, arena, long-horizon) are not measurements.
 - **Cross-vendor / full review.** Never call a same-vendor review cross-vendor. A full review requires sub-reviewers that actually spawned; with zero, report it incomplete.
-- **Merge and CI.** `merge-ready` and `babysit-ci` never merge; permissions allow `gh pr merge` and nothing in the template enforces review first. Never say CI passes until a GitHub run shows it. README drift and missing skills only warn.
+- **Merge and CI.** `babysit-ci` never merges; `merge` merges only after the user types `/merge`. Template `CLAUDE.md` and `AGENTS.md` tell the agent to run a cross-vendor review on every PR before any merge, but permissions allow `gh pr merge` and no hook or check enforces it. Don't write "nothing merges without your approval". Never say CI passes until a GitHub run shows it. README drift and missing skills only warn.
 - **Model ids** (`gpt-6.1-sol`, `gpt-6-astra`, `fable`, `opus`) are pins, not proof of availability. Skills confirm locally and never substitute silently.
 - **RTK and STK** are external. Say "supported" or "pairs with", not "includes".
 - **Diagram.** `harness-loop` labels are hard-coded; no check regenerates or diffs it, and the README generator does not embed it.
-- **Snapshot lag.** `site/new/upstream-skills.json` on main records template commit `16ff5b3`, not `bbd0b5f`.
+- **Snapshot lag.** `site/new/upstream-skills.json` records template commit `05034a3`, newer than the `bbd0b5f` pin; re-run `--check` before trusting either.
 - **Unshipped work.** The eval-flywheel plan's replay scenarios (`.claude/evals/`) are absent at `bbd0b5f` and not in the CHANGELOG, so treat them as not shipped. Plan item P1 (`memory-audit.mjs` with `test-memory-audit.mjs`) is present. Whether its other items shipped was not checked (template `docs/superpowers/plans/2026-09-26-eval-flywheel.md`).
 - **Retired names.** `unslop` and `writing-skills` are retired in both runtimes; cleanup routes to `caveman` and `writing`, authoring to `addskill`. Do not revive them (template `docs/codex-skills.md`).
 - **Model floor.** This site's `CLAUDE.md` forbids Sonnet and Haiku subagents; the template's says omit `model` unless the user names one. An explicit user instruction in the session decides; flag the conflict rather than choose silently.
