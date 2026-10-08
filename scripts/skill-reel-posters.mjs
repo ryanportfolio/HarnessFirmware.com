@@ -53,12 +53,27 @@ const ids = opt.only || IDS;
 
 const server = spawn(process.execPath, [path.join(ROOT, 'docs/skill-reel/animatic/serve.mjs')], {
   env: { ...process.env, PORT: String(opt.port) },
-  stdio: 'ignore',
+  stdio: ['ignore', 'pipe', 'pipe'],
 });
 let browser = null;
 let failed = false;
 try {
-  await new Promise((r) => setTimeout(r, 900));
+  // Wait for this checkout's server to report its port. If the port is taken, it exits instead, and
+  // rendering from whatever else answers there would write or check another checkout's frames.
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('serve.mjs did not start in 10 s')), 10000);
+    server.stdout.on('data', (d) => {
+      if (String(d).includes(`:${opt.port}/`)) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+    server.stderr.on('data', (d) => process.stderr.write(d));
+    server.on('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`serve.mjs exited with ${code} (is port ${opt.port} in use? pass --port)`));
+    });
+  });
   const { launchPlacedChrome } = await import(new URL('./lib/launch-chrome.mjs', import.meta.url));
   browser = await launchPlacedChrome({ place: process.env.CHROME_PLACE || 'offscreen', channel: 'chrome' })
     .catch(() => launchPlacedChrome({ place: process.env.CHROME_PLACE || 'offscreen' }));

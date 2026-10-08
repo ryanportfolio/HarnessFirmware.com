@@ -327,6 +327,8 @@ function mount(root) {
       }
     }
     for (const c of playing) {
+      // a scene that threw while painting this frame dropped itself and keeps its poster
+      if (!c.scene) continue;
       c.t = (c.t + dt) % c.scene.period;
       // a card whose first frame was painted this frame starts playing on the next one
       if (c.fresh) {
