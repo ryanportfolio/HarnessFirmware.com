@@ -292,7 +292,7 @@ function render(ctx, t, ov) {
 
   // fixtures behind the line
   stroke(ctx, [RAIL_X, BENCH_Y, RAIL_X, 640], C.dim, 4);
-  drawFlags(ctx, t);
+  // CI flags cut at the owner's call (CI is the least important part of /merge); 5.0 to 6.0 is a plain feed.
   drawPress(ctx, t);
 
   // arm (drawn before the work so the sheet it carries sits in front of the bar)
@@ -387,7 +387,7 @@ function beat(t) {
   if (t < 2.2) return 'fresh: round 1 gang head, findings hang as tags';
   if (t < 4.0) return 'engage: arm verifies, one tag refuted, two fixed, fix sheet laid';
   if (t < 5.0) return 'fresh: rerun, single tip, no tag';
-  if (t < 6.0) return 'feed and index: CI flags';
+  if (t < 6.0) return 'feed: to the press';
   if (t < 7.0) return 'engage: squash';
   if (t < 7.6) return 'settle: into tray';
   if (t < 9.2) return 'hold';
@@ -412,6 +412,9 @@ export default {
       const theta = lerp(200, 55, easeOut(seg(t, 0.6, 1.05))) + 145 * easeIn(seg(t, 2.3, 2.65));
       const keyPress = idx(seg(t, 1.4, 1.54));
       render(ctx, 0, { gangY, theta, keyPress });
+      // Shared plate for both Codex tools: the skills run the newest Sol available (codex-review/SKILL.md:15).
+      const solAlpha = seg(t, 0.9, 1.2) * (1 - seg(t, 2.2, 2.45));
+      if (solAlpha > 0) plate(ctx, 'Latest Sol', 380, 560, solAlpha);
       note(ctx, t < 0.6 ? 'opener: /codex-fullreview' : t < 1.4 ? 'opener: /codex-review' : t < 2.3 ? 'opener: /merge latches' : 'opener: tools leave, loop t = 0 pose');
     },
   },
