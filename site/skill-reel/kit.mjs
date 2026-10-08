@@ -110,20 +110,34 @@ export const lw = (w) => w * LOD.k;
 // Static layer cache: an OffscreenCanvas at device resolution per (key, scale). The layer is
 // drawn with exactly the same calls every time, so output does not depend on cache state.
 
-// Least-recently-used, bounded by bytes: a reel-scale layer is ~18 MB, a card layer under 1 MB,
+// Least-recently-used, bounded by bytes: a reel-scale layer is ~8 MB, a card layer under 1 MB,
 // so a count cap either thrashes a page of nine cards or holds hundreds of MB at reel scale.
+// One scale per key: a resize replaces the old scale's layer instead of adding one beside it
+// (a page draws a given key at one scale at a time: cards share one size, the reel one base).
+// The render options (RENDER) are part of the key, so a layer that reads them stays correct.
 const layers = new Map();
-const LAYER_BUDGET = 160 * 1024 * 1024;
+const scaleOf = new Map(); // key -> the one id (key@scale) held for it
+const LAYER_BUDGET = 96 * 1024 * 1024;
 let layerBytes = 0;
 export function cached(ctx, key, draw) {
   const m = ctx.getTransform();
   const s = Math.hypot(m.a, m.b) || 1;
-  const id = key + '@' + s.toFixed(5);
+  const k0 = RENDER.vignette ? key : key + '~nv';
+  const id = k0 + '@' + s.toFixed(5);
   let L = layers.get(id);
   if (L) {
     layers.delete(id);
     layers.set(id, L);
   } else {
+    const prev = scaleOf.get(k0);
+    if (prev !== undefined) {
+      const old = layers.get(prev);
+      if (old) {
+        layers.delete(prev);
+        layerBytes -= old.bytes;
+        old.cv.width = old.cv.height = 0; // release the backing store now, not at the next GC
+      }
+    }
     const cw = Math.max(1, Math.round(W * s)), ch = Math.max(1, Math.round(H * s));
     const cv = new OffscreenCanvas(cw, ch);
     const c = cv.getContext('2d');
@@ -132,16 +146,32 @@ export function cached(ctx, key, draw) {
     setLod(c);
     draw(c);
     Object.assign(LOD, saved);
-    L = { cv, cw, ch, s, bytes: cw * ch * 4 };
+    L = { cv, cw, ch, s, k0, bytes: cw * ch * 4 };
     layers.set(id, L);
+    scaleOf.set(k0, id);
     layerBytes += L.bytes;
     for (const [k, v] of layers) {
       if (layerBytes <= LAYER_BUDGET || k === id) break;
       layers.delete(k);
+      if (scaleOf.get(v.k0) === k) scaleOf.delete(v.k0);
       layerBytes -= v.bytes;
+      v.cv.width = v.cv.height = 0;
     }
   }
   ctx.drawImage(L.cv, 0, 0, W, H);
+}
+
+// Live layer count and backing bytes, for measuring the cache.
+export function layerStats() {
+  return { count: layers.size, bytes: layerBytes };
+}
+
+// Render options a host sets before drawing a scene. Defaults are the card look; the reel turns
+// the per-scene vignette off and draws one vignette over its whole frame, so neighbouring panels
+// in a truck meet without a dark band. Scenes that draw their own falloff check RENDER.vignette.
+export const RENDER = { vignette: true };
+export function setVignette(on) {
+  RENDER.vignette = !!on;
 }
 
 // Film grain: the site's tile (site/generate-grain.mjs: 256x256, mulberry32 seed 0x4a17c3d5,
@@ -661,7 +691,9 @@ export function activeMat(mat, u, idleSil = '#2f6141') {
 }
 
 // Lamp falloff over the finished picture: the active station stays lit, idle parts go dim.
+// Skipped when the host turned the vignette off (RENDER.vignette, the reel draws its own).
 export function lampFalloff(ctx, x = 980, y = 600, r0 = 360, r1 = 1180, a = 0.62) {
+  if (!RENDER.vignette) return;
   const g = ctx.createRadialGradient(x, y, r0, x, y, r1);
   g.addColorStop(0, 'rgba(3,5,4,0)');
   g.addColorStop(1, `rgba(3,5,4,${a})`);

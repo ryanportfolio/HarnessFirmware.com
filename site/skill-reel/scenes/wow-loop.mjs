@@ -63,10 +63,10 @@ const ROUNDS = [
 const CARDS = [
   [1.85, 2.15, 2.25, 2.4, 'cam', 1, true, false],
   [2.3, 2.6, 2.9, 3.05, 'cam', 2, true, true],
-  [2.75, 3.05, 3.1, 3.2, 'mic', 0, true, false],
+  [2.92, 3.18, 3.24, 3.36, 'mic', 0, true, false],
   [5.0, 5.25, 5.3, 5.42, 'cam', 1, false, false],
   [5.35, 5.6, 5.65, 5.77, 'cam', 2, false, false],
-  [5.52, 5.77, 5.82, 5.9, 'mic', 0, false, false],
+  [5.56, 5.84, 5.88, 5.98, 'mic', 0, false, false],
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -91,6 +91,45 @@ function trap(u, a, d) {
   if (u < 1 - d) return v * (a / 2 + (u - a));
   const r = 1 - u;
   return 1 - (v * r * r) / (2 * d);
+}
+
+// Part sprites: a part drawn once into an OffscreenCanvas that covers its box (bx, by, bw, bh in the
+// caller's coordinates) at the current device scale, then blitted; moving parts are drawn by
+// translating the context first. The sprite is drawn with the same calls every time, so the output
+// depends only on (key, scale). At most two scales are held per key.
+const sprites = new Map();
+function sprite(ctx, key, bx, by, bw, bh, draw) {
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  let list = sprites.get(key);
+  if (!list) sprites.set(key, (list = []));
+  let S = list.find((e) => e.s === s);
+  if (!S) {
+    const cw = Math.max(1, Math.ceil(bw * s)), ch = Math.max(1, Math.ceil(bh * s));
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.scale(cw / bw, ch / bh);
+    c.translate(-bx, -by);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    S = { s, cv };
+    list.unshift(S);
+    while (list.length > 2) { const old = list.pop(); old.cv.width = old.cv.height = 0; }
+  }
+  ctx.drawImage(S.cv, bx, by, bw, bh);
+}
+
+// Two sprites of one part, idle and active, crossfaded by u (0 idle, 1 active).
+function spriteAct(ctx, key, box, u, draw) {
+  if (u < 0.999) sprite(ctx, key + ':0', box[0], box[1], box[2], box[3], (c) => draw(c, 0));
+  if (u > 0.001) {
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, u);
+    sprite(ctx, key + ':1', box[0], box[1], box[2], box[3], (c) => draw(c, 1));
+    ctx.restore();
+  }
 }
 
 function engage(t, t0, a, dwell = 0.2) {
@@ -263,6 +302,14 @@ function ringStand(ctx, rx) {
 }
 
 function flag(ctx, rx, st) {
+  if (st > 1e-4 && st < 0.9999) { flagBody(ctx, rx, st); return; }
+  const k = st > 0.5 ? 1 : 0;
+  ctx.save();
+  ctx.translate(rx - RINGS[0], 0);
+  sprite(ctx, 'wl-flag' + k, RINGS[0], FLOOR - 58, 72, 52, (c) => flagBody(c, RINGS[0], k));
+  ctx.restore();
+}
+function flagBody(ctx, rx, st) {
   const px = rx + 13 + RW / 2 + 4, py = FLOOR - 22;
   const a = lerp(-2.25, -0.85, st);
   const len = 24;
@@ -286,17 +333,35 @@ function flag(ctx, rx, st) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The seam's exit: the gate drops, the piece slides forward off the cradle onto the front of the
+// bench (tipping over the gate's edge) and runs out past the right edge of the frame.
+const OUT_A = 8.33, OUT_B = 8.95, OUT_X1 = 2010, OUT_Z = -64;
+function outPose(t) {
+  const u = seg(t, OUT_A, OUT_B);
+  return {
+    x: IX + (OUT_X1 - IX) * trap(u, 0.42, 0),
+    bot: lerp(SEAT, FLOOR, easeIn(seg(u, 0.2, 0.42))),
+    z: OUT_Z * easeInOut(seg(u, 0.06, 0.38)),
+    rot: 0.2 * Math.sin(Math.PI * seg(u, 0.18, 0.46)),
+  };
+}
+
 // Cradle with a gate jaw on the right that drops to let the piece out in the seam.
 
 function cradle(ctx, gate, pins) {
+  const top = SEAT;
+  if (gate < 1e-4) sprite(ctx, 'wl-cradle', IX - 62, P_BOT - 24, 160, FLOOR - P_BOT + 34, (c) => cradleBody(c, 0));
+  else cradleBody(ctx, gate);
+  // spring pins hold the piece over the seat until it settles
+  if (pins > 0.02) for (const dx of [-20, 20]) rodV(ctx, IX + dx + D.x * RZ, top - SETTLE * pins + D.y * RZ, top + D.y * RZ + 1, 6, MAT.lit, false);
+}
+function cradleBody(ctx, gate) {
   const top = SEAT;
   prism(ctx, rect(IX - 56, top, 112, FLOOR - top), 60, MAT.lit);
   prism(ctx, rect(IX - 56, P_BOT + 4, 12, top - P_BOT - 4), 60, MAT.lit, { sil: 2.5 });
   // gate jaw hinged at its bottom outer corner
   const gp = rotPts(rect(-12, -(top - P_BOT - 4), 12, top - P_BOT - 4), IX + 56, top, gate * 1.4);
   prism(ctx, gp, 60, MAT.lit, { sil: 2.5 });
-  // spring pins hold the piece over the seat until it settles
-  if (pins > 0.02) for (const dx of [-20, 20]) rodV(ctx, IX + dx + D.x * RZ, top - SETTLE * pins + D.y * RZ, top + D.y * RZ + 1, 6, MAT.lit, false);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -401,6 +466,9 @@ function micrometer(ctx, dy, ext, spin) {
 // Builder: the session's hand, parked at the right, filing the flagged corner.
 
 function builderColumn(ctx, act) {
+  spriteAct(ctx, 'wl-col', [COL_X - 50, BOOM_Y - 60, 150, FLOOR - BOOM_Y + 70], act, builderColumnBody);
+}
+function builderColumnBody(ctx, act) {
   const SM = activeMat(MAT.session, act);
   contactShadow(ctx, COL_X + 30, FLOOR - 6, 70, 14, 0.55);
   prism(ctx, rect(COL_X - 38, FLOOR - 14, 90, 14), 60, SM, { sil: 2.5 });
@@ -408,12 +476,31 @@ function builderColumn(ctx, act) {
   prism(ctx, rect(COL_X - 28, BOOM_Y - 34, 56, 14), 46, SM, { sil: 3 });
 }
 
+// The arm is drawn from sprites made at its parked pose (M_REST, CORNER[1]) and moved; the boom is
+// drawn longer than it ever shows and cut off inside the sleeve.
+const ARM_BOOM = 220;
 function builderArm(ctx, act, mx, my) {
+  const ox = mx - M_REST, oy = my - CORNER[1];
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, COL_X - 26, H);
+  ctx.clip();
+  ctx.translate(ox, 0);
+  spriteAct(ctx, 'wl-boom', [M_REST + 22, BOOM_Y - 24, ARM_BOOM + 30, 40], act, (c, a) => {
+    const headR = M_REST + 34;
+    prism(c, shiftPts(rect(headR - 6, BOOM_Y - 9, ARM_BOOM, 18), 8), 20, activeMat(MAT.session, a), { hatch: true, sil: 3 });
+  });
+  ctx.restore();
+  spriteAct(ctx, 'wl-sleeve', [COL_X - 82, BOOM_Y - 34, 90, 56], act, (c, a) => {
+    prism(c, rect(COL_X - 76, BOOM_Y - 16, 60, 32), 34, activeMat(MAT.session, a), { hatch: true, sil: 3.5 });
+  });
+  ctx.save();
+  ctx.translate(ox, oy);
+  spriteAct(ctx, 'wl-head', [M_REST - 24, CORNER[1] - 60, 80, 82], act, (c, a) => builderHead(c, a, M_REST, CORNER[1]));
+  ctx.restore();
+}
+function builderHead(ctx, act, mx, my) {
   const SM = activeMat(MAT.session, act);
-  const headR = mx + 34;
-  // inner boom telescoping out of the sleeve on the column
-  prism(ctx, shiftPts(rect(headR - 6, BOOM_Y - 9, COL_X - 30 - headR + 6, 18), 8), 20, SM, { hatch: true, sil: 3 });
-  prism(ctx, rect(COL_X - 76, BOOM_Y - 16, 60, 32), 34, SM, { hatch: true, sil: 3.5 });
   const head = [[mx - 15, my - 15], [mx + 15, my + 15], [mx + 34, my + 15], [mx + 34, my - 40], [mx - 15, my - 40]];
   prism(ctx, head, 34, SM, { hatch: true, sil: 3.5 });
   // file: a dark toothed strip along the 45 degree pad
@@ -509,6 +596,8 @@ function cardFace(ctx, view, burr, amber) {
   ctx.restore();
 }
 
+const CARD_EDGE = { front: ['#18201a', '#0d120e'], top: '#c2c9ba', side: '#4f5a50' };
+
 function cardFlat(ctx, x0, y0, th, view, burr, amber, s = 1) {
   ctx.save();
   tilt(ctx, x0, y0, CH * s, th);
@@ -522,18 +611,26 @@ const AMBER_AT = [CARD_CX2 + (PW * CARD_K2) / 2 - (PC * CARD_K2) / 2 + 2, CARD_T
 const cardOf = (s) => CARDS[(((s - K0) % PER_LOOP) + PER_LOOP) % PER_LOOP];
 
 function trayLayers(ctx, t) {
-  const shift = PER_LOOP * LAYER * indexEase(seg(t, 8.5, 8.64));
+  let shift = PER_LOOP * LAYER * indexEase(seg(t, 8.5, 8.64));
   let top = K0;
   for (let k = 0; k < CARDS.length; k++) if (t >= CARDS[k][3]) top = K0 + k + 1;
+  // once the floor has indexed this loop's cards down, the stack is exactly the t = 0 stack
+  if (t >= 8.64) { shift = 0; top = K0; }
   ctx.save();
   ctx.beginPath();
   ctx.rect(TRAY_X0 + TWALL, 300, TRAY_X1 - TRAY_X0 + 80, TRAY_FLOOR - 300);
   ctx.clip();
+  ctx.translate(0, shift);
+  sprite(ctx, 'wl-tray' + top, TRAY_X0, 500, TRAY_X1 - TRAY_X0 + 80, TRAY_FLOOR - 500 + 4, (c) => trayStack(c, top));
+  ctx.restore();
+}
+function trayStack(ctx, top) {
+  const shift = 0;
   for (let s = 0; s < top; s++) {
     const yb = TRAY_FLOOR - s * LAYER + shift;
     if (yb - LAYER > TRAY_FLOOR) continue;
     const cd = cardOf(s);
-    ctx.fillStyle = cd[7] ? P.amber : '#a7b1a3';
+    ctx.fillStyle = cd[7] ? P.amber : '#59625a';
     ctx.fillRect(TRAY_CX - CW / 2, yb - LAYER, CW, LAYER - 2.5);
     ctx.fillStyle = '#0a0e0b';
     ctx.fillRect(TRAY_CX - CW / 2, yb - 2.5, CW, 2.5);
@@ -541,7 +638,6 @@ function trayLayers(ctx, t) {
   const ts = top - 1;
   const cd = cardOf(ts);
   cardFlat(ctx, TRAY_CX - CW / 2, TRAY_FLOOR - ts * LAYER + shift - LAYER, Math.PI / 2, cd[5], cd[6], cd[7]);
-  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -622,8 +718,41 @@ function trayFront(ctx) {
   ctx.restore();
 }
 
+// The board the evidence is clipped to for showing: an easel standing behind the tray (its legs go
+// down behind the tray's back wall), drawn screen-aligned with the show spot.
+const BOARD = [SHOW[0] - CW / 2 - 14, SHOW[1] - CH / 2 - 14, CW + 28, CH + 28];
+function showBoard(ctx) {
+  const feetY = FLOOR + D.y * 140;
+  for (const dx of [-52, 52]) {
+    contactShadow(ctx, SHOW[0] + dx + 8, feetY - 2, 22, 5, 0.5);
+    rodV(ctx, SHOW[0] + dx, BOARD[1] + BOARD[3] - 4, feetY, 8, MAT.metal);
+  }
+  prism(ctx, rect(BOARD[0], BOARD[1], BOARD[2], BOARD[3]), 12, MAT.metal, { sil: 2.5 });
+  // the board's face: a lit panel the print is held against
+  const g = ctx.createLinearGradient(0, BOARD[1], 0, BOARD[1] + BOARD[3]);
+  g.addColorStop(0, '#26332a');
+  g.addColorStop(1, '#161d18');
+  ctx.fillStyle = g;
+  ctx.fillRect(BOARD[0] + 6, BOARD[1] + 6, BOARD[2] - 12, BOARD[3] - 12);
+}
+function boardClip(ctx) {
+  const x = SHOW[0], y = SHOW[1] - CH / 2 - 8;
+  prism(ctx, rect(x - 15, y, 30, 15), 8, MAT.lit, { sil: 2 });
+  ctx.save();
+  ctx.strokeStyle = '#86a98e';
+  ctx.lineWidth = lw(2);
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y + 2);
+  ctx.lineTo(x - 12, y - 12);
+  ctx.lineTo(x + 12, y - 12);
+  ctx.lineTo(x + 9, y + 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function backLayer(ctx) {
   benchFinal(ctx, 1180, 600);
+  showBoard(ctx);
   // rail and its posts
   for (const x of [118, RAIL_END - 26]) {
     contactShadow(ctx, x + 14, FLOOR - 4, 34, 7, 0.5);
@@ -648,7 +777,7 @@ function frontLayer(ctx) {
   ctx.fillStyle = '#060807';
   ctx.fillRect(900, BEAM_Y1 - 5, 700, 3);
   if (!LOD.card) for (let x = 120; x < W - 80; x += 160) ball(ctx, x, (BEAM_Y0 + BEAM_Y1) / 2, 3.2, MAT.metal);
-  lampFalloff(ctx, 1230, 600, 420, 1250, 0.56);
+  boardClip(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -676,23 +805,16 @@ export default {
     const fe = engage(t, FILE_T0, FILE_A);
     const burr = t < FILE_TC + 0.1;
     const filed = t >= FILE_TC + 0.1 ? 1 - easeInOut(seg(t, FILE_TC + 0.1, 6.0)) * 0.6 : 0;
-    let px = feedX(t), pb = P_BOT + SETTLE * easeOut(seg(t, 6.3, 6.8)), pa = 1, ps = 1, prot = 0;
-    if (t >= 8.33) {
-      const u = seg(t, 8.33, 8.85);
-      px = lerp(IX, 1430, easeIn(u));
-      pb = SEAT - 6 * easeOut(seg(u, 0, 0.3));
-      prot = 0.12 * easeOut(seg(u, 0, 0.4));
-      pa = 1 - easeIn(seg(u, 0.1, 0.9));
-      ps = lerp(1, 0.9, u);
+    const px = feedX(t), pb = P_BOT + SETTLE * easeOut(seg(t, 6.3, 6.8));
+    const leaving = t >= OUT_A;
+    if (!leaving) {
+      if (pb < SEAT - 1 || t < 6.3) contactShadow(ctx, px + 16, FLOOR - 6, 40, 7, 0.3);
+      piece(ctx, px, pb, { burr, filed });
     }
-    if (pb < SEAT - 1 || t < 6.3) contactShadow(ctx, px + 16, FLOOR - 6, 40, 7, 0.3 * pa);
-    piece(ctx, px, pb, { burr, filed, alpha: pa, s: ps, rot: prot });
     if (t >= 8.4) {
-      const u = seg(t, 8.4, 9.0);
-      const a = easeOut(seg(t, 8.4, 8.75));
-      const nx = lerp(-90, ENTRY, easeInOut(u));
-      contactShadow(ctx, nx + 16, FLOOR - 6, 40, 7, 0.3 * a);
-      piece(ctx, nx, P_BOT, { burr: true, alpha: a, s: lerp(0.9, 1, a) });
+      const nx = lerp(-90, ENTRY, easeInOut(seg(t, 8.4, 9.0)));
+      contactShadow(ctx, nx + 16, FLOOR - 6, 40, 7, 0.3);
+      piece(ctx, nx, P_BOT, { burr: true });
     }
 
     cached(ctx, 'wow-loop-rings-front', ringsFront);
@@ -746,6 +868,8 @@ export default {
         ctx.fillStyle = 'rgba(2,4,3,0.35)';
         ctx.fillRect(cx - (CW / 2) * s + 6, cy - (CH / 2) * s + 9, CW * s, CH * s);
         ctx.restore();
+        // the print's edge, lit along the top
+        prism(ctx, rect(cx - (CW / 2) * s, cy - (CH / 2) * s, CW * s, CH * s), 4, CARD_EDGE, { noLines: true });
         cardFlat(ctx, cx - (CW / 2) * s, cy + (CH / 2) * s, 0, view, cb, amber, s);
       } else {
         const u = easeIn(seg(t, th, td));
@@ -761,6 +885,18 @@ export default {
     }
 
     cached(ctx, 'wow-loop-front', frontLayer);
+
+    // The accepted piece leaving: in front of the builder column and the tray.
+    if (leaving && t < OUT_B) {
+      const q = outPose(t);
+      ctx.save();
+      ctx.translate(D.x * q.z, D.y * q.z);
+      if (q.bot >= FLOOR - 1) contactShadow(ctx, q.x + 16, FLOOR - 6, 40, 7, 0.3);
+      piece(ctx, q.x, q.bot, { rot: q.rot });
+      ctx.restore();
+    }
+
+    lampFalloff(ctx, 1230, 600, 420, 1250, 0.56);
 
     // Light on top of the lamp falloff.
     for (const [x, y, u, r] of flashes) contactGlow(ctx, x, y, u, r);

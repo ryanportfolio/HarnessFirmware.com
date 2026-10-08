@@ -22,12 +22,12 @@ const FALLBACK_OPENER = 5.5;
 // Reel timing, pitch A section 4 with BRIEF.md changes. The intro absorbs the difference to TARGET,
 // within [introMin, introMax], so the reel lands near 90 s whatever the scene periods add up to.
 export const TIMING = {
-  target: 90,
-  introMin: 2.5,
-  introMax: 4.0,
+  target: 95,
+  introMin: 4.5,     // the product line under the title needs about 4 s on screen
+  introMax: 4.5,
   truck: 1.0,       // transition length; the incoming loop starts when the truck starts
   pullback: 2.0,    // camera pulls back to all nine at rest
-  slate: 3.5,       // end slate hold
+  slate: 3.6,       // end slate hold (the plate arrives 0.5 s before it, so the URL holds about 4 s)
   capInDelay: 0.6,  // caption plate slides in this long after a loop starts
   capIn: 0.4,       // ease-out
   capOutLead: 0.4,  // caption starts leaving this long before the truck (or the pull back)
@@ -42,13 +42,20 @@ const CAPTION = '#f2efdf', SUB = '#c2c9ba';
 const FONT = {
   name: '781 72px "Lineal", "Lineal fallback", sans-serif',
   line: '500 34px "Harness Text", "Harness Text fallback", sans-serif',
-  tag: '400 24px "Departure Mono", "Departure Mono fallback", monospace',
+  tag: '400 34px "Departure Mono", "Departure Mono fallback", monospace',
   introTitle: '781 168px "Lineal", "Lineal fallback", sans-serif',
   introSub: '400 26px "Departure Mono", "Departure Mono fallback", monospace',
+  introLine: '500 42px "Harness Text", "Harness Text fallback", sans-serif',
+  tileName: '781 34px "Lineal", "Lineal fallback", sans-serif',
+  tileTag: '400 16px "Departure Mono", "Departure Mono fallback", monospace',
   slateUrl: '400 44px "Departure Mono", "Departure Mono fallback", monospace',
   slateLine: '781 68px "Lineal", "Lineal fallback", sans-serif',
   slateAccent: 'italic 600 68px "Fraunces", "Fraunces fallback", serif',
 };
+
+// What Harness Firmware is, in the site's own words: the homepage lede (site/index.html line 74,
+// site/hero-pillars.mjs settleLine) without its closing period (display text carries none).
+const PRODUCT_LINE = 'Memory, workflows and review for Claude Code and Codex, built into the repository';
 
 const qt = (x) => Math.round(x * 1e6) / 1e6; // round the clock so >= tests do not land one step early after a seek
 const mod = (x, m) => ((x % m) + m) % m;
@@ -137,9 +144,20 @@ function beginFrame(ctx, cv) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  // normal (bilinear) smoothing: every bitmap the reel scales is drawn within 2x of its own size
+  ctx.imageSmoothingQuality = 'low';
   ctx.fillStyle = P.ink;
   ctx.fillRect(0, 0, cv.width, cv.height);
+}
+
+// One vignette in screen space over the whole reel frame. Scenes draw theirs off in the reel
+// (kit RENDER.vignette), so the ground runs on unbroken across a truck's panel joint.
+function vignette(ctx) {
+  const g = ctx.createRadialGradient(W / 2, 580, 420, W / 2, 580, 1240);
+  g.addColorStop(0, 'rgba(3,5,4,0)');
+  g.addColorStop(1, 'rgba(3,5,4,0.58)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
 }
 
 const reported = new Set();
@@ -217,23 +235,41 @@ export function buildReel(scenes) {
   const total = slate.b;
 
   // Caption plates: { a: fade-in start, b: fade-out end, name, kind, lines: [{ text, a, b }] }.
+  // An opener caption's [from, to] (declared by the scene) is the time it stays fully readable: the
+  // plate fades in before `from` and out after `to`, so the shell never shortens a declared window.
   const plates = [];
   if (opener) {
+    // Two captions closer than the two fades share the gap between them (in proportion), so they
+    // play one after the other and never overlap in the band.
     for (const c of merge.opener.captions) {
-      plates.push({ a: opener.a + c.from, b: opener.a + c.to, name: c.name, kind: c.name === merge.name ? merge.kind : '', lines: [{ text: c.line, a: -Infinity, b: Infinity }] });
+      const from = opener.a + c.from, to = opener.a + c.to;
+      const prev = plates[plates.length - 1];
+      let fin = T.capIn;
+      if (prev) {
+        const gap = from - prev.to;
+        if (gap < 0) console.warn(`[reel] opener captions overlap: "${c.line}" starts before the previous one ends`);
+        if (gap < prev.fout + fin) {
+          const k = Math.max(0, gap) / (prev.fout + fin);
+          prev.fout *= k;
+          fin *= k;
+          prev.b = prev.to + prev.fout;
+        }
+      }
+      plates.push({ a: from - fin, b: to + T.capOut, to, fin, fout: T.capOut, name: c.name, kind: c.name === merge.name ? merge.kind : '', lines: [{ text: c.line, a: -Infinity, b: Infinity }] });
     }
   }
   for (const L of loops) {
     const a = L.a + T.capInDelay, b = L.leave - T.capOutLead + T.capOut;
     const prev = plates[plates.length - 1];
     // The opener's last plate names /merge and runs to the opener's end: the loop keeps that plate
-    // on screen (no exit and re-entry of the same name) and crossfades its line if the loop's differs.
-    if (L.i === 0 && opener && prev && prev.name === L.sc.name && prev.b >= opener.b - 0.05) {
-      prev.b = b;
+    // on screen (no exit and re-entry of the same name) and crossfades its line if the loop's differs,
+    // starting the crossfade no earlier than the end of the opener line's declared window.
+    if (L.i === 0 && opener && prev && prev.name === L.sc.name && prev.to >= opener.b - 0.05) {
+      prev.b = Math.max(prev.b, b);
       const old = prev.lines[0];
       if (L.sc.caption && L.sc.caption !== old.text) {
-        old.b = L.a + T.lineSwap / 2;
-        prev.lines.push({ text: L.sc.caption, a: L.a - T.lineSwap / 2, b: Infinity });
+        old.b = Math.max(L.a + T.lineSwap / 2, prev.to + T.lineSwap);
+        prev.lines.push({ text: L.sc.caption, a: old.b - T.lineSwap, b: Infinity });
       }
       continue;
     }
@@ -270,7 +306,7 @@ function plateAlpha(t, a, b, fin, fout) {
 
 function drawPlate(ctx, P0, t) {
   const T = TIMING;
-  const [alpha, u, v] = plateAlpha(t, P0.a, P0.b, T.capIn, T.capOut);
+  const [alpha, u, v] = plateAlpha(t, P0.a, P0.b, P0.fin ?? T.capIn, P0.fout ?? T.capOut);
   if (alpha <= 0) return;
   const dx = (1 - u) * -48 + v * -48;
   const x = 120 + dx;
@@ -286,20 +322,24 @@ function drawPlate(ctx, P0, t) {
     ctx.fillText(P0.name, x, 140);
     const nameW = ctx.measureText(P0.name).width;
     setTracking(ctx, 0);
-    // A scene that is not a skill (smart-compact is a Claude Code mod) carries its kind as a mono tag.
+    // A scene that is not a skill (smart-compact is a Claude Code mod) carries its kind as a boxed
+    // mono label on the name's baseline, the same treatment as the .sr-mod tag on /skills.
     if (P0.kind) {
       ctx.font = FONT.tag;
-      setTracking(ctx, 0.08 * 24);
+      setTracking(ctx, 0.08 * 34);
       const text = P0.kind.toUpperCase();
-      const tw = ctx.measureText(text).width + 30;
-      const tx = x + nameW + 26, ty = 96, th = 44;
-      ctx.strokeStyle = SUB;
-      ctx.lineWidth = 2;
+      const m = ctx.measureText(text);
+      const asc = m.actualBoundingBoxAscent || 24;
+      const padX = 16, padY = 11;
+      const tw = Math.round(m.width - 0.08 * 34 + padX * 2);
+      const tx = Math.round(x + nameW + 28), ty = Math.round(140 - asc - padY), th = Math.round(asc + padY * 2);
+      ctx.fillStyle = 'rgba(15,18,16,0.82)';
+      ctx.fillRect(tx, ty, tw, th);
+      ctx.strokeStyle = CAPTION;
+      ctx.lineWidth = 2.5;
       ctx.strokeRect(tx, ty, tw, th);
-      ctx.fillStyle = SUB;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, tx + 15 + 1, ty + th / 2 + 1);
-      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = CAPTION;
+      ctx.fillText(text, tx + padX, 140);
       setTracking(ctx, 0);
     }
   }
@@ -317,52 +357,83 @@ function drawPlate(ctx, P0, t) {
   ctx.restore();
 }
 
-// Intro: the title, then the opener's first frame wipes in left to right behind the bench rule.
+// Intro: the title block stands over the bench while the merge opener's first frame waits under it,
+// dimmed; the bench rule draws across, the title lifts away and the lamp comes up on the station.
+// No wipe and no scale change: the opener's t = 0 frame is the intro's last frame.
 function drawIntro(ctx, base, t, I, scenes) {
   const merge = scenes[0];
-  const reveal = easeInOut(seg(t, 0.55 * I, I));
-  if (reveal > 0) {
-    const fn = merge.opener ? merge.opener.draw : merge.draw;
-    drawPanel(ctx, base, 0, 0, 1, merge, fn, 0, Math.min(W, Math.ceil(W * reveal * base) / base));
-  }
+  const fn = merge.opener ? merge.opener.draw : merge.draw;
+  drawPanel(ctx, base, 0, 0, 1, merge, fn, 0);
   onStage(ctx, base, () => {
-    // the bench rule runs ahead of the reveal
-    const lead = Math.min(W, easeOut(seg(t, 0.4 * I, 0.9 * I)) * W);
-    if (lead > 0) {
-      ctx.fillStyle = '#4f6f57';
+    vignette(ctx);
+    // the station waits in the dark, then the lamp comes up as the title leaves
+    const dimIn = lerp(0.9, 0.74, easeOut(seg(t, 0, 0.4 * I)));
+    const lampUp = easeInOut(seg(t, I - 1.0, I));
+    const dim = dimIn * (1 - lampUp);
+    if (dim > 0) {
+      ctx.fillStyle = `rgba(15,18,16,${dim})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    // the bench rule draws across ahead of the light, then hands over to the bench's own lit edge
+    const lead = easeInOut(seg(t, 0.12, 0.12 + 0.36 * I)) * W;
+    const ruleA = 1 - lampUp;
+    if (lead > 0 && ruleA > 0) {
+      ctx.globalAlpha = ruleA;
+      ctx.fillStyle = '#6f957a';
       ctx.fillRect(0, BENCH_Y - 3, lead, 2.5);
       ctx.fillStyle = P.dim;
-      ctx.fillRect(0, BENCH_Y - 1, lead, 3);
+      ctx.fillRect(0, BENCH_Y - 0.5, lead, 3);
+      ctx.globalAlpha = 1;
     }
-    const r1 = easeOut(seg(t, 0.12 * I, 0.34 * I));
-    const r2 = easeOut(seg(t, 0.22 * I, 0.44 * I));
-    const out = easeIn(seg(t, 0.6 * I, 0.74 * I));
+    const out = easeIn(seg(t, I - 0.45, I - 0.1));
+    const lift = out * -36;
+    const r0 = easeOut(seg(t, 0.05, 0.45));
+    const r1 = easeOut(seg(t, 0.1, 0.55));
+    const r2 = easeOut(seg(t, 0.2, 0.6));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    const a1 = r1 * (1 - out), a2 = r2 * (1 - out);
-    if (a1 > 0) {
-      ctx.globalAlpha = a1;
+    if (r0 * (1 - out) > 0) {
+      ctx.globalAlpha = r0 * (1 - out);
+      ctx.fillStyle = SUB;
+      ctx.font = FONT.introSub;
+      setTracking(ctx, 6);
+      ctx.fillText('HARNESS FIRMWARE', W / 2 + 3, 300 + (1 - r0) * 10 + lift);
+      setTracking(ctx, 0);
+    }
+    if (r1 * (1 - out) > 0) {
+      ctx.globalAlpha = r1 * (1 - out);
       ctx.fillStyle = CAPTION;
       ctx.font = FONT.introTitle;
       setTracking(ctx, -0.015 * 168);
-      ctx.fillText('Skills', W / 2, 430 + (1 - r1) * 18 - out * 24);
+      ctx.fillText('Skills', W / 2, 468 + (1 - r1) * 18 + lift);
       setTracking(ctx, 0);
     }
-    if (a2 > 0) {
-      ctx.globalAlpha = a2;
+    if (r2 * (1 - out) > 0) {
+      ctx.globalAlpha = r2 * (1 - out);
       ctx.fillStyle = SUB;
-      ctx.font = FONT.introSub;
-      setTracking(ctx, 3);
-      ctx.fillText('HARNESS FIRMWARE · FOR CLAUDE CODE AND CODEX', W / 2, 510 + (1 - r2) * 12 - out * 24);
-      setTracking(ctx, 0);
+      ctx.font = FONT.introLine;
+      const cut = PRODUCT_LINE.indexOf(', built');
+      ctx.fillText(PRODUCT_LINE.slice(0, cut + 1), W / 2, 560 + (1 - r2) * 12 + lift);
+      ctx.fillText(PRODUCT_LINE.slice(cut + 2), W / 2, 618 + (1 - r2) * 12 + lift);
     }
   });
 }
 
-// All nine at rest, side by side with no gap, so their benches join into one long bench.
-// Each scene's p = 0 frame is a still: render it once per canvas size, then scale the bitmap.
-const ROW = { w: 1872, top: 604 };
-// Holds one canvas size only: a resize drops the old size's nine bitmaps instead of keeping them.
+// End: the camera pulls back from the last station to all nine at rest in a 3 x 3 grid, each tile
+// readable (448 x 252 at 1920), under the maker's plate. Row-major in reel order, so the last scene
+// (showpiece) is the bottom-right tile, the one the camera starts on.
+const GRID = { tw: 448, th: 252, gap: 14, top: 254 };
+GRID.x0 = Math.round((W - 3 * GRID.tw - 2 * GRID.gap) / 2);
+const tileRect = (k) => ({
+  x: GRID.x0 + (k % 3) * (GRID.tw + GRID.gap),
+  y: GRID.top + Math.floor(k / 3) * (GRID.th + GRID.gap),
+});
+
+// Snapshots: each scene's t = 0 frame as the reel draws it (no per-scene vignette, the reel's own
+// vignette baked in), rendered once at the view's size, then halved with high-quality resampling
+// down to the tile's exact device size. Drawing picks the smallest level at least as wide as the
+// tile on screen, so every bitmap is drawn within 2x of its size with normal smoothing, and at rest
+// each tile is drawn 1:1. Holds one canvas size only: a resize drops the old size's bitmaps.
 const snapshots = new Map();
 let snapshotSize = '';
 function snapshot(scene, cw, ch) {
@@ -371,52 +442,116 @@ function snapshot(scene, cw, ch) {
     snapshots.clear();
     snapshotSize = size;
   }
-  const key = scene.id + '@' + size;
-  let cv = snapshots.get(key);
-  if (!cv) {
-    cv = new OffscreenCanvas(cw, ch);
-    const c = cv.getContext('2d');
+  let levels = snapshots.get(scene.id);
+  if (!levels) {
+    const base = cw / W;
+    const full = new OffscreenCanvas(cw, ch);
+    const c = full.getContext('2d');
     c.fillStyle = P.ink;
     c.fillRect(0, 0, cw, ch);
-    drawPanel(c, cw / W, 0, 0, 1, scene, scene.draw, 0);
-    snapshots.set(key, cv);
+    const was = kit.RENDER.vignette;
+    kit.setVignette(false);
+    drawPanel(c, base, 0, 0, 1, scene, scene.draw, 0);
+    kit.setVignette(was);
+    onStage(c, base, () => vignette(c));
+    levels = [full];
+    const tw = Math.max(1, Math.round(GRID.tw * base)), th = Math.max(1, Math.round(GRID.th * base));
+    let src = full;
+    while (src.width > tw) {
+      const nw = src.width / 2 > tw ? Math.round(src.width / 2) : tw;
+      const nh = nw === tw ? th : Math.round(src.height / 2);
+      const lv = new OffscreenCanvas(nw, nh);
+      const lc = lv.getContext('2d');
+      lc.imageSmoothingEnabled = true;
+      lc.imageSmoothingQuality = 'high';
+      lc.drawImage(src, 0, 0, nw, nh);
+      levels.push(lv);
+      src = lv;
+    }
+    snapshots.set(scene.id, levels);
   }
-  return cv;
+  return levels;
 }
 
-function drawRow(ctx, base, cv, scenes, e) {
-  const n = scenes.length, last = n - 1;
-  const s1 = ROW.w / n / W;
-  const tw = W * s1, th = H * s1;
-  const x0 = (W - ROW.w) / 2;
-  const s = Math.pow(s1, e); // exponential zoom reads as a steady pull back
-  const cx = lerp(W / 2, x0 + last * tw + tw / 2, e);
-  const cy = lerp(H / 2, ROW.top + th / 2, e);
-  onStage(ctx, base, () => {
-    for (let k = 0; k < n; k++) {
-      const pcx = cx + (k - last) * W * s;
-      // snap panel edges to device pixels so neighbouring panels meet without a hairline
-      const xa = Math.round((pcx - (W * s) / 2) * base) / base;
-      const xb = Math.round((pcx + (W * s) / 2) * base) / base;
-      const ya = Math.round((cy - (H * s) / 2) * base) / base;
-      const yb = Math.round((cy + (H * s) / 2) * base) / base;
-      if (xa > W || xb < 0) continue;
-      ctx.drawImage(snapshot(scenes[k], cv.width, cv.height), xa, ya, xb - xa, yb - ya);
-    }
+// Camera for the pull back: zoom Z from the one that fills the frame with the last tile down to 1,
+// exponential so it reads as a steady pull; the focus point moves in step with 1 / Z so the last
+// tile stays put on screen while the frame opens around it.
+function pullCamera(e, n) {
+  const last = tileRect(n - 1);
+  const Z0 = W / GRID.tw;
+  const Z = Math.pow(Z0, 1 - e);
+  const w = (1 / Z - 1 / Z0) / (1 - 1 / Z0);
+  const fx = lerp(last.x + GRID.tw / 2, W / 2, w), fy = lerp(last.y + GRID.th / 2, H / 2, w);
+  return { Z, map: (x, y) => [(x - fx) * Z + W / 2, (y - fy) * Z + H / 2] };
+}
+
+function drawGrid(ctx, base, cv, scenes, e, labels) {
+  const n = scenes.length;
+  const cam = pullCamera(e, n);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let k = 0; k < n; k++) {
+    const r = tileRect(k);
+    const [x0, y0] = cam.map(r.x, r.y);
+    const dw = GRID.tw * cam.Z * base, dh = GRID.th * cam.Z * base;
+    const dx = Math.round(x0 * base), dy = Math.round(y0 * base);
+    const ww = Math.round(dw), hh = Math.round(dh);
+    if (dx > cv.width || dy > cv.height || dx + ww < 0 || dy + hh < 0) continue;
+    const levels = snapshot(scenes[k], cv.width, cv.height);
+    let lv = levels[0];
+    for (const L of levels) if (L.width >= ww - 0.5) lv = L;
+    ctx.drawImage(lv, dx, dy, ww, hh);
     if (e > 0) {
       ctx.globalAlpha = e;
-      ctx.strokeStyle = P.dim;
-      ctx.lineWidth = 2;
-      const L = cx - last * W * s - (W * s) / 2;
-      ctx.strokeRect(L - 1, cy - (H * s) / 2 - 1, n * W * s + 2, H * s + 2);
+      ctx.strokeStyle = '#2f4436';
+      ctx.lineWidth = Math.max(1, Math.round(1.5 * base));
+      ctx.strokeRect(dx - 0.5, dy - 0.5, ww + 1, hh + 1);
+      ctx.globalAlpha = 1;
     }
-  });
+  }
+  ctx.restore();
+  if (labels > 0) {
+    // the skill's name in each tile's apron, so a stranger can match the stations to the reel
+    onStage(ctx, base, () => {
+      ctx.globalAlpha = labels;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      for (let k = 0; k < n; k++) {
+        const r = tileRect(k);
+        const x = r.x + 16, y = r.y + GRID.th - 15;
+        ctx.font = FONT.tileName;
+        setTracking(ctx, -0.015 * 34);
+        ctx.fillStyle = CAPTION;
+        ctx.fillText(scenes[k].name, x, y);
+        const nw = ctx.measureText(scenes[k].name).width;
+        setTracking(ctx, 0);
+        if (scenes[k].kind) {
+          ctx.font = FONT.tileTag;
+          setTracking(ctx, 0.08 * 16);
+          const text = scenes[k].kind.toUpperCase();
+          const m = ctx.measureText(text);
+          const asc = m.actualBoundingBoxAscent || 11;
+          const tx = Math.round(x + nw + 12), ty = Math.round(y - asc - 6);
+          ctx.fillStyle = 'rgba(15,18,16,0.82)';
+          ctx.fillRect(tx, ty, Math.round(m.width + 12), Math.round(asc + 12));
+          ctx.strokeStyle = CAPTION;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(tx, ty, Math.round(m.width + 12), Math.round(asc + 12));
+          ctx.fillStyle = CAPTION;
+          ctx.fillText(text, tx + 7, y);
+          setTracking(ctx, 0);
+        }
+      }
+    });
+  }
 }
 
+// The maker's plate over the grid: arrives in the last half second of the pull back and holds
+// through the slate, so the URL is on screen for the slate's whole length.
 function drawSlate(ctx, t, slate) {
-  const u = easeOut(seg(t, slate.a, slate.a + 0.5));
+  const u = easeOut(seg(t, slate.a - 0.5, slate.a));
   if (u <= 0) return;
-  const dy = (1 - u) * -60;
+  const dy = (1 - u) * -40;
   kit.setLod(ctx); // full-size line weights for the kit solids, whatever the last scene left
   ctx.save();
   ctx.globalAlpha = u;
@@ -431,18 +566,18 @@ function drawSlate(ctx, t, slate) {
   const wr = ctx.measureText(right).width;
   ctx.font = FONT.slateUrl;
   const wu = ctx.measureText('harnessfirmware.com').width;
-  const pw = Math.round(Math.max(wl + wr, wu) + 180), ph = 236;
-  const px = Math.round(W / 2 - pw / 2), py = 258 + dy;
-  // the maker's plate: a dark metal plate with a lit top edge, four screws, a soft shadow on the wall
-  kit.contactShadow(ctx, px + pw / 2 + 10, py + ph + 18, pw * 0.52, 26, 0.45 * u);
-  kit.prism(ctx, kit.rect(px, py, pw, ph), 14, MAT.metal, { sil: 3 });
-  for (const [sx, sy] of [[px + 22, py + 22], [px + pw - 22, py + 22], [px + 22, py + ph - 22], [px + pw - 22, py + ph - 22]]) {
-    kit.ball(ctx, sx, sy, 7, MAT.metal);
+  const pw = Math.round(Math.max(wl + wr, wu) + 170), ph = 188;
+  const px = Math.round(W / 2 - pw / 2), py = 44 + dy;
+  // a dark metal plate with a lit top edge, four screws, a soft shadow on the wall
+  kit.contactShadow(ctx, px + pw / 2 + 10, py + ph + 14, pw * 0.52, 18, 0.45 * u);
+  kit.prism(ctx, kit.rect(px, py, pw, ph), 12, MAT.metal, { sil: 3 });
+  for (const [sx, sy] of [[px + 20, py + 20], [px + pw - 20, py + 20], [px + 20, py + ph - 20], [px + pw - 20, py + ph - 20]]) {
+    kit.ball(ctx, sx, sy, 6.5, MAT.metal);
     ctx.strokeStyle = MAT.metal.side;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(sx - 4.5, sy + 2);
-    ctx.lineTo(sx + 4.5, sy - 2);
+    ctx.moveTo(sx - 4, sy + 2);
+    ctx.lineTo(sx + 4, sy - 2);
     ctx.stroke();
   }
   ctx.textAlign = 'left';
@@ -450,14 +585,14 @@ function drawSlate(ctx, t, slate) {
   ctx.fillStyle = CAPTION;
   ctx.font = FONT.slateLine;
   setTracking(ctx, -0.015 * 68);
-  ctx.fillText(left, lx, py + 118);
+  ctx.fillText(left, lx, py + 94);
   setTracking(ctx, 0);
   ctx.font = FONT.slateAccent;
-  ctx.fillText(right, lx + wl, py + 118);
+  ctx.fillText(right, lx + wl, py + 94);
   ctx.textAlign = 'center';
   ctx.fillStyle = SUB;
   ctx.font = FONT.slateUrl;
-  ctx.fillText('harnessfirmware.com', W / 2, py + 188);
+  ctx.fillText('harnessfirmware.com', W / 2, py + 158);
   ctx.restore();
 }
 
@@ -467,43 +602,82 @@ function drawSlate(ctx, t, slate) {
 function drawReelFrame(ctx, cv, reel, scenes, t) {
   const base = cv.width / W;
   beginFrame(ctx, cv);
+  kit.setVignette(false); // one vignette over the whole frame instead of one per panel
   let note = '';
-  if (t < reel.intro) {
-    drawIntro(ctx, base, t, reel.intro, scenes);
-    note = 'intro';
-  } else if (reel.opener && t < reel.opener.b) {
-    drawPanel(ctx, base, 0, 0, 1, scenes[0], scenes[0].opener.draw, qt(t - reel.opener.a));
-    note = `${scenes[0].name} opener  ${(t - reel.opener.a).toFixed(2)} / ${scenes[0].opener.duration} s`;
-  } else if (t < reel.pullback.a) {
-    let j = 0;
-    for (let k = 0; k < reel.loops.length; k++) if (reel.loops[k].a <= t) j = k;
-    const L = reel.loops[j];
-    const local = qt(t - L.a);
-    if (j > 0 && t < L.a + TIMING.truck) {
-      // Camera truck right along the bench: both stations move together at one speed, the incoming
-      // panel's left edge locked to the outgoing panel's right edge (whole device pixels), so the
-      // bench, its apron ticks and T-slots run on unbroken across the join.
-      const Pv = reel.loops[j - 1];
-      const e = easeInOut(seg(t, L.a, L.a + TIMING.truck));
-      const xa = -Math.round(W * e * base) / base;
-      drawPanel(ctx, base, xa, 0, 1, Pv.sc, Pv.sc.draw, qt(mod(t - Pv.a, Pv.sc.period)));
-      drawPanel(ctx, base, xa + W, 0, 1, L.sc, L.sc.draw, local);
-      note = `truck  ${Pv.sc.name} -> ${L.sc.name}`;
+  try {
+    if (t < reel.intro) {
+      drawIntro(ctx, base, t, reel.intro, scenes);
+      note = 'intro';
+    } else if (reel.opener && t < reel.opener.b) {
+      drawPanel(ctx, base, 0, 0, 1, scenes[0], scenes[0].opener.draw, qt(t - reel.opener.a));
+      onStage(ctx, base, () => vignette(ctx));
+      note = `${scenes[0].name} opener  ${(t - reel.opener.a).toFixed(2)} / ${scenes[0].opener.duration} s`;
+    } else if (t < reel.pullback.a) {
+      let j = 0;
+      for (let k = 0; k < reel.loops.length; k++) if (reel.loops[k].a <= t) j = k;
+      const L = reel.loops[j];
+      const local = qt(t - L.a);
+      if (j > 0 && t < L.a + TIMING.truck) {
+        // Camera truck right along the bench: both stations move together at one speed, the incoming
+        // panel's left edge locked to the outgoing panel's right edge (whole device pixels), so the
+        // bench, its apron ticks and T-slots run on unbroken across the join.
+        const Pv = reel.loops[j - 1];
+        const e = easeInOut(seg(t, L.a, L.a + TIMING.truck));
+        const xa = -Math.round(W * e * base) / base;
+        drawPanel(ctx, base, xa, 0, 1, Pv.sc, Pv.sc.draw, qt(mod(t - Pv.a, Pv.sc.period)));
+        drawPanel(ctx, base, xa + W, 0, 1, L.sc, L.sc.draw, local);
+        note = `truck  ${Pv.sc.name} -> ${L.sc.name}`;
+      } else {
+        drawPanel(ctx, base, 0, 0, 1, L.sc, L.sc.draw, qt(mod(local, L.sc.period)));
+        note = `${j + 1}/${scenes.length} ${L.sc.name}  loop ${local.toFixed(2)} / ${L.sc.period} s  p ${(local / L.sc.period).toFixed(3)}`;
+      }
+      onStage(ctx, base, () => vignette(ctx));
+      if (L.sc.placeholder) note += '  PLACEHOLDER';
     } else {
-      drawPanel(ctx, base, 0, 0, 1, L.sc, L.sc.draw, qt(mod(local, L.sc.period)));
-      note = `${j + 1}/${scenes.length} ${L.sc.name}  loop ${local.toFixed(2)} / ${L.sc.period} s  p ${(local / L.sc.period).toFixed(3)}`;
+      // tiles carry the reel vignette baked in, so the first frame equals the last scene's last frame
+      // cubic in-out: the zoom is exponential in e, so a quartic left the first half second static
+      const u = seg(t, reel.pullback.a, reel.pullback.b);
+      const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+      drawGrid(ctx, base, cv, scenes, e, easeOut(seg(t, reel.slate.a - 0.3, reel.slate.a + 0.3)));
+      note = t < reel.slate.a ? 'pull back  all nine at p = 0' : 'end slate';
     }
-    if (L.sc.placeholder) note += '  PLACEHOLDER';
-  } else {
-    const e = easeInOut(seg(t, reel.pullback.a, reel.pullback.b));
-    drawRow(ctx, base, cv, scenes, e);
-    note = t < reel.slate.a ? 'pull back  all nine at p = 0' : 'end slate';
+    onStage(ctx, base, () => {
+      for (const p of reel.plates) drawPlate(ctx, p, t);
+      if (t >= reel.slate.a - 0.5) drawSlate(ctx, t, reel.slate);
+    });
+  } finally {
+    kit.setVignette(true);
   }
-  onStage(ctx, base, () => {
-    for (const p of reel.plates) drawPlate(ctx, p, t);
-    if (t >= reel.slate.a) drawSlate(ctx, t, reel.slate);
-  });
   return note;
+}
+
+// Warm-up for playback, one unit per frame: while scene j holds, build the snapshot of scene j + 1
+// (it renders that scene's t = 0 frame at the view's scale, which also builds its cached static
+// layers), so the first frame after a truck never builds a layer. Index -1 is the intro, which
+// warms merge. Snapshots for every scene exist by the pull back.
+// `warmed` holds the scenes warmed on this pass through the reel (the caller clears it when the
+// clock goes back), because a snapshot built on an earlier pass says nothing about which layers
+// the cache still holds now.
+let warmScratch = null;
+function warmStep(reel, scenes, cv, t, warmed) {
+  if (t >= reel.pullback.a) return;
+  let j = -1;
+  for (let k = 0; k < reel.loops.length; k++) if (reel.loops[k].a <= t) j = k;
+  const next = j + 1;
+  if (next >= scenes.length || warmed.has(next)) return;
+  const L = j >= 0 ? reel.loops[j] : null;
+  // only during a hold: not in a truck, not in the second before the next truck
+  if (L && (t < L.a + TIMING.truck + 0.3 || t > L.leave - 1.2)) return;
+  warmed.add(next);
+  const sc = scenes[next];
+  if (!(snapshotSize === cv.width + 'x' + cv.height && snapshots.has(sc.id))) {
+    snapshot(sc, cv.width, cv.height);
+    return;
+  }
+  if (!warmScratch || warmScratch.width !== cv.width || warmScratch.height !== cv.height) warmScratch = new OffscreenCanvas(cv.width, cv.height);
+  kit.setVignette(false);
+  drawPanel(warmScratch.getContext('2d'), cv.width / W, 0, 0, 1, sc, sc.draw, 0);
+  kit.setVignette(true);
 }
 
 function drawScene(view, scene, localT) {
@@ -595,6 +769,7 @@ async function start() {
   let chapters = [];
   let views = [];
   let render = () => '';
+  let afterPaint = null; // reel only: idle warm-up work after a painted frame
   let fullView = params.get('view') === 'full';
 
   if (MODE === 'reel') {
@@ -608,6 +783,19 @@ async function start() {
     const v = EXPORT ? makeView(main, W, H, 1) : makeView(main, ...fitStage());
     views = [v];
     window.__reel = reel;
+    // Build the nine pull back snapshots before the first paint, last scene first, so a seek into
+    // the pull back never stalls and the early scenes' static layers are the ones left warm.
+    const t0 = performance.now();
+    for (let k = scenes.length - 1; k >= 0; k--) snapshot(scenes[k], v.cv.width, v.cv.height);
+    console.log(`[reel] snapshots built in ${Math.round(performance.now() - t0)} ms`);
+    const warmed = new Set();
+    let warmT = -1;
+    afterPaint = () => {
+      if (!playing) return;
+      if (t < warmT) warmed.clear();
+      warmT = t;
+      warmStep(reel, scenes, v.cv, t, warmed);
+    };
     let scratch = null;
     render = (x) => {
       if (BLUR > 1 && inCameraMove(reel, x)) {
@@ -752,7 +940,10 @@ async function start() {
       }
       last = now;
     }
-    if (dirty) paint();
+    if (dirty) {
+      paint();
+      if (afterPaint) afterPaint();
+    }
     requestAnimationFrame(frame);
   };
 

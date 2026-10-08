@@ -1,12 +1,15 @@
-// /showpiece at final fidelity (pitch A 3.9, mechanism and order of scenes/showpiece.js).
-// A contour gauge, the session's own tool, copies the profile of the real subject casting and lays
-// it on a plain blank. A cutter first takes a small specimen from the blank's corner and test-fits
-// it on the subject's most specific feature; then it cuts the whole edge, past the cautious scribe
-// line, to the full profile. The piece is tried against two dim other castings and leaves gaps on
-// both; it mates flush with its own subject. Hold. Seam: the piece lifts out right, the gauge pins
-// spring flat, a new plain blank arrives. No list, no score, no reviewer.
+// /showpiece at final fidelity (pitch A 3.9).
+// A contour gauge, the session's own tool, copies the profile of the real subject casting, a cast
+// part with flowing curves, and lays it on a plain blank. A cutter first takes a small specimen
+// from the blank's corner and test-fits it on the subject's most specific feature; then it cuts
+// the whole edge, past the cautious scribe line, to the full profile. The light-gap check: the
+// finished piece is offered against two other castings with a light panel behind each; it stops at
+// first contact and light shows through the gaps. Against its own subject it mates flush: the
+// panel is lit and no light gets through. Hold. Seam: the piece lifts out right, the gauge pins
+// spring flat, a new plain blank rises on the station lift. No list, no score, no reviewer.
 // Both tools hang from one overhead gantry and park at its ends, so the work can travel under them.
-// Pure function of t. No Math.random, no setTransform; static layers cached per device scale.
+// Pure function of t. No Math.random, no setTransform. Static geometry lives in cached layers;
+// rigid moving parts are drawn once into per-scale sprites and placed each frame.
 
 import {
   W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
@@ -20,6 +23,53 @@ const sm = (u) => u * u * (3 - 2 * u);
 const sseg = (t, a, b) => sm(seg(t, a, b));
 
 // ---------------------------------------------------------------------------------------------
+// Sprites: a rigid part drawn once per device scale into a small canvas, then placed by
+// translation. The sprite keeps the sub-pixel phase of its reference pose, so at rest it lands on
+// the same pixels a direct draw would. One scale is held per key.
+
+const SPR = new Map(), SPR_AT = new Map();
+function sprite(ctx, key, box, draw) {
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  const id = key + '@' + s.toFixed(5);
+  let S = SPR.get(id);
+  if (!S) {
+    const old = SPR_AT.get(key);
+    if (old) SPR.delete(old);
+    const [x0, y0, w, h] = box;
+    const pad = 3, X0 = s * x0, Y0 = s * y0;
+    const ox = X0 - Math.floor(X0), oy = Y0 - Math.floor(Y0);
+    const cw = Math.ceil(w * s + ox) + 2 * pad, ch = Math.ceil(h * s + oy) + 2 * pad;
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.translate(pad + ox, pad + oy);
+    c.scale(s, s);
+    c.translate(-x0, -y0);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    S = { cv, cw, ch, k: (pad + ox) / s, l: (pad + oy) / s, x0, y0, s };
+    SPR.set(id, S);
+    SPR_AT.set(key, id);
+  }
+  return S;
+}
+function blit(ctx, S, dx = 0, dy = 0) {
+  ctx.drawImage(S.cv, S.x0 + dx - S.k, S.y0 + dy - S.l, S.cw / S.s, S.ch / S.s);
+}
+// draw a session-family part crossfading from idle to active by a
+function blit2(ctx, key, box, draw, a, dx, dy) {
+  blit(ctx, sprite(ctx, key + '0', box, (c) => draw(c, activeMat(MAT.session, 0))), dx, dy);
+  if (a > 0.004) {
+    ctx.save();
+    ctx.globalAlpha *= a;
+    blit(ctx, sprite(ctx, key + '1', box, (c) => draw(c, activeMat(MAT.session, 1))), dx, dy);
+    ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Geometry (stage units, 1920x1080). Everything stands on FLOOR (the bench's front plane).
 
 const BOT = FLOOR;
@@ -31,34 +81,61 @@ const FOOT_Y = 726, FOOT = 64; // the subject's toe; the specimen comes out of t
 const CUT0 = 570, CUT1 = FOOT_Y;
 const SPEC_H = BOT - FOOT_Y;
 const SCRIBE = 0.65; // the scribe is a cautious mark; the cut goes past it to the full profile
-// The subject's face: depth to the right of SUB_FACE by y (a chamfer, a bump, a deep lug, a nick).
-const PROF = [[570, 0], [586, 30], [604, 40], [620, 6], [632, 6], [640, 48], [676, 48], [686, 16], [700, 24], [714, 0], [726, 0]];
+
+// The subject's face: depth to the right of SUB_FACE by y. A cast form, all radii: a rounded lobe,
+// a soft waist, then an S-curve sweeping out to the toe. Catmull-Rom through the control points,
+// sampled once into a table.
+const CTRL = [[558, 0], [570, 0], [582, 14], [594, 40], [606, 50], [618, 43], [632, 25], [648, 14], [664, 16], [680, 30], [696, 50], [712, 61], [726, 64], [738, 64]];
+const PROF = (() => {
+  const out = new Float64Array(CUT1 - CUT0 + 1);
+  for (let y = CUT0; y <= CUT1; y++) {
+    let k = 1;
+    while (k < CTRL.length - 2 && CTRL[k + 1][0] <= y) k++;
+    const [y0, p0] = CTRL[k - 1], [y1, p1] = CTRL[k], [y2, p2] = CTRL[k + 1], [y3, p3] = CTRL[Math.min(k + 2, CTRL.length - 1)];
+    const u = (y - y1) / (y2 - y1);
+    const m1 = (p2 - p0) / (y2 - y0) * (y2 - y1), m2 = (p3 - p1) / (y3 - y1) * (y2 - y1);
+    const u2 = u * u, u3 = u2 * u;
+    out[y - CUT0] = (2 * u3 - 3 * u2 + 1) * p1 + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * p2 + (u3 - u2) * m2;
+  }
+  out[0] = 0;
+  out[CUT1 - CUT0] = FOOT;
+  return out;
+})();
 function f(y) {
   if (y >= FOOT_Y) return FOOT;
-  if (y <= PROF[0][0]) return 0;
-  for (let k = 1; k < PROF.length; k++) {
-    const [y1, v1] = PROF[k];
-    if (y <= y1) {
-      const [y0, v0] = PROF[k - 1];
-      return lerp(v0, v1, (y - y0) / (y1 - y0));
-    }
-  }
-  return 0;
+  if (y <= CUT0) return 0;
+  const i = Math.floor(y - CUT0), v = y - CUT0 - i;
+  return lerp(PROF[i], PROF[i + 1], v);
 }
-const g = (ly) => f(CUT0 + ly); // the specimen's edge: the bump, the most specific part
+const g = (ly) => f(CUT0 + ly); // the specimen's edge: the lobe, the most specific part
 
-// The two other castings: shorter, so the work can be carried over them.
+// The two other castings: shorter, so the work can be carried over them. One round-faced, one stepped.
 const D1 = { x0: 1050, face: 1190, top: 610 };
-const D2 = { x0: 1440, face: 1570, top: 622 };
+const D2 = { x0: 1412, face: 1542, top: 622 };
 const g1 = (y) => (y < D1.top ? null : 46 * Math.sin((Math.PI * (y - D1.top)) / (BOT - D1.top)));
-const g2 = (y) => (y < D2.top ? null : y >= 740 ? 30 : 24 * Math.abs((((y - D2.top) / 40) % 1) * 2 - 1));
+const g2 = (y) => (y < D2.top ? null : y < 672 ? 0 : y < 724 ? 34 : 10);
 const E = (y) => f(y); // the finished edge (the toe rows are the notch, FOOT deep)
 function touch(face, prof) {
-  let m = -Infinity;
-  for (let y = BTOP; y <= BOT; y += 1) { const v = prof(y); if (v !== null) m = Math.max(m, v - E(y)); }
-  return face + m;
+  let m = -Infinity, at = 0;
+  for (let y = BTOP; y <= BOT; y += 1) { const v = prof(y); if (v !== null && v - E(y) > m) { m = v - E(y); at = y; } }
+  return { x: face + m, y: at };
 }
-const P1 = touch(D1.face, g1), P2 = touch(D2.face, g2);
+const T1 = touch(D1.face, g1), T2 = touch(D2.face, g2);
+const P1 = T1.x, P2 = T2.x;
+// Where the light gaps are widest, above and below the contact: the glow blooms there.
+function gapBlooms(d, prof, P, ty) {
+  const out = [];
+  for (const [y0, y1] of [[d.top + 14, ty - 8], [ty + 8, BOT - 6]]) {
+    let best = null;
+    for (let y = y0; y <= y1; y += 2) {
+      const a = d.face + prof(y), b = P + E(y);
+      if (!best || b - a > best.w) best = { w: b - a, x: (a + b) / 2, y };
+    }
+    if (best && best.w > 12) out.push(best);
+  }
+  return out;
+}
+const BLOOMS = [gapBlooms(D1, g1, P1, T1.y), gapBlooms(D2, g2, P2, T2.y)];
 
 // Gantry and tools.
 const BEAM_Y0 = 232, BEAM_Y1 = 254, CAR_Y = 276;
@@ -72,11 +149,21 @@ const LIFT = 190;
 // ---------------------------------------------------------------------------------------------
 // Materials.
 
-const CAST = { front: ['#26332a', '#161e19'], top: '#3a4d40', side: '#0f1512', sil: '#55775e', hi: '#8fb398', line: '#2e3d33' };
-const CAST_DIM = { front: ['#18201b', '#111713'], top: '#26322a', side: '#0b0f0c', sil: '#2f4536', hi: '#3f5a46', line: '#1d2820' };
+const CAST = { front: ['#33443a', '#1f2922'], top: '#4b6152', side: '#111814', sil: '#6a8d72', hi: '#a3c6aa', line: '#34453a' };
+const CAST_DIM = { front: ['#2a362e', '#1b231e'], top: '#3a4c40', side: '#0e1411', sil: '#4d6d57', hi: '#6f9277', line: '#26332a' };
 const PIN_MAT = { front: ['#3f7d52', '#1d3b28'], top: '#a4f5ba', side: '#10241a', sil: null };
 const PIN_IDLE = { front: ['#2a4f37', '#14261b'], top: '#5d9a70', side: '#0b1610', sil: null };
 const BIT_MAT = { front: ['#33463a', '#1a241e'], top: '#7f9b86', side: '#0d120f', sil: null };
+
+// ---------------------------------------------------------------------------------------------
+// Timeline (s). Gauge 0 to 2.4; specimen 2.15 to 3.15; full cut 3.1 to 3.8; light-gap check
+// 4.05 to 6.72; hold 6.72 to 8.25; seam 8.25 to 9.0.
+
+const T_SPEC = [2.3, 2.5], T_CUT = [3.1, 3.8];
+const HOPS = [[4.05, 4.5], [5.0, 5.42], [5.92, 6.72]];
+const REST_AT = [[4.5, 5.0], [5.42, 5.92]]; // resting against D1, D2
+const FLUSH = 6.72;
+const SEAM = 8.25;
 
 // ---------------------------------------------------------------------------------------------
 // Paths and poses.
@@ -108,10 +195,6 @@ const CUT_PATH = (() => {
 })();
 const lerpPt = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u)];
 
-// Timeline (s). Gauge 0 to 2.4; specimen 2.15 to 3.15; full cut 3.0 to 4.3; swap 4.4 to 6.4;
-// hold 6.4 to 7.9; seam 7.9 to 9.0.
-const T_SPEC = [2.3, 2.5], T_CUT = [3.15, 4.2];
-
 function cutterTip(t) {
   const hover = [BASE0 + FOOT, C_HOVER];
   if (t < 1.75) return [C_PARK, C_HOVER];
@@ -121,12 +204,12 @@ function cutterTip(t) {
   const specEnd = SPEC_PATH[SPEC_PATH.length - 1];
   if (t < 2.64) return lerpPt(specEnd, [specEnd[0], C_HOVER], easeIn(seg(t, T_SPEC[1], 2.64)));
   const top = CUT_PATH[0];
-  if (t < 3.0) return [specEnd[0], C_HOVER];
-  if (t < T_CUT[0]) return lerpPt([specEnd[0], C_HOVER], top, easeInOut(seg(t, 3.0, T_CUT[0])));
+  if (t < 2.95) return [specEnd[0], C_HOVER];
+  if (t < T_CUT[0]) return lerpPt([specEnd[0], C_HOVER], top, easeInOut(seg(t, 2.95, T_CUT[0])));
   if (t < T_CUT[1]) return along(CUT_PATH, sseg(t, T_CUT[0], T_CUT[1]));
   const end = CUT_PATH[CUT_PATH.length - 1];
-  if (t < 4.32) return lerpPt(end, [end[0], C_HOVER], easeIn(seg(t, T_CUT[1], 4.32)));
-  return [lerp(end[0], C_PARK, sseg(t, 4.3, 4.85)), C_HOVER];
+  if (t < 3.9) return lerpPt(end, [end[0], C_HOVER], easeIn(seg(t, T_CUT[1], 3.9)));
+  return [lerp(end[0], C_PARK, sseg(t, 3.9, 4.4)), C_HOVER];
 }
 const cutting = (t) => (t >= T_SPEC[0] && t < T_SPEC[1]) || (t >= T_CUT[0] && t < T_CUT[1]);
 
@@ -148,40 +231,46 @@ function hop(t, t0, t1, xa, xb, app, back) {
   const u = seg(t, t0, t1);
   const bk = back * sm(clamp01(u / 0.12));
   const up = sm(clamp01((u - 0.08) / 0.24)) - sm(clamp01((u - 0.6) / 0.24));
-  const tr = sm(clamp01((u - 0.16) / 0.6));
-  const sl = sm(clamp01((u - 0.86) / 0.14));
+  const tr = sm(clamp01((u - 0.22) / 0.56));
+  const sl = easeOut(clamp01((u - 0.84) / 0.16));
   return { x: lerp(xa + bk, xb + app, tr) - app * sl, dy: -LIFT * up };
 }
 
+// Seam: slide off the subject, lift clear of the castings, accelerate out of frame right.
+const OUT_V = 2500, OUT_ACC = 0.2, OUT_T0 = SEAM + 0.1;
+function outX(t) {
+  const lt = t - OUT_T0;
+  if (lt <= 0) return 0;
+  if (lt < OUT_ACC) return (OUT_V * lt * lt) / (2 * OUT_ACC);
+  return OUT_V * (lt - OUT_ACC / 2);
+}
 function piecePose(t) {
-  if (t < 4.4) return { x: BASE0, dy: 0 };
-  if (t < 4.85) return hop(t, 4.4, 4.85, BASE0, P1, 60, 0);
-  if (t < 5.12) return { x: P1, dy: 0 };
-  if (t < 5.5) return hop(t, 5.12, 5.5, P1, P2, 60, 50);
-  if (t < 5.8) return { x: P2, dy: 0 };
-  if (t < 6.4) return hop(t, 5.8, 6.4, P2, SUB_FACE, 60, 50);
-  if (t < 7.9) return { x: SUB_FACE, dy: 0 };
-  if (t < 8.55) {
-    // seam: slide off the subject, lift clear of the castings, feed out right, fade at the end
-    const fo = easeIn(seg(t, 8.35, 8.55));
-    return {
-      x: SUB_FACE + 70 * sseg(t, 7.9, 8.02) + 1000 * easeIn(seg(t, 7.98, 8.55)),
-      dy: -200 * easeInOut(seg(t, 7.98, 8.16)),
-      alpha: 1 - fo,
-      s: lerp(1, 0.9, fo),
-    };
-  }
-  return null;
+  if (t < HOPS[0][0]) return { x: BASE0, dy: 0 };
+  if (t < HOPS[0][1]) return hop(t, ...HOPS[0], BASE0, P1, 20, 0);
+  if (t < HOPS[1][0]) return { x: P1, dy: 0 };
+  if (t < HOPS[1][1]) return hop(t, ...HOPS[1], P1, P2, 60, 22);
+  if (t < HOPS[2][0]) return { x: P2, dy: 0 };
+  if (t < HOPS[2][1]) return hop(t, ...HOPS[2], P2, SUB_FACE, 60, 50);
+  if (t < SEAM) return { x: SUB_FACE, dy: 0 };
+  const x = SUB_FACE + 70 * sseg(t, SEAM, SEAM + 0.12) + outX(t);
+  if (x > W + 40) return null;
+  return { x, dy: -200 * easeInOut(seg(t, SEAM + 0.08, SEAM + 0.26)) };
+}
+
+// The station lift: the platform drops at the seam and rises with a new plain blank.
+const LIFT_DROP = [SEAM + 0.1, SEAM + 0.2], LIFT_RISE = [SEAM + 0.28, T - 0.02];
+const RISE = BH + 16;
+function liftOffset(t) {
+  if (t < LIFT_DROP[0]) return 0;
+  if (t < LIFT_DROP[1]) return 30 * easeIn(seg(t, LIFT_DROP[0], LIFT_DROP[1]));
+  if (t < LIFT_RISE[0]) return RISE;
+  return RISE * (1 - easeOut(seg(t, LIFT_RISE[0], LIFT_RISE[1])));
 }
 
 function gaugePose(t) {
   const fi = PIN_Y.map(f);
   if (t < 0.5) {
-    return {
-      X: lerp(G_PARK.X, 630, sseg(t, 0, 0.38)),
-      dy: lerp(G_PARK.dy, 0, sseg(t, 0.28, 0.5)),
-      p: fi.map(() => 0),
-    };
+    return { X: lerp(G_PARK.X, 630, sseg(t, 0, 0.38)), dy: lerp(G_PARK.dy, 0, sseg(t, 0.28, 0.5)), p: fi.map(() => 0), flat: true };
   }
   if (t < 0.62) {
     const X = lerp(630, SUB_FACE, easeInOut(seg(t, 0.5, 0.62)));
@@ -191,12 +280,13 @@ function gaugePose(t) {
     // index ripple top to bottom: each pin seats with a small click
     return { X: SUB_FACE, dy: 0, p: fi.map((v, i) => { const u = seg(t, 0.62 + 0.033 * i, 0.75 + 0.033 * i); return v + 5 * (u > 0 && u < 1 ? Math.sin(Math.PI * u) : 0); }) };
   }
-  if (t < 1.18) return { X: lerp(SUB_FACE, 610, easeIn(seg(t, 1.0, 1.18))), dy: 0, p: fi };
-  if (t < 1.72) return { X: lerp(610, BASE0, easeInOut(seg(t, 1.18, 1.45))), dy: 0, p: fi };
-  if (t < 1.92) return { X: BASE0, dy: lerp(0, G_PARK.dy, sseg(t, 1.72, 1.92)), p: fi };
-  if (t < 7.9) return { X: lerp(BASE0, G_PARK.X, sseg(t, 1.92, 2.4)), dy: G_PARK.dy, p: fi };
+  if (t < 1.18) return { X: lerp(SUB_FACE, 610, easeIn(seg(t, 1.0, 1.18))), dy: 0, p: fi, set: true };
+  if (t < 1.72) return { X: lerp(610, BASE0, easeInOut(seg(t, 1.18, 1.45))), dy: 0, p: fi, set: true };
+  if (t < 1.92) return { X: BASE0, dy: lerp(0, G_PARK.dy, sseg(t, 1.72, 1.92)), p: fi, set: true };
+  if (t < SEAM) return { X: lerp(BASE0, G_PARK.X, sseg(t, 1.92, 2.4)), dy: G_PARK.dy, p: fi, set: true };
   // seam: pins spring back flat, one after another
-  return { X: G_PARK.X, dy: G_PARK.dy, p: fi.map((v, i) => v * (1 - indexHome(seg(t, 7.9 + 0.035 * i, 8.06 + 0.035 * i)))) };
+  if (t >= SEAM + 0.06 + 0.035 * PINS + 0.16) return { X: G_PARK.X, dy: G_PARK.dy, p: fi.map(() => 0), flat: true };
+  return { X: G_PARK.X, dy: G_PARK.dy, p: fi.map((v, i) => v * (1 - indexHome(seg(t, SEAM + 0.035 * i, SEAM + 0.16 + 0.035 * i)))) };
 }
 // 0 -> 1 with one 4% overshoot, settled at u = 1
 function indexHome(u) {
@@ -213,26 +303,14 @@ function blankOutline(x, top, e) {
   const pts = [[x + e(BTOP), top], [x + BW - CLIP, top], [x + BW, top + CLIP], [x + BW, top + BH]];
   const ys = [];
   for (let y = BOT; y >= BTOP; y -= 2) ys.push(y);
-  // exact points at the steps (the notch and the cut front) so the edge has square shoulders
-  const steps = [FOOT_Y];
-  for (const s of steps) { ys.push(s + 0.01, s - 0.01); }
+  ys.push(FOOT_Y + 0.01, FOOT_Y - 0.01);
   ys.sort((a, b) => b - a);
   for (const y of ys) pts.push([x + e(y), top + (y - BTOP)]);
   return pts;
 }
 
-function drawPiece(ctx, x, dy, e, o = {}) {
-  const { alpha = 1, s = 1, cy = null } = o;
-  if (alpha <= 0) return;
+function pieceVec(ctx, x, dy, e, cy = null) {
   const top = BTOP + dy;
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  if (s !== 1) {
-    const cx = x + BW / 2, cyy = top + BH / 2;
-    ctx.translate(cx, cyy);
-    ctx.scale(s, s);
-    ctx.translate(-cx, -cyy);
-  }
   let pts = blankOutline(x, top, e);
   if (cy !== null && cy > CUT0 && cy < CUT1) {
     // the cut front: a square shoulder where the cutter is
@@ -254,6 +332,22 @@ function drawPiece(ctx, x, dy, e, o = {}) {
   ctx.restore();
   hole(ctx, x + BW * 0.35, top + BH * 0.16, 10, THICK, MAT.ivory);
   centreLine(ctx, x + BW * 0.35, top + 10, x + BW * 0.35, top + BH * 0.16 + 26, 0.5);
+}
+const PIECE_BOX = [BASE0 - 8, BTOP - 20, BW + 30, BH + 30];
+const EDGES = {
+  plain: () => 0,
+  notched: (y) => (y >= FOOT_Y ? FOOT : 0),
+  done: (y) => E(y),
+};
+function piece(ctx, t, x, dy, alpha = 1) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (t >= T_CUT[0] && t < T_CUT[1]) pieceVec(ctx, x, dy, edgeAt(t), cutY(t));
+  else {
+    const k = t >= T_CUT[1] ? 'done' : notched(t) ? 'notched' : 'plain';
+    blit(ctx, sprite(ctx, 'sp-piece-' + k, PIECE_BOX, (c) => pieceVec(c, BASE0, 0, EDGES[k])), x - BASE0, dy);
+  }
   ctx.restore();
 }
 
@@ -298,88 +392,83 @@ function drawScribe(ctx, t) {
 // ---------------------------------------------------------------------------------------------
 // Tools.
 
-function carriage(ctx, cx, toolTop, SM) {
+function drawCarriageBlock(ctx, SM) {
+  const cx = 0;
   prism(ctx, rect(cx - 30, BEAM_Y1, 60, CAR_Y - BEAM_Y1), 36, SM, { hatch: true, sil: 3 });
   if (!LOD.card) for (const k of [-17, 17]) ball(ctx, cx + k, BEAM_Y1 + 11, 4.5, SM);
-  const sleeveEnd = Math.min(CAR_Y + 54, toolTop);
+}
+const CAR_BOX = [-38, BEAM_Y1 - 22, 96, CAR_Y - BEAM_Y1 + 30];
+function carriage(ctx, cx, toolTop, a) {
+  blit2(ctx, 'sp-car', CAR_BOX, drawCarriageBlock, a, cx, 0);
   if (toolTop > CAR_Y) {
+    const SM = activeMat(MAT.session, a);
     rodV(ctx, cx, CAR_Y - 2, toolTop + 2, 9, SM);
-    rodV(ctx, cx, CAR_Y - 2, sleeveEnd, 17, SM);
+    rodV(ctx, cx, CAR_Y - 2, Math.min(CAR_Y + 54, toolTop), 17, SM);
   }
 }
 
 // The contour gauge: a comb of sliding pins held in a hatched body (the session's own tool).
-function drawGauge(ctx, t) {
-  const { X, dy, p } = gaugePose(t);
-  const a = sseg(t, 0, 0.2) - sseg(t, 2.2, 2.6);
-  const SM = activeMat(MAT.session, a);
-  const PM = a > 0.5 ? PIN_MAT : PIN_IDLE;
-  const bx = X + GB_X, top = GB_TOP + dy, bot = GB_BOT + dy;
-  carriage(ctx, bx + GB_W / 2, top - 14, SM);
-  // pins: drawn first so they run through the body
+// Drawn with its body's left edge at x = 0 and dy = 0; pins pushed back by p[i].
+function drawGaugeAt(ctx, p, SM, PM) {
+  const X = 0, bx = X + GB_X, top = GB_TOP, bot = GB_BOT;
   const ph = LOD.card ? 9 : 7;
   for (let i = 0; i < PINS; i++) {
-    const y = PIN_Y[i] + dy, x0 = X + p[i];
+    const y = PIN_Y[i], x0 = X + p[i];
     rodH(ctx, x0 + 3, x0 + PIN_LEN, y, ph, PM, false);
-    ctx.save();
     ctx.fillStyle = mix('#10241a', PM.top, 0.75);
     ctx.beginPath();
     ctx.arc(x0 + 4, y, ph / 2 + 0.6, Math.PI / 2, (Math.PI * 3) / 2);
     ctx.fill();
-    ctx.restore();
   }
   // clamp head on top of the body, then the body with its slot cover
   prism(ctx, rect(bx - 6, top - 14, GB_W + 12, 16), 30, SM, { sil: 3 });
   prism(ctx, rect(bx, top, GB_W, bot - top), 26, SM, { hatch: true, sil: 3.5, hatchGap: 11 });
   if (!LOD.card) {
-    ctx.save();
     ctx.fillStyle = '#07100a';
     ctx.fillRect(bx + GB_W / 2 - 2, top + 8, 4, bot - top - 16);
-    ctx.restore();
   }
   ball(ctx, bx + GB_W / 2, top + 4 - 10, 6.5, SM);
   ball(ctx, bx + GB_W / 2, bot - 9, 5.5, SM);
+}
+const GAUGE_BOX = [-6, GB_TOP - 26, GB_X + PIN_LEN + 80, GB_BOT - GB_TOP + 40];
+function drawGauge(ctx, t) {
+  const pose = gaugePose(t);
+  const { X, dy, p } = pose;
+  const a = sseg(t, 0, 0.2) - sseg(t, 2.2, 2.6);
+  const bx = X + GB_X, top = GB_TOP + dy;
+  carriage(ctx, bx + GB_W / 2, top - 14, a);
+  const PM = a > 0.5 ? PIN_MAT : PIN_IDLE;
+  if (pose.flat || pose.set) {
+    // a fixed pin state: one sprite per state, crossfaded idle to active
+    const k = 'sp-gauge-' + (pose.flat ? 'f' : 's') + (a > 0.5 ? 'a' : 'i');
+    const pp = pose.flat ? PIN_Y.map(() => 0) : PIN_Y.map(f);
+    blit2(ctx, k, GAUGE_BOX, (c, SM) => drawGaugeAt(c, pp, SM, PM), a, X, dy);
+  } else {
+    ctx.save();
+    ctx.translate(X, dy);
+    drawGaugeAt(ctx, p, activeMat(MAT.session, a), PM);
+    ctx.restore();
+  }
   // a contact shadow on the bench while the gauge works low
   if (dy > -60) contactShadow(ctx, X + 90, FLOOR - 4, 110, 10, 0.35 * clamp01(1 + dy / 60));
 }
 
-// The cutter: a hatched spindle on the second carriage, a fluted bit pointing down.
-function drawCutter(ctx, t) {
-  const [px, py] = cutterTip(t);
-  const a = sseg(t, 1.6, 1.8) - sseg(t, 4.6, 5.0);
-  const SM = activeMat(MAT.session, a);
-  const hTop = py - HOUSE;
-  carriage(ctx, px, hTop, SM);
+// The cutter: a hatched spindle on the second carriage, a fluted bit pointing down. Drawn with
+// its tip at (0, 0).
+function drawCutterAt(ctx, SM) {
+  const px = 0, py = 0, hTop = py - HOUSE;
   prism(ctx, rect(px - 27, hTop, 54, 104), 40, SM, { hatch: true, sil: 3.5 });
   if (!LOD.card) {
-    ctx.save();
     ctx.strokeStyle = '#06100a';
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (let y = hTop + 16; y < hTop + 50; y += 8) { ctx.moveTo(px - 20, y); ctx.lineTo(px + 20, y); }
     ctx.stroke();
-    ctx.restore();
   }
   rodV(ctx, px, hTop + 104, hTop + 124, 30, SM);
   rodV(ctx, px, hTop + 124, hTop + 138, 17, MAT.lit);
-  // bit: fluted, the flutes run down while it spins
   const b0 = hTop + 138, b1 = py - 8;
   rodV(ctx, px, b0, b1, 10, BIT_MAT, false);
-  const spin = t >= 2.15 && t < 4.4;
-  if (!LOD.card) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(px - 5, b0, 10, b1 - b0);
-    ctx.clip();
-    ctx.strokeStyle = '#0a110c';
-    ctx.lineWidth = 2;
-    const ph = spin ? (t * 260) % 9 : 0;
-    ctx.beginPath();
-    for (let y = b0 - 12 + ph; y < b1 + 10; y += 9) { ctx.moveTo(px - 6, y); ctx.lineTo(px + 6, y + 6); }
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.save();
   ctx.fillStyle = '#5f7f68';
   ctx.beginPath();
   ctx.moveTo(px - 5, b1);
@@ -387,7 +476,29 @@ function drawCutter(ctx, t) {
   ctx.lineTo(px, py);
   ctx.closePath();
   ctx.fill();
-  ctx.restore();
+}
+const CUTTER_BOX = [-34, -HOUSE - 24, 90, HOUSE + 30];
+function drawCutter(ctx, t) {
+  const [px, py] = cutterTip(t);
+  const a = sseg(t, 1.6, 1.8) - sseg(t, 4.1, 4.5);
+  const hTop = py - HOUSE;
+  carriage(ctx, px, hTop, a);
+  blit2(ctx, 'sp-cutter', CUTTER_BOX, drawCutterAt, a, px, py);
+  // flutes run down the bit while it spins
+  if (!LOD.card && t >= 2.15 && t < 3.9) {
+    const b0 = hTop + 138, b1 = py - 8;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(px - 5, b0, 10, b1 - b0);
+    ctx.clip();
+    ctx.strokeStyle = '#0a110c';
+    ctx.lineWidth = 2;
+    const ph = (t * 260) % 9;
+    ctx.beginPath();
+    for (let y = b0 - 12 + ph; y < b1 + 10; y += 9) { ctx.moveTo(px - 6, y); ctx.lineTo(px + 6, y + 6); }
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // Chips thrown from the bit while it cuts: one small seeded puff per 45 ms of cutting.
@@ -403,27 +514,23 @@ function chips(ctx, t) {
   }
 }
 
-// Light through the gaps where the piece does not fit a casting (a machinist's light-gap check).
-function lightGap(ctx, px, d, prof, a) {
+// The light-gap check: a backlight behind the bench shines while the piece rests against a
+// casting. Drawn before the castings and the piece, so both occlude it: light reaches the eye only
+// through the gaps where the two profiles do not meet.
+function gapLight(ctx, d, a) {
   if (a <= 0) return;
-  const L = [], R = [];
-  for (let y = d.top; y <= BOT; y += 2) {
-    L.push([d.face + prof(y), y]);
-    R.push([px + E(y), y]);
-  }
+  const y0 = d.top + 14;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  ctx.beginPath();
-  L.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-  for (let i = R.length - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
-  ctx.closePath();
-  const gr = ctx.createLinearGradient(d.face - 20, 0, d.face + 70, 0);
-  gr.addColorStop(0, rgba(P.paper, 0.1 * a));
-  gr.addColorStop(1, rgba(P.paper, 0.42 * a));
+  const gr = ctx.createLinearGradient(0, y0, 0, FLOOR);
+  gr.addColorStop(0, rgba(P.paper, 0.55 * a));
+  gr.addColorStop(0.25, rgba(P.paper, 0.9 * a));
+  gr.addColorStop(1, rgba(P.paper, 0.95 * a));
   ctx.fillStyle = gr;
-  ctx.fill();
+  ctx.fillRect(d.face - 10, y0, 130, FLOOR - 1 - y0);
   ctx.restore();
 }
+const lightOn = (t, a, b) => sseg(t, a + 0.03, a + 0.15) - sseg(t, b - 0.12, b - 0.02);
 
 // ---------------------------------------------------------------------------------------------
 // Static layers.
@@ -448,38 +555,48 @@ function castingPts(left, face, prof, top) {
   pts.push([face + prof(BOT), BOT]);
   return pts;
 }
+const arcPts = (cx, cy, r, a0, a1, n) => Array.from({ length: n + 1 }, (_, k) => { const a = lerp(a0, a1, k / n); return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; });
 
 function subject(ctx) {
-  const left = [[250, BOT], [250, 606], [284, 572], [376, 572], [384, 528], [398, 514], [454, 514], [468, 528], [476, 560], [SUB_FACE, 560]];
+  // a cast bracket: rounded heel, a domed boss, a filleted shoulder down to the profiled face
+  const left = [
+    [250, BOT], [250, 640],
+    ...arcPts(292, 640, 42, Math.PI, Math.PI * 1.5, 8),
+    [330, 598],
+    ...arcPts(418, 588, 84, Math.PI * 1.03, Math.PI * 1.9, 24),
+    [SUB_FACE, 560],
+  ];
   const pts = castingPts(left, SUB_FACE, (y) => f(y), 560);
   contactShadow(ctx, 430, FLOOR - 4, 230, 22, 0.6);
   prism(ctx, pts, 64, CAST, { sil: 3.5 });
-  speckle(ctx, pts, 0x5ab, 250, 514, 640, BOT, 900, 0.22);
-  // parting line, a rib and a cored boss: a specific object, not a block
+  speckle(ctx, pts, 0x5ab, 250, 500, 640, BOT, 900, 0.22);
+  // parting line following the dome, a curved rib, a cored boss: a specific object, not a block
   ctx.save();
-  ctx.strokeStyle = 'rgba(120,160,130,0.28)';
+  ctx.strokeStyle = 'rgba(140,180,150,0.3)';
   ctx.lineWidth = lw(2);
   ctx.beginPath();
-  ctx.moveTo(252, 652);
-  ctx.lineTo(SUB_FACE + f(652) - 2, 652);
+  ctx.moveTo(252, 682);
+  ctx.bezierCurveTo(360, 690, 470, 660, SUB_FACE + f(650) - 3, 650);
   ctx.stroke();
   ctx.restore();
-  prism(ctx, [[292, 610], [306, 600], [470, 700], [470, 716]], 10, CAST, { sil: 2 });
-  const bossPts = [];
-  for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; bossPts.push([330 + Math.cos(a) * 30, 708 + Math.sin(a) * 30]); }
+  const rib = [];
+  for (let k = 0; k <= 12; k++) { const u = k / 12; rib.push([lerp(300, 470, u), 700 - 40 * Math.sin(Math.PI * u)]); }
+  for (let k = 12; k >= 0; k--) { const u = k / 12; rib.push([lerp(300, 470, u), 712 - 40 * Math.sin(Math.PI * u)]); }
+  prism(ctx, rib, 10, CAST, { sil: 2 });
+  const bossPts = arcPts(320, 730, 26, 0, Math.PI * 2, 20).slice(0, 20);
   prism(ctx, bossPts, 12, CAST, { sil: 2.5 });
-  hole(ctx, 330, 708, 12, 64, CAST);
-  hole(ctx, 426, 544, 12, 64, CAST);
-  centreLine(ctx, 426, 500, 426, 590, 0.5);
-  centreLine(ctx, 290, 708, 370, 708, 0.45);
+  hole(ctx, 320, 730, 11, 64, CAST);
+  hole(ctx, 418, 560, 13, 64, CAST);
+  centreLine(ctx, 418, 488, 418, 600, 0.5);
+  centreLine(ctx, 284, 730, 356, 730, 0.45);
 }
 
 function otherCasting(ctx, left, d, prof, seed, holeAt) {
   const pts = castingPts(left, d.face, (y) => prof(y) ?? 0, d.top);
   contactShadow(ctx, (d.x0 + d.face) / 2 + 30, FLOOR - 4, 120, 16, 0.5);
-  prism(ctx, pts, 60, CAST_DIM, { sil: 3 });
+  prism(ctx, pts, 22, CAST_DIM, { sil: 3 });
   speckle(ctx, pts, seed, d.x0, d.top, d.face + 50, BOT, 380, 0.2);
-  hole(ctx, holeAt[0], holeAt[1], 11, 60, CAST_DIM);
+  hole(ctx, holeAt[0], holeAt[1], 11, 22, CAST_DIM);
 }
 
 function backLayer(ctx) {
@@ -490,16 +607,28 @@ function backLayer(ctx) {
   ctx.fillStyle = '#060807';
   ctx.fillRect(0, BEAM_Y1 - 6, W, 3);
   if (!LOD.card) for (let x = 120; x < W - 60; x += 180) ball(ctx, x, (BEAM_Y0 + BEAM_Y1) / 2, 3.2, MAT.metal);
+}
+function castLayer(ctx) {
   subject(ctx);
-  otherCasting(ctx, [[D1.x0, BOT], [D1.x0, D1.top + 34], [D1.x0 + 34, D1.top]], D1, g1, 0xd1, [1110, 700]);
-  otherCasting(ctx, [[D2.x0, BOT], [D2.x0, 664], [D2.x0 + 46, 664], [D2.x0 + 46, D2.top]], D2, g2, 0xd2, [1500, 716]);
+  otherCasting(ctx, [[D1.x0, BOT], ...arcPts(D1.x0 + 40, D1.top + 40, 40, Math.PI, Math.PI * 1.5, 8)], D1, g1, 0xd1, [1110, 700]);
+  otherCasting(ctx, [[D2.x0, BOT], [D2.x0, 664], [D2.x0 + 46, 664], [D2.x0 + 46, D2.top]], D2, g2, 0xd2, [1472, 716]);
+  // the station lift's platform, flush in the bench top
+  stationPlate(ctx, 0);
   // the subject's height, as on a drawing
-  dimension(ctx, 250, 514, 250, BOT, 34, 0.5);
+  dimension(ctx, 250, 504, 250, BOT, 34, 0.5);
+}
+const SLOT_PTS = [[BASE0 - 12, FLOOR], [BASE0 + BW + 12, FLOOR], [BASE0 + BW + 12 + D.x * 46, FLOOR + D.y * 46], [BASE0 - 12 + D.x * 46, FLOOR + D.y * 46]];
+function stationPlate(ctx, off) {
+  ctx.save();
+  poly(ctx, SLOT_PTS.map(([x, y]) => [x, y + off]));
+  ctx.fillStyle = '#26322a';
+  ctx.fill();
+  ctx.strokeStyle = '#4f6f57';
+  ctx.lineWidth = lw(1.5);
+  ctx.stroke();
+  ctx.restore();
 }
 
-function frontLayer(ctx) {
-  lampFalloff(ctx, 760, 600, 380, 1180, 0.6);
-}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -513,21 +642,46 @@ export default {
     setLod(ctx);
     cached(ctx, 'showpiece-back', backLayer);
 
+    // The light-gap check: the backlight behind each wrong casting, under the castings and the piece.
+    const l1 = lightOn(t, ...REST_AT[0]), l2 = lightOn(t, ...REST_AT[1]);
+    gapLight(ctx, D1, l1);
+    gapLight(ctx, D2, l2);
+    cached(ctx, 'showpiece-cast', castLayer);
+
+    // The station lift at the seam: the slot opens, a new plain blank rises on the platform.
+    const lo = liftOffset(t);
+    if (lo > 0) {
+      ctx.save();
+      poly(ctx, SLOT_PTS);
+      ctx.fillStyle = '#030504';
+      ctx.fill();
+      ctx.clip();
+      stationPlate(ctx, lo);
+      ctx.restore();
+      if (t >= LIFT_RISE[0]) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W, FLOOR);
+        ctx.clip();
+        blit(ctx, sprite(ctx, 'sp-piece-plain', PIECE_BOX, (c) => pieceVec(c, BASE0, 0, EDGES.plain)), 0, lo);
+        ctx.restore();
+      }
+    }
+
     // The work.
     const pose = piecePose(t);
     if (pose) {
       const lift = -pose.dy;
-      contactShadow(ctx, pose.x + BW / 2 + 16, FLOOR - 4, 110, 14, 0.5 * (pose.alpha ?? 1) * clamp01(1 - lift / 160));
-      drawPiece(ctx, pose.x, pose.dy, edgeAt(t), { alpha: pose.alpha ?? 1, s: pose.s ?? 1, cy: t >= T_CUT[0] && t < T_CUT[1] ? cutY(t) : null });
+      contactShadow(ctx, pose.x + BW / 2 + 16, FLOOR - 4, 110, 14, 0.5 * clamp01(1 - lift / 160));
+      piece(ctx, t, pose.x, pose.dy);
     }
-    if (t >= 8.45) {
-      const u = easeOut(seg(t, 8.45, 9.0));
-      contactShadow(ctx, BASE0 + BW / 2 + 16, FLOOR - 4, 110, 14, 0.5 * u);
-      drawPiece(ctx, BASE0, 0, () => 0, { alpha: u, s: lerp(0.9, 1, u) });
+    if (lo === 0 && t >= LIFT_RISE[0]) {
+      contactShadow(ctx, BASE0 + BW / 2 + 16, FLOOR - 4, 110, 14, 0.5);
+      blit(ctx, sprite(ctx, 'sp-piece-plain', PIECE_BOX, (c) => pieceVec(c, BASE0, 0, EDGES.plain)), 0, 0);
     }
     drawScribe(ctx, t);
 
-    // The specimen: cut free, carried to the subject's bump, mates, then cleared.
+    // The specimen: cut free, carried to the subject's lobe, mates, then cleared.
     let specAt = null;
     if (t >= T_SPEC[1] && t < 3.15) {
       const a = [BASE0, FOOT_Y], b = [SUB_FACE + 40, CUT0], c = [SUB_FACE, CUT0];
@@ -540,16 +694,17 @@ export default {
       specAt = pt;
     }
 
-    // the gaps light up while the piece rests against a casting that is not its subject
-    lightGap(ctx, P1, D1, g1, sseg(t, 4.78, 4.9) - sseg(t, 5.1, 5.18));
-    lightGap(ctx, P2, D2, g2, sseg(t, 5.43, 5.55) - sseg(t, 5.78, 5.86));
     chips(ctx, t);
     drawGauge(ctx, t);
     drawCutter(ctx, t);
 
-    cached(ctx, 'showpiece-front', frontLayer);
+    // the lamp follows the work through the light-gap check and comes back to the station
+    const lw8 = sseg(t, 3.95, 4.4) - sseg(t, 6.4, 6.75);
+    const lpx = pose && t >= 3.95 && t < 6.75 ? pose.x + 80 : 760;
+    lampFalloff(ctx, lerp(760, lpx, lw8), 600, 380, 1180, 0.6);
 
-    // Light: the gauge's first contact, the bit while it cuts, the specimen's mate, the flush join.
+    // Light: the gauge's first contact, the bit while it cuts, the specimen's mate, first contact
+    // against each wrong casting (amber: it does not fit), the flush join.
     contactGlow(ctx, SUB_FACE + f(PIN_Y[3]), PIN_Y[3], (t - 0.62) / 0.12);
     if (cutting(t)) {
       const [x, y] = cutterTip(t);
@@ -562,7 +717,16 @@ export default {
       ctx.restore();
     }
     if (specAt) contactGlow(ctx, SUB_FACE + g(SPEC_H / 2), CUT0 + SPEC_H / 2, (t - 2.86) / 0.12);
-    const ju = (t - 6.4) / 0.14;
+    for (const [k, l] of [[0, l1], [1, l2]]) {
+      if (l <= 0) continue;
+      for (const b of BLOOMS[k]) {
+        softGlow(ctx, b.x, b.y, 24 + 0.6 * b.w, P.paper, 0.24 * l);
+        softGlow(ctx, b.x, b.y, 150, P.paper, 0.07 * l);
+      }
+    }
+    contactGlow(ctx, P1 + E(T1.y), T1.y, (t - REST_AT[0][0]) / 0.12, 26, P.amber);
+    contactGlow(ctx, P2 + E(T2.y), T2.y, (t - REST_AT[1][0]) / 0.12, 26, P.amber);
+    const ju = (t - FLUSH) / 0.14;
     if (ju > 0 && ju < 1) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';

@@ -1,27 +1,30 @@
 // /merge at final fidelity (pitch A 3.1, BRIEF grafts 1 to 5, BUILD per-scene decisions).
 // A transfer line. The person's key /merge is latched down for the whole loop. A PR (a stack of
-// ivory commit sheets) feeds to the review station. Round 1: a fresh steel gang head (Codex: several
-// fresh sub-reviewers, each a different tip) drops from the Codex housing and ripples its tips across
-// the stack; each finding hangs an amber tag on the rail beside the stack at the height of its sheet.
-// Codex never marks the work. Claude's hatched green arm (the session) reads each tag: one tag drops
-// off on its own (refuted), the arm fixes the sheet at the other two and they clear, then the arm
-// lays the fix sheet on the stack. Rerun: one fresh steel tip swings in, touches the new head, and
-// the rail stays empty. The stack feeds to the press, squashes into one sheet and settles into the
-// main tray. Hold. Seam: the tray indexes down one sheet while the next PR feeds in. No CI anywhere.
-// Reel-only opener (5.5 s): a PR arrives and the single Codex tip reviews it with no key pressed;
-// then the gang head lowers, the shared Latest Sol plate shows, and the /merge key presses and
-// latches. The opener ends on the loop's t = 0 pose.
-// Pure function of t. No Math.random, no setTransform; static layers cached per device scale.
+// ivory commit sheets) rises out of the feed lift and moves to the review station. Round 1: a fresh
+// steel gang head (Codex: several fresh sub-reviewers, each a different tip) drops from the Codex
+// housing, runs its tips out and ripples them across the stack; each finding hangs an amber tag on
+// the rail beside the stack at the height of its sheet. Codex never marks the work. Claude's hatched
+// green arm (the session) reads each tag: one tag is refuted and drops off, dim amber; the arm fixes
+// the sheet at the other two and they clear, then the arm lays the fix sheet, clamped across its
+// thickness, on the stack. Rerun: one fresh steel tip swings in, touches the new head, and the rail
+// stays empty. The stack feeds to the press (guide columns, a hydraulic cylinder shown in section,
+// ram and platen), squashes into one sheet and settles into the main tray. Hold. Seam: the tray
+// indexes down one sheet while the next PR rises. No CI anywhere.
+// Reel-only opener (6.9 s): a PR rises and the single Codex tip reviews it with no key pressed, under
+// the PR beat caption; then the gang head lowers, the shared Latest Sol plate shows, and the /merge
+// key presses and latches. The opener ends on the loop's t = 0 pose.
+// Pure function of t. No Math.random, no setTransform. Static layers are cached per device scale;
+// rigid moving parts are cached as small sprites (one scale per part) and drawn translated.
 
 import {
-  W, H, BENCH_Y, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
+  W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
   mix, springStep, indexEase, setLod, lw, cached, grainOver, poly, prism, rect,
-  rodV, rodH, ball, discPts, contactShadow, contactGlow, softGlow, dust, centreLine,
-  benchFinal, lightShaft, activeMat, hatchPath,
+  rodV, rodH, ball, discPts, contactShadow, contactGlow, dust, centreLine,
+  benchFinal, activeMat, hatchPath, lampFalloff,
 } from '../kit.mjs';
 
 const T = 10.0;
-const OPENER = 5.5;
+const OPENER = 6.9;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry (stage units, 1920x1080).
@@ -34,7 +37,8 @@ const JIT = [0, 5, -4, 3]; // sheets in a stack sit a little off each other: sep
 const X_ENTRY = 470, X_REVIEW = 760, X_PRESS = 1470, X_TRAY = 1780;
 const KEY_X = 165;
 const BEAM_Y0 = 228, BEAM_Y1 = 258;
-const HOUSE = { x0: 510, x1: 890, y0: BEAM_Y1, y1: 312 };
+const HOUSE = { x0: 510, x1: 970, y0: BEAM_Y1, y1: 312 };
+const BED_DEP = 120;
 
 const ZM = 55; // mid-depth of a sheet's top face
 const topPt = (cx, n) => [cx + D.x * ZM, LINE_Y - n * SH + D.y * ZM];
@@ -50,7 +54,7 @@ const TH_A = Math.atan2(PA[1] - PIV_Y, PA[0] - PIV_X);
 const TH_B = Math.atan2(PB[1] - PIV_Y, PB[0] - PIV_X);
 const TH_STOW_R = -0.2, TH_STOW_L = Math.PI + 0.2; // tucked up under the housing, clipped from view
 
-// Round 1 gang head: one bar, six different tips.
+// Round 1 gang head: one bar, six different tips that run out of their carriers.
 const GANG_CX = X_REVIEW + D.x * ZM, GANG_W = 300, BAR_H = 38;
 const N_TIPS = 6;
 const TIP_X = (i) => GANG_CX - 2.5 * 40 + 40 * i;
@@ -58,6 +62,7 @@ const HOVER = 22;
 const TIP_REACH = BAR_H + 22 + 30 + 26;
 const BAR_Y = topPt(X_REVIEW, 3)[1] - HOVER - TIP_REACH;
 const GANG_LIFT = 560;
+const TIP_STOW = 60; // a tip run fully back sits inside its carrier
 
 // Tag rail: a post set a little back on the bench, a peg at every sheet height.
 const RAIL_DZ = 36;
@@ -70,27 +75,73 @@ const L1 = 222, L2 = 222, JAW = 46;
 const ARM_REST = [1110, 560];
 const READ_X = PEG_X + 22 + JAW; // jaw tip on the tag's right edge
 const FIX_X = X_REVIEW + SW / 2 + 4 + JAW;
-const GRIP = 14;
-const LAY_X = X_REVIEW + JIT[3] + SW / 2 - GRIP + JAW;
-const LAY_Y = LINE_Y - 3 * SH - SH / 2;
+const JAW_CLOSED = 5, JAW_SHEET = SH / 2, JAW_FINGER = 8;
+const FIX_SHEET_R = X_REVIEW + JIT[3] + SW / 2; // the fix sheet's right edge once laid
+const LAY_X = FIX_SHEET_R; // the sheet's last 14 sit in the wrist block, the jaws clamp the 46 before them
+const LAY_Y = LINE_Y - 3 * SH - SH / 2 - JAW_FINGER; // held one finger above the stack
+const LAY_HOVER = LAY_Y - 34;
 
-// Press.
-const PRESS_L = 1335, PRESS_R = 1605, CROSS_Y = 318, PLATEN_REST = 512, PLATEN_H = 36, PLATEN_W = 236;
+// Press: two guide columns, a crown under the beam, a hydraulic cylinder in section, ram and platen.
+const CROWN = { x0: 1296, x1: 1644, y0: BEAM_Y1, y1: 312, dep: 130 };
+const COL_Z = 60, COL_W = 26;
+const COL_L = 1325 + D.x * COL_Z, COL_R = 1615 + D.x * COL_Z;
+const COL_FOOT = LINE_Y + D.y * COL_Z; // where a column meets the bed top
+const CYL_Z = 55, CYL_X = X_PRESS + D.x * CYL_Z;
+const CYL_BOT = 470, GLAND_H = 16, BORE = 30, CWALL = 12;
+const PIST_Y = 314, PIST_H = 12, RAM_W = 30;
+const PLATEN_REST = 540, PLATEN_H = 36, PAD_H = 10;
+const PL_X0 = 1305, PL_X1 = 1635, PL_DEP = 120;
+const RAM_BOT = PLATEN_REST - PLATEN_H + D.y * CYL_Z + 2;
 
 // Main tray: a bin sunk into the bench, shown in section.
 const TRAY_X0 = X_TRAY - SW / 2 - 20, TRAY_X1 = X_TRAY + SW / 2 + 20, TRAY_WALL = 14, TRAY_BOT = 1046;
 
 // ---------------------------------------------------------------------------------------------
-// Materials local to this scene. Steel = Codex (merge only).
+// Materials local to this scene. Steel = Codex (merge only). Amber = a finding; a refuted finding
+// stays amber, dimmed.
 
 const STEEL = { front: ['#6a6f67', '#353933'], top: '#b4b8ad', side: '#22261f', sil: '#b2b5ab', hi: '#f1f3ea', line: '#4b5049' };
 const STEEL_DARK = { ...STEEL, front: ['#4b504a', '#2a2e29'], top: '#868b81' };
 const TAG = { front: ['#f6d9a0', '#cfa65c'], top: '#fde9bd', side: '#8f7136', sil: '#efc87e', hi: '#fff3d6', line: '#a8843f' };
-const DEAD = { front: ['#4b5c4f', '#2c3a2f'], top: '#5d7363', side: '#1a231c', sil: '#3e5a45', hi: '#55705c', line: '#33443a' };
-const mixMat = (a, b, u) => ({
-  front: [mix(a.front[0], b.front[0], u), mix(a.front[1], b.front[1], u)],
-  top: mix(a.top, b.top, u), side: mix(a.side, b.side, u), sil: mix(a.sil, b.sil, u), hi: mix(a.hi, b.hi, u), line: mix(a.line, b.line, u),
-});
+const TAG_READ = { ...TAG, front: ['#fff6e2', '#f0d49c'] };
+const TAG_DIM = { front: ['#8e7a54', '#5f4f33'], top: '#a08a62', side: '#3f3422', sil: '#8a7550', hi: '#b09a70', line: '#5c4b30' };
+const PRESS_IDLE = activeMat(MAT.lit, 0, '#3a4d40');
+const PRESS_LIT = activeMat(MAT.lit, 1, '#3a4d40');
+
+// ---------------------------------------------------------------------------------------------
+// Sprites: a rigid part drawn once per device scale into a small canvas and placed by translation.
+// The part is drawn with the same calls every time, so the output does not depend on cache state.
+// One scale per part: a resize replaces the bitmap instead of adding one.
+
+const sprites = new Map();
+let warming = false, warmScale = 0;
+function sprite(ctx, key, box, draw, dx = 0, dy = 0, alpha = 1) {
+  if (alpha <= 0 && !warming) return;
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  let S = sprites.get(key);
+  if (!S || S.s !== s) {
+    const [x0, y0, x1, y1] = box;
+    const cw = Math.max(1, Math.ceil((x1 - x0) * s)), ch = Math.max(1, Math.ceil((y1 - y0) * s));
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.scale(s, s);
+    c.translate(-x0, -y0);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    S = { s, cv, x0, y0, w: cw / s, h: ch / s };
+    sprites.set(key, S);
+  }
+  if (alpha <= 0) return;
+  if (alpha < 1) {
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.drawImage(S.cv, S.x0 + dx, S.y0 + dy, S.w, S.h);
+    ctx.restore();
+  } else ctx.drawImage(S.cv, S.x0 + dx, S.y0 + dy, S.w, S.h);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Helpers.
@@ -125,6 +176,28 @@ function ik(wx, wy) {
   const e1 = [sx + L1 * Math.cos(phi - a), sy + L1 * Math.sin(phi - a)];
   const e2 = [sx + L1 * Math.cos(phi + a), sy + L1 * Math.sin(phi + a)];
   return e1[1] < e2[1] ? e1 : e2;
+}
+
+// A face cut by the section plane: dark fill, 45 degree hatching, outline.
+function cutFace(ctx, x, y, w, h, hatch, edge, gap = 7) {
+  ctx.fillStyle = '#18201a';
+  ctx.fillRect(x, y, w, h);
+  poly(ctx, rect(x, y, w, h));
+  hatchPath(ctx, x, y, x + w, y + h, hatch, gap, 1.6);
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = lw(1.6);
+  ctx.strokeRect(x, y, w, h);
+}
+
+function hexHead(ctx, x, y, r, fill) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + (i * Math.PI) / 3; pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+  poly(ctx, pts);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(8,10,8,0.7)';
+  ctx.lineWidth = lw(1.2);
+  ctx.stroke();
 }
 
 // Maker's plate (opener only): engraved Departure Mono on a dark steel plate with four screws.
@@ -164,18 +237,15 @@ function makerPlate(ctx, text, x, y, alpha) {
 
 // ---------------------------------------------------------------------------------------------
 // The work: ivory sheets as plates in the oblique view. Clipped corner at the back right of the
-// top face, a registration hole through it.
+// top face, a registration hole through it. dim: a sheet down in the tray, edge-lit only.
 
 function sheet(ctx, cx, yb, th, o = {}) {
-  const { alpha = 1, s = 1, top = true, seam = true, shade = 0 } = o;
-  if (alpha <= 0) return;
-  const w = SW * s, dep = SDEP * s, c = CLIP * s;
+  const { top = true, seam = true, dim = 0 } = o;
+  const w = SW, dep = SDEP, c = CLIP;
   const x0 = cx - w / 2, x1 = cx + w / 2, yt = yb - th;
-  const dx = D.x * dep, dy = D.y * dep, dxc = D.x * (dep - c), dyc = D.y * (dep - c);
-  ctx.save();
-  ctx.globalAlpha *= alpha;
+  const dxc = D.x * (dep - c), dyc = D.y * (dep - c), dx = D.x * dep, dy = D.y * dep;
   poly(ctx, [[x1, yt], [x1 + dxc, yt + dyc], [x1 + dxc, yb + dyc], [x1, yb]]);
-  ctx.fillStyle = MAT.ivory.side;
+  ctx.fillStyle = dim ? mix(MAT.ivory.side, '#1a1f1b', dim) : MAT.ivory.side;
   ctx.fill();
   if (top) {
     poly(ctx, [[x0, yt], [x1, yt], [x1 + dxc, yt + dyc], [x1 - c + dx, yt + dy], [x0 + dx, yt + dy]]);
@@ -191,34 +261,47 @@ function sheet(ctx, cx, yb, th, o = {}) {
     ctx.moveTo(x1 + dxc, yt + dyc);
     ctx.lineTo(x1 - c + dx, yt + dy);
     ctx.stroke();
-    const hx = x0 + 36 * s + D.x * dep * 0.5, hy = yt + D.y * dep * 0.5;
-    poly(ctx, discPts(hx, hy, 9.5 * s, 20));
+    const hx = x0 + 36 + D.x * dep * 0.5, hy = yt + D.y * dep * 0.5;
+    poly(ctx, discPts(hx, hy, 9.5, 20));
     ctx.fillStyle = '#8f9086';
     ctx.fill();
-    poly(ctx, discPts(hx + 1.5, hy + 1.2, 7 * s, 16));
+    poly(ctx, discPts(hx + 1.5, hy + 1.2, 7, 16));
     ctx.fillStyle = '#62645c';
     ctx.fill();
   }
   const g = ctx.createLinearGradient(0, yt, 0, yb);
-  g.addColorStop(0, MAT.ivory.front[0]);
-  g.addColorStop(1, MAT.ivory.front[1]);
+  g.addColorStop(0, dim ? mix(MAT.ivory.front[0], '#1c221d', dim) : MAT.ivory.front[0]);
+  g.addColorStop(1, dim ? mix(MAT.ivory.front[1], '#121713', dim) : MAT.ivory.front[1]);
   ctx.fillStyle = g;
   ctx.fillRect(x0, yt, w, th);
-  ctx.fillStyle = 'rgba(255,255,250,0.95)';
+  ctx.fillStyle = dim ? `rgba(220,226,212,${0.5 * (1 - dim) + 0.22})` : 'rgba(255,255,250,0.95)';
   ctx.fillRect(x0, yt, w, lw(1.6));
   if (seam) {
     ctx.fillStyle = 'rgba(62,66,57,0.6)';
     ctx.fillRect(x0, yb - lw(1.8), w, lw(1.8));
   }
-  if (shade > 0) {
-    ctx.fillStyle = `rgba(4,6,5,${shade})`;
-    ctx.fillRect(x0, yt, w, th);
-  }
-  ctx.restore();
 }
 
-function stack(ctx, cx, n, o = {}) {
-  for (let k = 0; k < n; k++) sheet(ctx, cx + JIT[k], LINE_Y - k * SH, SH, { alpha: o.alpha, s: o.s });
+const stackBox = (n) => [X_REVIEW - SW / 2 - 10, LINE_Y - n * SH - 42, X_REVIEW + SW / 2 + 6 + D.x * SDEP + 10, LINE_Y + 6];
+function stackSprite(ctx, n, x, dy = 0) {
+  sprite(ctx, 'merge-stack' + n, stackBox(n), (c) => {
+    for (let k = 0; k < n; k++) sheet(c, X_REVIEW + JIT[k], LINE_Y - k * SH, SH);
+  }, x - X_REVIEW, dy);
+}
+const SHEET_BOX = [X_REVIEW - SW / 2 - 6, LINE_Y - SH - 36, X_REVIEW + SW / 2 + D.x * SDEP + 8, LINE_Y + 4];
+function oneSheet(ctx, x, yb) {
+  sprite(ctx, 'merge-sheet', SHEET_BOX, (c) => sheet(c, X_REVIEW, LINE_Y, SH), x - X_REVIEW, yb - LINE_Y);
+}
+const FLAT_BOX = [X_TRAY - SW / 2 - 6, LINE_Y - SQ - 36, X_TRAY + SW / 2 + D.x * SDEP + 8, LINE_Y + 4];
+function flatSheet(ctx, x, yb, alpha = 1, dark = 0) {
+  sprite(ctx, 'merge-flat', FLAT_BOX, (c) => sheet(c, X_TRAY, LINE_Y, SQ), x - X_TRAY, yb - LINE_Y, alpha);
+  // the same sheet as a dark silhouette: laid over it, it puts the sheet in shadow
+  sprite(ctx, 'merge-flat-dark', FLAT_BOX, (c) => {
+    sheet(c, X_TRAY, LINE_Y, SQ);
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = '#040605';
+    c.fillRect(FLAT_BOX[0], FLAT_BOX[1], FLAT_BOX[2] - FLAT_BOX[0], FLAT_BOX[3] - FLAT_BOX[1]);
+  }, x - X_TRAY, yb - LINE_Y, alpha * dark);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -248,29 +331,38 @@ function tipShape(ctx, i, x, y0) {
   else fillSil([[x - 9, y0], [x + 9, y0], [x + 9, y0 + L], [x - 9, y0 + L]]);
 }
 
-function gangHead(ctx, yOff, ext) {
-  const by = BAR_Y + yOff;
+// The gang head: the bar with its six carriers, and six tips that run out of the carriers (ext) or
+// back into them (stow). The bar and carriers slide up into the housing throat as one piece.
+function gangHead(ctx, yOff, ext, stow) {
+  const by = BAR_Y + yOff, hy0 = BAR_Y + BAR_H;
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, HOUSE.y1 - 4, W, H);
   ctx.clip();
-  rodV(ctx, GANG_CX + D.x * 22, HOUSE.y1 - 10, by + 4, 20, STEEL);
-  rodV(ctx, GANG_CX + D.x * 22, by - 64, by + 4, 30, STEEL_DARK);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, Math.max(HOUSE.y1 - 4, by), W, H);
+  ctx.clip();
   for (let i = 0; i < N_TIPS; i++) {
-    const x = TIP_X(i), e = ext ? ext[i] : 0;
-    const hy = by + BAR_H;
-    prism(ctx, rect(x - 11, hy - 2, 22, 24), 18, STEEL_DARK, { sil: 2.4 });
-    const sy1 = hy + 22 + 30 + e;
-    rodV(ctx, x, hy + 20, sy1, 8, STEEL);
-    tipShape(ctx, i, x, sy1);
+    const x = TIP_X(i);
+    sprite(ctx, 'merge-tip' + i, [x - 16, hy0 - TIP_STOW - 4, x + 16, hy0 + 22 + 30 + 26 + 8], (c) => {
+      rodV(c, x, hy0 + 20 - TIP_STOW, hy0 + 52, 8, STEEL);
+      tipShape(c, i, x, hy0 + 52);
+    }, 0, yOff + (ext ? ext[i] : 0) - stow);
   }
-  prism(ctx, rect(GANG_CX - GANG_W / 2, by, GANG_W, BAR_H), 46, STEEL, { sil: 3.5 });
-  ctx.fillStyle = '#1b1e1a';
-  for (let i = 0; i < N_TIPS; i++) {
-    ctx.beginPath();
-    ctx.arc(TIP_X(i), by + BAR_H / 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.restore();
+  sprite(ctx, 'merge-gangbar', [GANG_CX - GANG_W / 2 - 10, BAR_Y - GANG_LIFT - 80, GANG_CX + GANG_W / 2 + D.x * 46 + 12, hy0 + 30], (c) => {
+    rodV(c, GANG_CX + D.x * 22, BAR_Y - GANG_LIFT - 70, BAR_Y + 4, 20, STEEL);
+    rodV(c, GANG_CX + D.x * 22, BAR_Y - 64, BAR_Y + 4, 30, STEEL_DARK);
+    for (let i = 0; i < N_TIPS; i++) prism(c, rect(TIP_X(i) - 13, hy0 - 2, 26, 24), 18, STEEL_DARK, { sil: 2.4 });
+    prism(c, rect(GANG_CX - GANG_W / 2, BAR_Y, GANG_W, BAR_H), 46, STEEL, { sil: 3.5 });
+    c.fillStyle = '#1b1e1a';
+    for (let i = 0; i < N_TIPS; i++) {
+      c.beginPath();
+      c.arc(TIP_X(i), BAR_Y + BAR_H / 2, 4, 0, Math.PI * 2);
+      c.fill();
+    }
+  }, 0, yOff);
   ctx.restore();
 }
 
@@ -299,38 +391,58 @@ function swingArm(ctx, theta) {
   return [tx, ty];
 }
 
+// The Codex housing: a chamfered steel body with a recessed front panel, cap screws, a brushed
+// finish and a throat along its underside that the gang head runs out of.
 function housing(ctx) {
-  // the Codex housing: both Codex tools come out of it
-  prism(ctx, rect(HOUSE.x0, HOUSE.y0, HOUSE.x1 - HOUSE.x0, HOUSE.y1 - HOUSE.y0), 44, STEEL, { sil: 3.5 });
-  ctx.fillStyle = '#121512';
-  ctx.fillRect(GANG_CX - 24, HOUSE.y1 - 5, 58, 5);
+  const { x0, x1, y0, y1 } = HOUSE;
+  prism(ctx, [[x0, y0], [x1, y0], [x1, y1 - 10], [x1 - 10, y1], [x0 + 10, y1], [x0, y1 - 10]], 60, STEEL, { sil: 3.5 });
+  // lit chamfer along the top front edge
+  ctx.fillStyle = 'rgba(241,243,234,0.2)';
+  ctx.fillRect(x0 + 2, y0 + 2, x1 - x0 - 4, 3);
+  if (!LOD.card) {
+    // brushed finish
+    ctx.strokeStyle = 'rgba(241,243,234,0.045)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let y = y0 + 9; y < y1 - 9; y += 4) { ctx.moveTo(x0 + 6, y); ctx.lineTo(x1 - 6, y); }
+    ctx.stroke();
+  }
+  // recessed front panel: shadowed top and left, lit bottom and right
+  const px0 = x0 + 20, px1 = x1 - 20, py0 = y0 + 9, py1 = y1 - 17;
+  ctx.lineWidth = lw(2);
+  ctx.strokeStyle = 'rgba(12,14,12,0.6)';
+  ctx.beginPath();
+  ctx.moveTo(px0, py1);
+  ctx.lineTo(px0, py0);
+  ctx.lineTo(px1, py0);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(241,243,234,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(px1, py0);
+  ctx.lineTo(px1, py1);
+  ctx.lineTo(px0, py1);
+  ctx.stroke();
+  // the throat: where the gang head runs out, a dark slot with a lit lip
+  const tx0 = GANG_CX - GANG_W / 2 - 8, tx1 = GANG_CX + GANG_W / 2 + D.x * 46 + 4;
+  ctx.fillStyle = '#0b0d0b';
+  ctx.fillRect(tx0, y1 - 8, tx1 - tx0, 8);
+  ctx.fillStyle = 'rgba(241,243,234,0.55)';
+  ctx.fillRect(tx0, y1 - 9.5, tx1 - tx0, lw(1.5));
+  // cap screws
+  if (!LOD.card) {
+    for (const x of [x0 + 10, x1 - 10]) for (const y of [y0 + 11, y1 - 21]) hexHead(ctx, x, y, 4.2, '#9a9e94');
+  }
   // clevis for the swing arm under the housing
-  poly(ctx, [[PIV_X - 26, HOUSE.y1], [PIV_X + 26, HOUSE.y1], [PIV_X + 12, PIV_Y + 12], [PIV_X - 12, PIV_Y + 12]]);
-  prism(ctx, [[PIV_X - 26, HOUSE.y1], [PIV_X + 26, HOUSE.y1], [PIV_X + 13, PIV_Y + 13], [PIV_X - 13, PIV_Y + 13]], 30, STEEL_DARK, { sil: 2.6 });
+  prism(ctx, [[PIV_X - 26, y1], [PIV_X + 26, y1], [PIV_X + 13, PIV_Y + 13], [PIV_X - 13, PIV_Y + 13]], 30, STEEL_DARK, { sil: 2.6 });
   ctx.fillStyle = '#121512';
   ctx.fillRect(PIV_X - 4, PIV_Y - 10, 8, 24); // the slot the arm swings in
   ball(ctx, PIV_X, PIV_Y, 5.5, STEEL);
-  if (!LOD.card) {
-    ctx.fillStyle = '#868b81';
-    for (const x of [HOUSE.x0 + 14, HOUSE.x1 - 14]) {
-      for (const y of [HOUSE.y0 + 13, HOUSE.y1 - 13]) {
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
 }
 
-// A finding: an amber tag hanging from a peg. ang swings it; deadU turns it into a refuted dim tag.
-function tagShape(ctx, px, py, ang, alpha, deadU, readU) {
-  if (alpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  ctx.translate(px, py);
-  ctx.rotate(ang);
-  const m = deadU > 0 ? mixMat(TAG, DEAD, deadU) : TAG;
-  ctx.strokeStyle = mix('#e1cc9c', '#55705c', deadU);
+// A finding: an amber tag hanging from a peg, drawn about the peg (the caller places and swings it).
+const TAG_BOX = [-24, -4, 30, 46];
+function tagDraw(ctx, m, cord) {
+  ctx.strokeStyle = cord;
   ctx.lineWidth = lw(2);
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -340,16 +452,25 @@ function tagShape(ctx, px, py, ang, alpha, deadU, readU) {
   ctx.lineTo(6, 9);
   ctx.stroke();
   const w = 40, h = 32, c = 9, y0 = 8;
-  const pts = [[-w / 2 + c, y0], [w / 2 - c, y0], [w / 2, y0 + c], [w / 2, y0 + h], [-w / 2, y0 + h], [-w / 2, y0 + c]];
-  prism(ctx, pts, 6, m, { sil: 2.4, front: readU > 0 ? mix('#f6d9a0', '#fff6e2', readU) : undefined });
+  prism(ctx, [[-w / 2 + c, y0], [w / 2 - c, y0], [w / 2, y0 + c], [w / 2, y0 + h], [-w / 2, y0 + h], [-w / 2, y0 + c]], 6, m, { sil: 2.4 });
   ctx.fillStyle = '#141914';
   ctx.beginPath();
   ctx.arc(0, y0 + 8, 3.4, 0, Math.PI * 2);
   ctx.fill();
+}
+function tagShape(ctx, px, py, ang, alpha, deadU, readU) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(ang);
+  if (deadU < 1) sprite(ctx, 'merge-tag', TAG_BOX, (c) => tagDraw(c, TAG, '#e1cc9c'), 0, 0, alpha);
+  if (readU > 0) sprite(ctx, 'merge-tag-read', TAG_BOX, (c) => tagDraw(c, TAG_READ, '#efdcb0'), 0, 0, alpha * readU);
+  if (deadU > 0) sprite(ctx, 'merge-tag-dim', TAG_BOX, (c) => tagDraw(c, TAG_DIM, '#8a7a58'), 0, 0, alpha * deadU);
   ctx.restore();
 }
 
-function armDraw(ctx, wrist, active, jawOpen) {
+// Claude's arm. o: half the jaw gap; slide: the lower finger drawn back into the wrist block.
+function armDraw(ctx, wrist, active, o, slide) {
   const SM = activeMat(MAT.session, active);
   const [sx, sy] = SHOULDER;
   const e = ik(wrist[0], wrist[1]);
@@ -357,14 +478,16 @@ function armDraw(ctx, wrist, active, jawOpen) {
   link(ctx, sx, sy, e[0], e[1], 32, 26, SM, { hatch: true, sil: 3.2 });
   link(ctx, e[0], e[1], wx + 8, wy, 26, 22, SM, { hatch: true, sil: 3 });
   ball(ctx, e[0], e[1], 11, SM);
-  const o = 5 + jawOpen * 6;
   const J = activeMat(MAT.lit, active, '#34453a');
   prism(ctx, [[wx - JAW, wy - o - 5], [wx - 10, wy - o - 8], [wx - 10, wy - o], [wx - JAW + 3, wy - o]], 18, J, { sil: 2.2 });
-  prism(ctx, [[wx - JAW + 3, wy + o], [wx - 10, wy + o], [wx - 10, wy + o + 8], [wx - JAW, wy + o + 5]], 18, J, { sil: 2.2 });
-  prism(ctx, rect(wx - 14, wy - 21, 40, 42), 30, SM, { hatch: true, sil: 3.2, hatchGap: 10 });
+  const sl = slide * (JAW - 12);
+  prism(ctx, [[wx - JAW + 3 + sl, wy + o], [wx - 10 + sl, wy + o], [wx - 10 + sl, wy + o + 8], [wx - JAW + sl, wy + o + 5]], 18, J, { sil: 2.2 });
+  // wrist block: tall enough to take a sheet between its jaws
+  prism(ctx, rect(wx - 14, wy - 34, 40, 68), 30, SM, { hatch: true, sil: 3.2, hatchGap: 10 });
   ball(ctx, wx + 6, wy, 6.5, SM);
   ball(ctx, sx, sy, 15, SM);
 }
+const ARM_BOX = [960, 290, 1300, 640];
 
 // The person's key: an ivory cap in a dark bezel on a green stem that rides in a guide sleeve,
 // /merge in Fraunces Italic. press pushes it down; latch swings the pawl onto the cap's shoulder.
@@ -420,33 +543,118 @@ function keyDraw(ctx, press, latch) {
   prism(ctx, pawl, 16, MAT.lit, { sil: 2.4 });
   ball(ctx, PXp, PYp, 7, MAT.lit);
 }
+const KEY_BOX = [40, 580, 340, 742];
 
-function pressDraw(ctx, pb, lit) {
-  const M = activeMat(MAT.lit, lit, '#3a4d40');
-  rodV(ctx, X_PRESS + D.x * 30, CROSS_Y + 46, pb - PLATEN_H - 24, 30, M);
-  prism(ctx, rect(X_PRESS - 28, pb - PLATEN_H - 28, 56, 30), 44, M, { sil: 2.8 });
-  prism(ctx, rect(X_PRESS - PLATEN_W / 2, pb - PLATEN_H, PLATEN_W, PLATEN_H), 116, M, { sil: 3.2 });
-  ctx.fillStyle = '#0d120f';
-  ctx.fillRect(X_PRESS - PLATEN_W / 2 + 8, pb - 6, PLATEN_W - 16, 3);
+// The press frame: guide columns, the cylinder cut through its axis (hatched walls, flange and
+// gland), and the crown bolted under the beam. feet: the column flanges on the bed top.
+function pressFrame(ctx, M, hatch, part) {
+  if (part !== 'feet') {
+    for (const cx of [COL_L, COL_R]) rodV(ctx, cx, CROWN.y1 - 16, COL_FOOT, COL_W, M);
+    // inside of the bore, seen through the cut
+    const g = ctx.createLinearGradient(CYL_X - BORE, 0, CYL_X + BORE, 0);
+    g.addColorStop(0, '#060907');
+    g.addColorStop(0.62, '#18211b');
+    g.addColorStop(1, '#0a0e0b');
+    ctx.fillStyle = g;
+    ctx.fillRect(CYL_X - BORE, CROWN.y1, 2 * BORE, CYL_BOT - CROWN.y1);
+    const wl = CYL_X - BORE - CWALL, wr = CYL_X + BORE;
+    cutFace(ctx, wl, CROWN.y1, CWALL, CYL_BOT - CROWN.y1, hatch, M.sil);
+    cutFace(ctx, wr, CROWN.y1, CWALL, CYL_BOT - CROWN.y1, hatch, M.sil);
+    cutFace(ctx, wl - 14, CROWN.y1, 14, 12, hatch, M.sil);
+    cutFace(ctx, wr + CWALL, CROWN.y1, 14, 12, hatch, M.sil);
+    cutFace(ctx, CYL_X - BORE - 10, CYL_BOT, BORE + 10 - RAM_W / 2, GLAND_H, hatch, M.sil);
+    cutFace(ctx, CYL_X + RAM_W / 2, CYL_BOT, BORE + 10 - RAM_W / 2, GLAND_H, hatch, M.sil);
+    // the outer skin catches the lamp on the left
+    ctx.fillStyle = M.hi;
+    ctx.fillRect(wl - 1, CROWN.y1 + 12, lw(1.6), CYL_BOT - CROWN.y1 - 12);
+    // hydraulic port and line into the crown
+    prism(ctx, rect(wr + CWALL, 338, 12, 18), 12, M, { sil: 2 });
+    rodH(ctx, wr + CWALL + 12, wr + CWALL + 34, 347, 8, M);
+    rodV(ctx, wr + CWALL + 34, CROWN.y1 - 4, 351, 8, M);
+    // crown: chamfered underside corners, a sunk web line, cap screws over the columns
+    const { x0, x1, y0, y1, dep } = CROWN;
+    prism(ctx, [[x0, y0], [x1, y0], [x1, y1 - 9], [x1 - 9, y1], [x0 + 9, y1], [x0, y1 - 9]], dep, M, { sil: 3.2 });
+    ctx.lineWidth = lw(2);
+    ctx.strokeStyle = 'rgba(6,9,7,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 16, y1 - 14);
+    ctx.lineTo(x0 + 16, y0 + 10);
+    ctx.lineTo(x1 - 16, y0 + 10);
+    ctx.stroke();
+    ctx.strokeStyle = M.hi;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x1 - 16, y0 + 10);
+    ctx.lineTo(x1 - 16, y1 - 14);
+    ctx.lineTo(x0 + 16, y1 - 14);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    for (const x of [x0 + 30, COL_L - D.x * COL_Z + 4, COL_R - D.x * COL_Z - 4, x1 - 30]) hexHead(ctx, x, (y0 + y1) / 2 + 1, 5, M.top);
+  }
+  if (part !== 'upper') {
+    for (const cx of [COL_L, COL_R]) {
+      poly(ctx, discPts(cx, COL_FOOT, 24, 22));
+      ctx.fillStyle = M.front[0];
+      ctx.fill();
+      ctx.strokeStyle = M.sil;
+      ctx.lineWidth = lw(2);
+      ctx.stroke();
+      prism(ctx, rect(cx - 17, COL_FOOT - 13, 34, 13), 12, M, { sil: 2.2 });
+    }
+  }
 }
+const PRESS_BOX = [1270, BEAM_Y1 - 40, 1720, COL_FOOT + 12];
+
+// Ram and piston (moving with the platen). The piston is cut too.
+function ramDraw(ctx, M, hatch) {
+  rodV(ctx, CYL_X, PIST_Y + PIST_H, RAM_BOT, RAM_W, M);
+  cutFace(ctx, CYL_X - BORE, PIST_Y, 2 * BORE, PIST_H, hatch, M.sil, 6);
+  ctx.fillStyle = 'rgba(6,9,7,0.8)';
+  ctx.fillRect(CYL_X - BORE, PIST_Y + 4, 2 * BORE, lw(1.5));
+}
+const RAM_BOX = [CYL_X - BORE - 6, PIST_Y - 4, CYL_X + BORE + 6, RAM_BOT + 4];
+
+// Platen at rest: a pressing pad the width of a sheet, the chamfered platen, guide bushings
+// riding the columns, and the clevis where the ram meets it.
+function platenDraw(ctx, M) {
+  const yb = PLATEN_REST, yt = yb - PLATEN_H;
+  prism(ctx, rect(X_PRESS - SW / 2 + 2, yb - PAD_H, SW - 4, PAD_H), 106, M, { sil: 2.4 });
+  prism(ctx, [[PL_X0 + 7, yt], [PL_X1 - 7, yt], [PL_X1, yt + 7], [PL_X1, yb - PAD_H], [PL_X0, yb - PAD_H], [PL_X0, yt + 7]], PL_DEP, M, { sil: 3 });
+  // two machined grooves on the front face
+  ctx.fillStyle = 'rgba(6,9,7,0.75)';
+  ctx.fillRect(PL_X0 + 14, yt + 11, PL_X1 - PL_X0 - 28, lw(1.6));
+  ctx.fillStyle = M.hi;
+  ctx.globalAlpha = 0.35;
+  ctx.fillRect(PL_X0 + 14, yt + 13, PL_X1 - PL_X0 - 28, lw(1.2));
+  ctx.globalAlpha = 1;
+  for (const cx of [COL_L, COL_R]) {
+    const ty = yt + D.y * COL_Z;
+    rodV(ctx, cx, ty - 20, ty, 42, M);
+    poly(ctx, discPts(cx, ty - 20, 21, 22));
+    ctx.fillStyle = M.top;
+    ctx.fill();
+    ctx.strokeStyle = M.sil;
+    ctx.lineWidth = lw(2);
+    ctx.stroke();
+    poly(ctx, discPts(cx, ty - 20, COL_W / 2 + 1, 18));
+    ctx.fillStyle = M.front[1];
+    ctx.fill();
+  }
+  const ry = yt + D.y * CYL_Z;
+  prism(ctx, rect(CYL_X - 25, ry - 15, 50, 17), 18, M, { sil: 2.4 });
+  ball(ctx, CYL_X + 3, ry - 6, 5, M);
+}
+const PLATEN_BOX = [PL_X0 - 8, PLATEN_REST - PLATEN_H + D.y * COL_Z - 34, PL_X1 + D.x * PL_DEP + 10, PLATEN_REST + 6];
 
 // ---------------------------------------------------------------------------------------------
 // Static layers.
 
 function backLayer(ctx) {
   benchFinal(ctx, 900, 600);
-  lightShaft(ctx, HOUSE.x0 + 80, HOUSE.x1 - 40, HOUSE.y1, HOUSE.x0 + 10, HOUSE.x1 + 130, BENCH_Y, 0.04);
   centreLine(ctx, GANG_CX + D.x * 22, HOUSE.y1 + 14, GANG_CX + D.x * 22, LINE_Y - 4 * SH - 40, 0.4);
-  centreLine(ctx, X_PRESS + D.x * 30, CROSS_Y + 60, X_PRESS + D.x * 30, PLATEN_REST - PLATEN_H - 60, 0.4);
   contactShadow(ctx, 900, FLOOR - 6, 760, 26, 0.55);
   contactShadow(ctx, SHOULDER[0] + 30, FLOOR - 8, 90, 14, 0.45);
-  // press frame
-  for (const x of [PRESS_L, PRESS_R]) {
-    prism(ctx, rect(x - 16, CROSS_Y + 20, 32, FLOOR - 14 - CROSS_Y - 20), 34, MAT.metal, { sil: 3 });
-    prism(ctx, rect(x - 24, FLOOR - 16, 48, 16), 50, MAT.metal, { sil: 2.5 });
-  }
-  prism(ctx, rect(PRESS_L - 30, CROSS_Y, PRESS_R - PRESS_L + 60, 48), 60, MAT.metal, { sil: 3.2 });
-  if (!LOD.card) for (const x of [PRESS_L, PRESS_R]) ball(ctx, x, CROSS_Y + 24, 5, MAT.metal);
+  pressFrame(ctx, PRESS_IDLE, P.dim, 'upper');
   // session column
   const idle = activeMat(MAT.session, 0);
   prism(ctx, rect(SHOULDER[0] - 50, FLOOR - 14, 100, 14), 60, idle, { sil: 3 });
@@ -461,7 +669,7 @@ function backLayer(ctx) {
     ball(ctx, PEG_X, pegY(k), 4.4, MAT.lit);
   }
   // conveyor bed
-  prism(ctx, rect(330, LINE_Y, TRAY_X0 - 330, FLOOR - LINE_Y), 120, MAT.metal, { sil: 3 });
+  prism(ctx, rect(330, LINE_Y, TRAY_X0 - 330, FLOOR - LINE_Y), BED_DEP, MAT.metal, { sil: 3 });
   if (!LOD.card) {
     for (let x = 362; x < TRAY_X0 - 10; x += 48) {
       ball(ctx, x, LINE_Y + 14, 7, MAT.metal);
@@ -471,6 +679,27 @@ function backLayer(ctx) {
       ctx.fill();
     }
   }
+  // the feed lift: a hatch in the bed top where each PR rises
+  const hx0 = X_ENTRY - SW / 2 - 6, hx1 = X_ENTRY + SW / 2 + 8, z0 = 4, z1 = SDEP + 4;
+  poly(ctx, [[hx0 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z1, LINE_Y + D.y * z1], [hx0 + D.x * z1, LINE_Y + D.y * z1]]);
+  ctx.fillStyle = '#0c110d';
+  ctx.fill();
+  ctx.strokeStyle = MAT.lit.sil;
+  ctx.lineWidth = lw(1.6);
+  ctx.stroke();
+  // lift platform seams: the lift stands flush with the bed top
+  if (!LOD.card) {
+    ctx.strokeStyle = 'rgba(79,111,87,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (const u of [0.34, 0.67]) {
+      const x = lerp(hx0, hx1, u);
+      ctx.moveTo(x + D.x * z0, LINE_Y + D.y * z0);
+      ctx.lineTo(x + D.x * z1, LINE_Y + D.y * z1);
+    }
+    ctx.stroke();
+  }
+  pressFrame(ctx, PRESS_IDLE, P.dim, 'feet');
   // key base and the pawl's post
   contactShadow(ctx, KEY_X + 50, FLOOR - 8, 160, 16, 0.5);
   prism(ctx, rect(KEY_X - 92, FLOOR - 40, 250, 40), 80, MAT.metal, { sil: 3 });
@@ -487,9 +716,6 @@ function backLayer(ctx) {
   ctx.stroke();
 }
 
-// sheets further down the well sit in shadow; a function of depth only, so the seam index matches
-const trayShade = (yb) => clamp01((0.12 * (yb - LINE_Y)) / SQ);
-
 function trayFront(ctx) {
   const tx0 = TRAY_X0, tx1 = TRAY_X1;
   // depth: the pile darkens as it goes down the well
@@ -498,74 +724,85 @@ function trayFront(ctx) {
   g.addColorStop(0.55, 'rgba(4,6,5,0.6)');
   g.addColorStop(1, 'rgba(4,6,5,0.92)');
   ctx.fillStyle = g;
-  ctx.fillRect(tx0, LINE_Y, tx1 - tx0, TRAY_BOT - LINE_Y);
-  // section: cut walls and floor, hatched, and the bench cut either side
+  ctx.fillRect(tx0, LINE_Y + 1, tx1 - tx0, TRAY_BOT - LINE_Y - 1);
+  // section: cut walls and floor, hatched
   const cut = (x, y, w, h) => {
     ctx.fillStyle = '#18201a';
     ctx.fillRect(x, y, w, h);
     poly(ctx, rect(x, y, w, h));
     hatchPath(ctx, x, y, x + w, y + h, P.dim, 9, 2);
   };
-  cut(tx0, LINE_Y, TRAY_WALL, TRAY_BOT - LINE_Y);
-  cut(tx1 - TRAY_WALL, LINE_Y, TRAY_WALL, TRAY_BOT - LINE_Y);
+  cut(tx0, LINE_Y + 1, TRAY_WALL, TRAY_BOT - LINE_Y - 1);
+  cut(tx1 - TRAY_WALL, LINE_Y + 1, TRAY_WALL, TRAY_BOT - LINE_Y - 1);
   cut(tx0, TRAY_BOT - TRAY_WALL, tx1 - tx0, TRAY_WALL);
   ctx.fillStyle = '#4f6f57';
-  ctx.fillRect(tx0, LINE_Y - 1, TRAY_WALL, 2.5);
-  ctx.fillRect(tx1 - TRAY_WALL, LINE_Y - 1, TRAY_WALL, 2.5);
+  ctx.fillRect(tx0, LINE_Y + 0.5, TRAY_WALL, 2.5);
+  ctx.fillRect(tx1 - TRAY_WALL, LINE_Y + 0.5, TRAY_WALL, 2.5);
 }
 
 function frontLayer(ctx) {
   prism(ctx, rect(40, BEAM_Y0, W - 80, BEAM_Y1 - BEAM_Y0), 26, MAT.metal, { sil: 3 });
   if (!LOD.card) for (let x = 120; x < W - 80; x += 172) ball(ctx, x, (BEAM_Y0 + BEAM_Y1) / 2, 3.2, MAT.metal);
   housing(ctx);
+  trayFront(ctx);
 }
 
-// Lamp falloff over the picture: the active station stays lit, idle parts go dim. Moves only with the work.
-function falloff(ctx, x) {
-  const g = ctx.createRadialGradient(x, 600, 400, x, 600, 1260);
-  g.addColorStop(0, 'rgba(3,5,4,0)');
-  g.addColorStop(1, 'rgba(3,5,4,0.58)');
+// Lamp: a shaft of light and a pool on the bench that follow the active station, then the falloff
+// that darkens idle parts (skipped when the host draws one vignette over several scenes).
+function lamp(ctx, x) {
+  const top = HOUSE.y1 + 4, bot = LINE_Y;
+  const g = ctx.createLinearGradient(0, top, 0, bot);
+  g.addColorStop(0, 'rgba(205,240,214,0.05)');
+  g.addColorStop(1, 'rgba(205,240,214,0.012)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  ctx.beginPath();
+  ctx.moveTo(x - 120, top);
+  ctx.lineTo(x + 110, top);
+  ctx.lineTo(x + 250, bot);
+  ctx.lineTo(x - 230, bot);
+  ctx.closePath();
+  ctx.fill();
 }
 
 // ---------------------------------------------------------------------------------------------
-// Loop timing (s). Round 1 and the arm's verify-and-fix get the second the CI beat used to have.
+// Loop timing (s). The verify-and-fix beat holds each arm dwell about 200 ms.
 
 const FEED_IN = [0.05, 0.6];
-const GANG_IN = 0.6, GANG_OUT = [2.15, 2.5];
-const RIPPLE0 = 1.15, RIPPLE_DT = 0.15;
+const GANG_IN = 0.6, TIPS_OUT = [0.85, 1.08], TIPS_IN = [1.98, 2.16], GANG_OUT = [2.16, 2.48];
+const RIPPLE0 = 1.12, RIPPLE_DT = 0.13;
 const tipT = (i) => RIPPLE0 + i * RIPPLE_DT; // tip starts down; contact 0.07 later
 const FINDINGS = [
-  { tip: 1, sheet: 2, read: 2.78, drop: 2.98 },
-  { tip: 3, sheet: 0, read: 3.22, fix: 3.44, clear: 3.52 },
-  { tip: 4, sheet: 1, read: 3.7, fix: 3.92, clear: 4.0 },
+  { tip: 1, sheet: 2, read: 2.55, drop: 2.78 },
+  { tip: 3, sheet: 0, read: 3.0, fix: 3.38, clear: 3.46 },
+  { tip: 4, sheet: 1, read: 3.78, fix: 4.16, clear: 4.24 },
 ];
-const EXTRUDE = [4.24, 4.52], LAY = 4.62, RELEASE = 4.68;
+const OPEN_JAW = [4.36, 4.58], EXTRUDE = [4.58, 4.86], LOWER = [4.86, 4.98], SLIP = [4.98, 5.08];
+const LAY = 5.08; // the fix sheet sits on the stack
 const ARM_KEYS = [
-  [2.5, ARM_REST[0], ARM_REST[1]],
+  [2.3, ARM_REST[0], ARM_REST[1]],
+  [2.55, READ_X, sheetMid(2)],
   [2.78, READ_X, sheetMid(2)],
-  [2.98, READ_X, sheetMid(2)],
-  [3.22, READ_X, sheetMid(0)],
-  [3.28, READ_X, sheetMid(0)],
-  [3.44, FIX_X, sheetMid(0)],
-  [3.52, FIX_X, sheetMid(0)],
-  [3.7, READ_X, sheetMid(1)],
-  [3.76, READ_X, sheetMid(1)],
-  [3.92, FIX_X, sheetMid(1)],
-  [4.0, FIX_X, sheetMid(1)],
-  [4.24, LAY_X, LAY_Y - 16],
-  [4.52, LAY_X, LAY_Y - 16],
-  [LAY, LAY_X, LAY_Y],
-  [RELEASE + 0.04, LAY_X, LAY_Y],
-  [4.98, ARM_REST[0], ARM_REST[1]],
+  [3.0, READ_X, sheetMid(0)],
+  [3.2, READ_X, sheetMid(0)],
+  [3.38, FIX_X, sheetMid(0)],
+  [3.58, FIX_X, sheetMid(0)],
+  [3.78, READ_X, sheetMid(1)],
+  [3.98, READ_X, sheetMid(1)],
+  [4.16, FIX_X, sheetMid(1)],
+  [4.36, FIX_X, sheetMid(1)],
+  [4.58, LAY_X, LAY_HOVER],
+  [EXTRUDE[1], LAY_X, LAY_HOVER],
+  [LOWER[1], LAY_X, LAY_Y],
+  [5.16, LAY_X, LAY_Y],
+  [5.46, ARM_REST[0], ARM_REST[1]],
 ];
-const RERUN = { in: 5.0, touch: 5.42, out: 5.7, gone: 6.0 };
-const FEED_PRESS = [6.0, 6.75];
-const PRESS_T = { down: 6.75, contact: 7.0, flat: 7.2, lift: 7.3, up: 7.62 };
-const SLIDE = [7.36, 7.92];
+const RERUN = { in: 5.24, touch: 5.72, out: 5.95, gone: 6.27 };
+const FEED_PRESS = [6.27, 6.95];
+const PRESS_T = { down: 6.95, contact: 7.15, flat: 7.33, lift: 7.43, up: 7.73 };
+const SLIDE = [7.48, 7.92];
 const SEAM = 9.5;
-const LAMP_REVIEW = 840, LAMP_PRESS = 1450, LAMP_TRAY = 1560;
+const RISE = 3 * SH + 14;
+const LAMP_REVIEW = 840, LAMP_PRESS = 1450, LAMP_TRAY = 1690;
 
 function platenBottom(t) {
   const top4 = LINE_Y - 4 * SH;
@@ -579,9 +816,9 @@ function platenBottom(t) {
 function loopState(t) {
   const s = {
     key: { press: 1, latch: 1 },
-    gang: null, theta: null, arm: { wrist: ARM_REST, active: 0, jaw: 0 }, carry: null,
+    gang: null, theta: null, arm: { wrist: ARM_REST, active: 0, o: JAW_CLOSED, slide: 0 }, carry: null,
     stack: null, squash: null, flat: null, incoming: null,
-    tags: [], pb: platenBottom(t), pressLit: 0, trayOff: 0, newest: t >= SLIDE[1],
+    tags: [], pb: platenBottom(t), pressLit: 0, trayOff: 0, newest: t >= SLIDE[1], oldTop: 0,
     glows: [], dusts: [], plates: null, lamp: LAMP_REVIEW,
   };
 
@@ -596,17 +833,19 @@ function loopState(t) {
   } else if (t < SLIDE[1]) {
     s.flat = lerp(X_PRESS, X_TRAY, easeInOut(seg(t, SLIDE[0], SLIDE[1])));
   }
+  // the last result goes dim as the new one lands on it
+  if (s.newest) s.oldTop = 1 - easeInOut(seg(t, SLIDE[1], SLIDE[1] + 0.5));
   if (t >= SEAM) {
     s.trayOff = SQ * indexEase(seg(t, SEAM, SEAM + 0.18));
-    const u = easeOut(seg(t, SEAM, T));
-    s.incoming = { x: lerp(X_ENTRY - 130, X_ENTRY, u), alpha: easeOut(seg(t, SEAM, SEAM + 0.35)), s: lerp(0.9, 1, u) };
+    s.incoming = { rise: easeOut(seg(t, SEAM, T)) };
   }
   s.lamp = LAMP_REVIEW + (LAMP_PRESS - LAMP_REVIEW) * easeInOut(seg(t, FEED_PRESS[0], FEED_PRESS[1]))
     + (LAMP_TRAY - LAMP_PRESS) * easeInOut(seg(t, SLIDE[0], SLIDE[1]))
     - (LAMP_TRAY - LAMP_REVIEW) * easeInOut(seg(t, SEAM, T));
-  s.pressLit = easeInOut(seg(t, 6.3, 6.75)) - easeInOut(seg(t, 7.6, 8.2));
+  s.pressLit = easeInOut(seg(t, 6.55, 6.95)) - easeInOut(seg(t, 7.75, 8.3));
 
-  // round 1: the gang head drops on a stiff spring, ripples its tips across the stack, lifts out
+  // round 1: the gang head drops on a stiff spring, runs its tips out, ripples them across the
+  // stack, runs them back in, then lifts out as one piece
   if (t >= GANG_IN && t < GANG_OUT[1]) {
     const yOff = -GANG_LIFT * (1 - springStep(t - GANG_IN, 0.78, 13)) - GANG_LIFT * easeIn(seg(t, GANG_OUT[0], GANG_OUT[1]));
     const ext = [];
@@ -614,7 +853,8 @@ function loopState(t) {
       const a = tipT(i);
       ext.push(HOVER * (easeInOut(seg(t, a, a + 0.07)) - easeIn(seg(t, a + 0.13, a + 0.19))));
     }
-    s.gang = { yOff, ext };
+    const stow = TIP_STOW * (1 - easeOut(seg(t, TIPS_OUT[0], TIPS_OUT[1])) + easeIn(seg(t, TIPS_IN[0], TIPS_IN[1])));
+    s.gang = { yOff, ext, stow };
   }
   const top3 = topPt(X_REVIEW, 3)[1];
   for (let i = 0; i < N_TIPS; i++) s.glows.push({ x: TIP_X(i), y: top3, u: (t - tipT(i) - 0.07) / 0.12, r: 20, color: P.paper });
@@ -625,29 +865,35 @@ function loopState(t) {
     if (t < c) continue;
     const tau = t - c;
     let ang = -1.2 * (1 - springStep(tau, 0.3, 22));
-    let alpha = clamp01(tau / 0.05), deadU = 0, dy = 0;
-    const readU = Math.max(0, 1 - Math.abs(t - f.read) / 0.16);
+    let alpha = clamp01(tau / 0.05), deadU = 0, dy = 0, dx = 0;
+    const readU = Math.max(0, 1 - Math.abs(t - f.read - 0.08) / 0.18);
     if (f.drop !== undefined && t >= f.drop) {
       const v = t - f.drop;
       deadU = clamp01(v / 0.12);
       // lifts off the peg, then falls clear of the rail to the bench (refuted: nothing to fix)
       dy = v < 0.1 ? -10 * Math.sin((v / 0.1) * Math.PI) : Math.min(0.5 * 3600 * (v - 0.1) * (v - 0.1), FLOOR - 40 - pegY(f.sheet));
       ang += 2.4 * Math.max(0, v - 0.08);
-      alpha *= 1 - clamp01((v - 0.3) / 0.16);
+      // it swings forward off the peg, clear of the tags still hanging below it
+      dx = -46 * easeOut(seg(v, 0.04, 0.3));
+      alpha *= 1 - clamp01((v - 0.32) / 0.2);
     }
     if (f.clear !== undefined && t >= f.clear) {
       const v = seg(t, f.clear, f.clear + 0.18);
       ang -= 1.3 * easeIn(v);
       alpha *= 1 - easeIn(v);
     }
-    if (alpha > 0) s.tags.push({ k: f.sheet, ang, alpha, deadU, dy, readU });
+    if (alpha > 0) s.tags.push({ k: f.sheet, ang, alpha, deadU, dy, dx, readU });
     if (f.drop !== undefined) s.dusts.push({ x: PEG_X, y: pegY(f.sheet) + 4, tau: t - f.drop, seed: 0x2d1, o: { ang: Math.PI * 0.6, spread: 1.2, n: 6, dur: 0.35 } });
   }
 
   // Claude's arm
   if (t >= ARM_KEYS[0][0] && t < ARM_KEYS[ARM_KEYS.length - 1][0]) s.arm.wrist = track(t, ARM_KEYS);
-  s.arm.active = easeInOut(seg(t, 2.25, 2.55)) - easeInOut(seg(t, 4.9, 5.4));
-  s.arm.jaw = easeOut(seg(t, RELEASE, RELEASE + 0.08)) - easeIn(seg(t, 4.84, 4.98));
+  s.arm.active = easeInOut(seg(t, 2.1, 2.4)) - easeInOut(seg(t, 5.2, 5.6));
+  // jaws open to the sheet's thickness for the fix sheet, the lower finger slips out from under it
+  // on the stack, then the jaws close on the way home
+  s.arm.o = JAW_CLOSED + (JAW_SHEET - JAW_CLOSED) * easeInOut(seg(t, OPEN_JAW[0], OPEN_JAW[1]))
+    + 8 * easeOut(seg(t, SLIP[1], SLIP[1] + 0.08)) - (JAW_SHEET + 8 - JAW_CLOSED) * easeInOut(seg(t, 5.22, 5.42));
+  s.arm.slide = easeIn(seg(t, SLIP[0], SLIP[1])) - easeInOut(seg(t, 5.22, 5.42));
   for (const f of FINDINGS) {
     s.glows.push({ x: READ_X - JAW, y: sheetMid(f.sheet), u: (t - f.read) / 0.12, r: 18, color: P.bright });
     if (f.fix) {
@@ -655,7 +901,10 @@ function loopState(t) {
       s.dusts.push({ x: X_REVIEW + JIT[f.sheet] + SW / 2 + 4, y: sheetMid(f.sheet), tau: t - f.fix, seed: 0x3a0 + f.sheet, o: { ang: -0.25, spread: 1.6, n: 7, dur: 0.4 } });
     }
   }
-  if (t >= EXTRUDE[0] && t < LAY) s.carry = { reveal: easeInOut(seg(t, EXTRUDE[0], EXTRUDE[1])) };
+  if (t >= EXTRUDE[0] && t < LAY) {
+    // the sheet slides out of the wrist between the open jaws; on the stack it drops the finger's depth
+    s.carry = { reveal: easeInOut(seg(t, EXTRUDE[0], EXTRUDE[1])), drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
+  }
   s.glows.push({ x: X_REVIEW + JIT[3] + SW / 2 - 8, y: LINE_Y - 3 * SH, u: (t - LAY) / 0.12, r: 30, color: P.bright });
   s.dusts.push({ x: X_REVIEW - SW / 2 + 6, y: LINE_Y - 3 * SH - 2, tau: t - LAY, seed: 0x5e1, o: { ang: Math.PI * 1.1, spread: 1.0, n: 8, dur: 0.45 } });
 
@@ -673,68 +922,116 @@ function loopState(t) {
 }
 
 // Opener (reel only). Ends exactly on loopState(0).
+const OP = {
+  rise: [0.1, 0.9],
+  review: { in: 1.1, touch: 1.62, out: 2.02, gone: 2.42 },
+  gIn: 3.95, tipsOut: [4.3, 4.52], press: [4.95, 5.1], latch: 5.06, tipsIn: [5.95, 6.13], gOut: [6.13, 6.5],
+};
 function openerState(t) {
   const s = loopState(0);
   s.glows = [];
   s.dusts = [];
-  // (a) a PR arrives and gets a Codex review on its own: the key stays up
-  s.key = { press: indexEase(seg(t, 3.45, 3.6)), latch: t >= 3.56 ? springStep(t - 3.56, 0.6, 24) : 0 };
+  // (a) a PR rises and gets a Codex review on its own: the key stays up
+  s.key = { press: indexEase(seg(t, OP.press[0], OP.press[1])), latch: t >= OP.latch ? springStep(t - OP.latch, 0.6, 24) : 0 };
   s.stack = null;
-  if (t < 1.0) {
-    const u = easeOut(seg(t, 0.1, 1.0));
-    s.incoming = { x: lerp(X_ENTRY - 130, X_ENTRY, u), alpha: easeOut(seg(t, 0.1, 0.45)), s: lerp(0.9, 1, u) };
-  } else s.stack = { x: X_ENTRY, n: 3 };
-  const pIn = 1.0, pTouch = 1.42, pOut = 1.78, pGone = 2.1;
+  if (t < OP.rise[1]) s.incoming = { rise: easeOut(seg(t, OP.rise[0], OP.rise[1])) };
+  else s.stack = { x: X_ENTRY, n: 3 };
+  const R = OP.review;
   let reviewPlate = 0;
-  if (t >= pIn && t < pGone) {
-    s.theta = lerp(TH_STOW_L, TH_A, easeOut(seg(t, pIn, pTouch))) + (TH_STOW_L - TH_A) * easeIn(seg(t, pOut, pGone));
-    reviewPlate = easeOut(seg(t, pIn, pIn + 0.25)) * (1 - easeIn(seg(t, pOut, pOut + 0.2)));
+  if (t >= R.in && t < R.gone) {
+    s.theta = lerp(TH_STOW_L, TH_A, easeOut(seg(t, R.in, R.touch))) + (TH_STOW_L - TH_A) * easeIn(seg(t, R.out, R.gone));
+    reviewPlate = easeOut(seg(t, R.in, R.in + 0.25)) * (1 - easeIn(seg(t, R.out, R.out + 0.2)));
   }
-  s.glows.push({ x: PA[0], y: PA[1], u: (t - pTouch) / 0.12, r: 24, color: P.paper });
+  s.glows.push({ x: PA[0], y: PA[1], u: (t - R.touch) / 0.12, r: 24, color: P.paper });
   // (b) the review layers, then the person's key
-  const gIn = 2.5, gOut = [4.6, 5.0];
-  if (t >= gIn && t < gOut[1]) {
-    s.gang = { yOff: -GANG_LIFT * (1 - springStep(t - gIn, 0.78, 11)) - GANG_LIFT * easeIn(seg(t, gOut[0], gOut[1])), ext: null };
+  if (t >= OP.gIn && t < OP.gOut[1]) {
+    s.gang = {
+      yOff: -GANG_LIFT * (1 - springStep(t - OP.gIn, 0.78, 11)) - GANG_LIFT * easeIn(seg(t, OP.gOut[0], OP.gOut[1])),
+      ext: null,
+      stow: TIP_STOW * (1 - easeOut(seg(t, OP.tipsOut[0], OP.tipsOut[1])) + easeIn(seg(t, OP.tipsIn[0], OP.tipsIn[1]))),
+    };
   }
   s.plates = {
     review: reviewPlate,
-    full: easeOut(seg(t, gIn + 0.2, gIn + 0.45)) * (1 - easeIn(seg(t, gOut[0] - 0.1, gOut[0] + 0.1))),
-    sol: easeOut(seg(t, 2.85, 3.15)) * (1 - easeIn(seg(t, 4.75, 5.05))),
+    full: easeOut(seg(t, OP.gIn + 0.2, OP.gIn + 0.45)) * (1 - easeIn(seg(t, OP.tipsIn[0] - 0.1, OP.tipsIn[0] + 0.1))),
+    sol: easeOut(seg(t, OP.gIn + 0.35, OP.gIn + 0.65)) * (1 - easeIn(seg(t, OP.gOut[0] + 0.05, OP.gOut[0] + 0.35))),
   };
-  s.lamp = lerp(640, LAMP_REVIEW, easeInOut(seg(t, 2.1, 2.9)));
+  s.lamp = lerp(640, LAMP_REVIEW, easeInOut(seg(t, OP.gIn - 0.3, OP.gIn + 0.5)));
   return s;
 }
 
 // ---------------------------------------------------------------------------------------------
 // Frame.
 
+// Build every sprite the first time a scale is seen, so no part costs a hitch when it first enters.
+function warm(ctx) {
+  const m = ctx.getTransform();
+  const sc = Math.hypot(m.a, m.b) || 1;
+  if (sc === warmScale) return;
+  warmScale = sc;
+  warming = true;
+  const s = loopState(0);
+  s.pressLit = 0;
+  s.gang = { yOff: 0, ext: null, stow: 0 };
+  s.newest = true;
+  s.oldTop = 0;
+  s.flat = X_TRAY;
+  s.tags = [{ k: 0, ang: 0, alpha: 1, deadU: 0.5, dy: 0, dx: 0, readU: 0.5 }];
+  s.key = { press: 1, latch: 1 };
+  // drawn into a 1 px scratch canvas at the same scale: only the caches are touched
+  const c = new OffscreenCanvas(1, 1).getContext('2d');
+  c.scale(sc, sc);
+  frameParts(c, s);
+  for (let n = 3; n <= 4; n++) stackSprite(c, n, X_REVIEW);
+  oneSheet(c, X_REVIEW, LINE_Y);
+  warming = false;
+  setLod(ctx);
+}
+
 function frame(ctx, s) {
   setLod(ctx);
-  cached(ctx, 'merge-back', backLayer);
+  warm(ctx);
+  frameParts(ctx, s);
+}
 
-  // tray pile, clipped to the well
+function frameParts(ctx, s) {
+  cached(ctx, 'merge-back', backLayer);
+  // the press lights up while it works
+  sprite(ctx, 'merge-press-lit', PRESS_BOX, (c) => pressFrame(c, PRESS_LIT, '#4f6f57'), 0, 0, s.pressLit);
+  lamp(ctx, s.lamp);
+
+  // tray: dim pile, the last result on top, then the whole bin dims with distance from the lamp
   ctx.save();
   ctx.beginPath();
   ctx.rect(TRAY_X0 + TRAY_WALL, LINE_Y - 200, TRAY_X1 - TRAY_X0 - 2 * TRAY_WALL, TRAY_BOT - TRAY_WALL - LINE_Y + 200);
   ctx.clip();
-  for (let k = 5; k >= 1; k--) {
-    const yb = LINE_Y + k * SQ + s.trayOff;
-    if (yb - SQ < TRAY_BOT) sheet(ctx, X_TRAY, yb, SQ, { top: k === 1 && !s.newest, shade: trayShade(yb) });
+  sprite(ctx, 'merge-pile', [X_TRAY - SW / 2 - 4, LINE_Y - 36, X_TRAY + SW / 2 + D.x * SDEP + 6, LINE_Y + 7 * SQ + 4], (c) => {
+    for (let k = 1; k <= 7; k++) sheet(c, X_TRAY, LINE_Y + k * SQ, SQ, { top: false, dim: 0.72 });
+  }, 0, s.trayOff % SQ);
+  // proportional to the lamp's distance, so the bin dims and brightens over the lamp's whole move
+  const dark = 0.62 * clamp01((Math.abs(s.lamp - X_TRAY) - 60) / 500);
+  if (dark > 0) {
+    ctx.fillStyle = `rgba(4,6,5,${dark.toFixed(4)})`;
+    ctx.fillRect(TRAY_X0, LINE_Y, TRAY_X1 - TRAY_X0, TRAY_BOT - LINE_Y);
   }
-  if (s.newest) sheet(ctx, X_TRAY, LINE_Y + s.trayOff, SQ, { shade: trayShade(LINE_Y + s.trayOff) });
+  if (!s.newest) flatSheet(ctx, X_TRAY, LINE_Y + SQ, 1, dark);
+  else {
+    flatSheet(ctx, X_TRAY, LINE_Y + SQ + s.trayOff, s.oldTop, dark);
+    flatSheet(ctx, X_TRAY, LINE_Y + s.trayOff, 1, dark);
+  }
   ctx.restore();
-  trayFront(ctx);
   if (s.flat !== null) {
     contactShadow(ctx, s.flat + 30, LINE_Y - 6, 150, 12, 0.35);
-    sheet(ctx, s.flat, LINE_Y, SQ, {});
+    flatSheet(ctx, s.flat, LINE_Y);
   }
 
   // tags hang behind the stack's end
-  for (const g of s.tags) tagShape(ctx, PEG_X, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
+  for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k), g.ang, g.alpha, 0, g.readU);
+  for (const g of s.tags) if (g.deadU) tagShape(ctx, PEG_X + g.dx, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
 
   if (s.stack) {
     contactShadow(ctx, s.stack.x + 30, LINE_Y - 8, 150, 12, 0.4);
-    stack(ctx, s.stack.x, s.stack.n);
+    stackSprite(ctx, s.stack.n, s.stack.x);
   }
   if (s.squash !== null) {
     const q = s.squash;
@@ -742,37 +1039,59 @@ function frame(ctx, s) {
     contactShadow(ctx, X_PRESS + 30, LINE_Y - 8, 150, 12, 0.4);
     for (let k = 0; k < 4; k++) sheet(ctx, X_PRESS + JIT[k] * (1 - q), LINE_Y - k * th, th, { seam: q < 0.97 });
   }
-  if (s.incoming) {
-    contactShadow(ctx, s.incoming.x + 30, LINE_Y - 8, 150, 12, 0.4 * s.incoming.alpha);
-    stack(ctx, s.incoming.x, 3, { alpha: s.incoming.alpha, s: s.incoming.s });
+  if (s.incoming && s.incoming.rise > 0) {
+    // the next PR rises out of the feed lift; the bed top hides what is still below it
+    const dy = (1 - s.incoming.rise) * RISE;
+    const xr = X_ENTRY + SW / 2 + 5;
+    contactShadow(ctx, X_ENTRY + 30, LINE_Y - 8, 150, 12, 0.4 * s.incoming.rise);
+    if (dy > 0.25) {
+      ctx.save();
+      poly(ctx, [[0, 0], [W, 0], [W, LINE_Y + D.y * SDEP], [xr + D.x * SDEP, LINE_Y + D.y * SDEP], [xr, LINE_Y], [0, LINE_Y]]);
+      ctx.clip();
+      stackSprite(ctx, 3, X_ENTRY, dy);
+      ctx.restore();
+    } else stackSprite(ctx, 3, X_ENTRY, dy);
   }
 
   // Codex tools come out of the housing
-  if (s.gang) gangHead(ctx, s.gang.yOff, s.gang.ext);
+  if (s.gang) gangHead(ctx, s.gang.yOff, s.gang.ext, s.gang.stow);
   let tipPos = null;
   if (s.theta !== null) tipPos = swingArm(ctx, s.theta);
   cached(ctx, 'merge-front', frontLayer);
 
-  pressDraw(ctx, s.pb, s.pressLit);
+  // press: ram, then the platen; the platen's shadow falls on the work as it closes
+  const dP = s.pb - PLATEN_REST;
+  sprite(ctx, 'merge-ram', RAM_BOX, (c) => ramDraw(c, PRESS_IDLE, P.dim), 0, dP);
+  sprite(ctx, 'merge-ram-lit', RAM_BOX, (c) => ramDraw(c, PRESS_LIT, '#4f6f57'), 0, dP, s.pressLit);
+  let workTop = null;
+  if (s.stack && s.stack.x > X_PRESS - 60) workTop = LINE_Y - 4 * SH;
+  else if (s.squash !== null) workTop = s.pb;
+  else if (s.flat !== null && s.flat < X_PRESS + 60) workTop = LINE_Y - SQ;
+  if (workTop !== null) contactShadow(ctx, X_PRESS + 26, workTop - 14, 125, 13, 0.5 * clamp01(1 - (workTop - s.pb) / 70));
+  sprite(ctx, 'merge-platen', PLATEN_BOX, (c) => platenDraw(c, PRESS_IDLE), 0, dP);
+  sprite(ctx, 'merge-platen-lit', PLATEN_BOX, (c) => platenDraw(c, PRESS_LIT), 0, dP, s.pressLit);
 
-  // the fix sheet slides out of the arm's jaws over the stack, then is laid
+  // the fix sheet slides out of the wrist between the jaws, then is laid
   const w = s.arm.wrist;
   if (s.carry) {
-    const tipX = w[0] - JAW;
-    const cx = tipX + GRIP - SW / 2 + (1 - s.carry.reveal) * (SW - GRIP);
+    const face = w[0] - 14;
+    const cx = face + 14 - SW / 2 + (1 - s.carry.reveal) * (SW - 14);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, tipX + GRIP, H);
+    ctx.rect(0, 0, face, H);
     ctx.clip();
-    contactShadow(ctx, cx + 30, LINE_Y - 3 * SH - 8, 140 * s.carry.reveal + 10, 10, 0.35);
-    sheet(ctx, cx, w[1] + SH / 2, SH, {});
+    oneSheet(ctx, cx, w[1] + SH / 2 + s.carry.drop);
     ctx.restore();
   }
-  armDraw(ctx, w, s.arm.active, s.arm.jaw);
+  const a = s.arm;
+  if (a.active <= 0 && a.slide <= 0 && a.o === JAW_CLOSED && w === ARM_REST) {
+    sprite(ctx, 'merge-arm-rest', ARM_BOX, (c) => armDraw(c, ARM_REST, 0, JAW_CLOSED, 0));
+  } else armDraw(ctx, w, a.active, a.o, a.slide);
 
-  keyDraw(ctx, s.key.press, s.key.latch);
+  if (s.key.press >= 1 && s.key.latch > 1 - 1e-9) sprite(ctx, 'merge-key', KEY_BOX, (c) => keyDraw(c, 1, 1));
+  else keyDraw(ctx, s.key.press, s.key.latch);
 
-  falloff(ctx, s.lamp);
+  lampFalloff(ctx, s.lamp, 600, 400, 1260, 0.58);
 
   for (const g of s.glows) contactGlow(ctx, g.x, g.y, g.u, g.r, g.color);
   for (const d of s.dusts) dust(ctx, d.x, d.y, d.tau, d.seed, d.o);
@@ -784,16 +1103,18 @@ function frame(ctx, s) {
       makerPlate(ctx, '/codex-review', mx - 130, my, p.review);
     }
     if (p.full > 0 && s.gang) makerPlate(ctx, '/codex-fullreview', GANG_CX, BAR_Y + s.gang.yOff + BAR_H / 2, p.full);
-    makerPlate(ctx, 'Latest Sol', (HOUSE.x0 + HOUSE.x1) / 2 - 40, (HOUSE.y0 + HOUSE.y1) / 2 + 2, p.sol);
+    makerPlate(ctx, 'Latest Sol', (HOUSE.x0 + HOUSE.x1) / 2 - 40, (HOUSE.y0 + HOUSE.y1) / 2 - 2, p.sol);
   }
 
   grainOver(ctx, 0.3, 'soft-light');
 }
 
+const CAPTION = 'Every PR goes through the Codex loop and merges when clean';
+
 export default {
   id: 'merge',
   name: '/merge',
-  caption: 'every PR goes through the Codex loop and merges when clean',
+  caption: CAPTION,
   period: T,
   draw(ctx, t) {
     t = ((t % T) + T) % T;
@@ -804,9 +1125,10 @@ export default {
     draw(ctx, t) {
       frame(ctx, openerState(Math.min(Math.max(t, 0), OPENER)));
     },
+    // [from, to] is the time each line stays fully readable; the reel fades it in before and out after
     captions: [
-      { from: 0.4, to: 2.4, name: '', line: 'Every PR from Claude Code gets a Codex review' },
-      { from: 3.0, to: 5.5, name: '/merge', line: 'every PR goes through the Codex loop and merges when clean' },
+      { from: 0.45, to: 4.1, name: '', line: 'Every PR from Claude Code gets a Codex review' },
+      { from: 4.5, to: OPENER, name: '/merge', line: CAPTION },
     ],
   },
 };

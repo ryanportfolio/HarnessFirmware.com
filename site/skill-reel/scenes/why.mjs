@@ -29,7 +29,58 @@ const G = 100; // gusset leg length
 
 // Vice.
 const JAW_Y = 660, SCREW_Y = 703, END_X = 968;
-const OUT_LIFT = 140, OUT_RUN = 820; // the seam: the finished bracket lifts and feeds out right
+const OUT_LIFT = 240, OUT_RUN = 1200; // lifted, the leg clears the hand's column // the seam: the finished bracket lifts and feeds out past the right edge
+const IN_RUN = LEG_X + ARM_L + 40; // the fresh bracket starts wholly off frame left
+
+// Feed with a constant-speed middle: accelerate over fraction a, decelerate over fraction d.
+function trap(u, a, d) {
+  if (u <= 0) return 0;
+  if (u >= 1) return 1;
+  const v = 1 / (1 - a / 2 - d / 2);
+  if (u < a) return (v * u * u) / (2 * a);
+  if (u < 1 - d) return v * (a / 2 + (u - a));
+  const r = 1 - u;
+  return 1 - (v * r * r) / (2 * d);
+}
+
+// Part sprites: a part drawn once into an OffscreenCanvas that covers its box (bx, by, bw, bh in the
+// caller's coordinates) at the current device scale, then blitted; moving parts are drawn by
+// translating the context first. The sprite is drawn with the same calls every time, so the output
+// depends only on (key, scale). At most two scales are held per key.
+const sprites = new Map();
+function sprite(ctx, key, bx, by, bw, bh, draw) {
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  let list = sprites.get(key);
+  if (!list) sprites.set(key, (list = []));
+  let S = list.find((e) => e.s === s);
+  if (!S) {
+    const cw = Math.max(1, Math.ceil(bw * s)), ch = Math.max(1, Math.ceil(bh * s));
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.scale(cw / bw, ch / bh);
+    c.translate(-bx, -by);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    S = { s, cv };
+    list.unshift(S);
+    while (list.length > 2) { const old = list.pop(); old.cv.width = old.cv.height = 0; }
+  }
+  ctx.drawImage(S.cv, bx, by, bw, bh);
+}
+
+// Two sprites of one part, idle and active, crossfaded by u (0 idle, 1 active).
+function spriteAct(ctx, key, box, u, draw) {
+  if (u < 0.999) sprite(ctx, key + ':0', box[0], box[1], box[2], box[3], (c) => draw(c, 0));
+  if (u > 0.001) {
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, u);
+    sprite(ctx, key + ':1', box[0], box[1], box[2], box[3], (c) => draw(c, 1));
+    ctx.restore();
+  }
+}
 
 // Proving ring.
 const PX = [950, 1060, 1168];
@@ -49,7 +100,7 @@ const CURT_END = BENCH_Y - 8;
 // by its hypotenuse. At rest the carriage is down and the head sits on its rest stand; it comes in low,
 // under the bowed arm, and rises on the diagonal into the inside corner.
 const GX_REST = 1400, GX_FIT = LEG_X + LEG_W, HAND_DROP = 70;
-const BY = 640, SLEEVE_X0 = 1540, COL_X = 1700;
+const BY = 640, SLEEVE_X0 = 1540, COL_X = 1700, MAG_W = 112;
 const HAND_A = (1.0 - 0.2) / 1.75;
 const HAND_P1 = [1150, HAND_DROP], HAND_P2 = [GX_FIT + 80, 80];
 const bez = (a, b, c, d, u) => (1 - u) * (1 - u) * (1 - u) * a + 3 * (1 - u) * (1 - u) * u * b + 3 * (1 - u) * u * u * c + u * u * u * d;
@@ -257,12 +308,23 @@ function slip(ctx) {
 
 // o: { dx, dy, s, alpha, bow, seated }
 function bracket(ctx, o) {
-  const { dx = 0, dy = 0, s = 1, alpha = 1, bow = 0, seated = false } = o;
+  const { dx = 0, dy = 0, s = 1, alpha = 1, seated = false } = o;
   if (alpha <= 0) return;
+  // at rest (straight, or held at the full bow) the bracket is a sprite; while it bends it is live
+  let bow = o.bow || 0;
+  if (Math.abs(bow) < 0.02) bow = 0;
+  else if (Math.abs(bow - BOW) < 0.02) bow = BOW;
   ctx.save();
   ctx.globalAlpha *= alpha;
   ctx.translate(LEG_X + dx, BASE + dy);
   if (s !== 1) ctx.scale(s, s);
+  if (bow === 0 || bow === BOW) {
+    sprite(ctx, 'why-br' + (bow ? 1 : 0) + (seated ? 1 : 0), -110, -LEG_H - 60, ARM_L + 200, LEG_H + 80, (c) => bracketBody(c, bow, seated));
+  } else bracketBody(ctx, bow, seated);
+  ctx.restore();
+}
+
+function bracketBody(ctx, bow, seated) {
   const top = -LEG_H;
   const { pts, et, eb } = bracketOutline(bow);
   prism(ctx, pts, THICK, MAT.ivory, {
@@ -302,7 +364,6 @@ function bracket(ctx, o) {
   // drafting texture: leg centre line, arm thickness dimension
   centreLine(ctx, LEG_W / 2, top - 18, LEG_W / 2, top + ARM_T + 12, 0.5);
   dimension(ctx, et[0], et[1], eb[0], eb[1], -34, 0.55);
-  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -606,31 +667,26 @@ function viceJaw(ctx, xc, dir) {
 }
 
 function movingJaw(ctx, jaw) {
-  viceJaw(ctx, LEG_X + LEG_W + jaw, 1);
+  ctx.save();
+  ctx.translate(jaw, 0);
+  sprite(ctx, 'why-jaw', LEG_X + LEG_W - 12, JAW_Y - 36, 120, BASE - JAW_Y + 44, (c) => viceJaw(c, LEG_X + LEG_W, 1));
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------------------------
 // Session hand.
 
-function hand(ctx, gx, hy, gusset, active) {
+// The hand is drawn from sprites made at its parked pose (gx GX_REST, hy HAND_DROP) and moved.
+const BOOM_LEN = 640; // longer than the boom ever shows; the sleeve hides the rest
+function handBoom(ctx, active) {
   const SM = activeMat(MAT.session, active);
-  const M = [gx + G / 2, ARM_TOP + ARM_T + G / 2 + hy];
+  const headR = GX_REST + G / 2 + 76, by = BY + HAND_DROP;
+  prism(ctx, rect(headR - 4, by - 12, BOOM_LEN, 24), 24, SM, { hatch: true, sil: 3 });
+}
+function handHead(ctx, active) {
+  const SM = activeMat(MAT.session, active);
+  const M = [GX_REST + G / 2, ARM_TOP + ARM_T + G / 2 + HAND_DROP];
   const headR = M[0] + 76;
-  const by = BY + hy;
-  // inner boom (telescopes out of the sleeve)
-  prism(ctx, rect(headR - 4, by - 12, SLEEVE_X0 + 30 - headR, 24), 24, SM, { hatch: true, sil: 3 });
-  if (gusset) {
-    ctx.save();
-    ctx.globalAlpha *= gusset.alpha;
-    const gx0 = gx + gusset.dx, gy0 = ARM_TOP + ARM_T + hy;
-    if (gusset.s !== 1) {
-      ctx.translate(gx0 + G / 3, gy0 + G / 3);
-      ctx.scale(gusset.s, gusset.s);
-      ctx.translate(-(gx0 + G / 3), -(gy0 + G / 3));
-    }
-    gussetSolid(ctx, gx0, gy0, true);
-    ctx.restore();
-  }
   // head with a 45 degree pad that seats on the gusset's hypotenuse
   const head = [[M[0] - 14, M[1] + 28], [M[0] + 28, M[1] - 14], [headR, M[1] - 14], [headR, M[1] + 50], [M[0] - 14, M[1] + 50]];
   prism(ctx, head, 34, SM, { hatch: true, sil: 3.5 });
@@ -644,12 +700,48 @@ function hand(ctx, gx, hy, gusset, active) {
   ctx.lineWidth = lw(2.5);
   ctx.stroke();
   ctx.restore();
-  // sleeve, on a carriage that rides the column
-  prism(ctx, rect(SLEEVE_X0, by - 18, COL_X - SLEEVE_X0, 36), 40, SM, { hatch: true, sil: 3.5 });
-  prism(ctx, rect(COL_X - 8, by - 30, 64, 60), 46, SM, { sil: 3 });
-  if (!LOD.card) for (const yy of [by - 18, by + 18]) ball(ctx, COL_X + 48, yy, 4, SM);
   // wrist pivot
   ball(ctx, headR - 22, M[1] + 20, 7, SM);
+}
+function handSleeve(ctx, active) {
+  const SM = activeMat(MAT.session, active);
+  const by = BY + HAND_DROP, hy = HAND_DROP;
+  // sleeve, on a carriage that rides the column
+  prism(ctx, rect(SLEEVE_X0, by - 18, COL_X - SLEEVE_X0, 36), 40, SM, { hatch: true, sil: 3.5 });
+  // gusset magazine on the sleeve: the next plate waits inside it and feeds out to the head
+  const my = ARM_TOP + ARM_T + hy;
+  prism(ctx, rect(SLEEVE_X0, my - 8, MAG_W, G + 16), 44, SM, { hatch: true, sil: 3.5 });
+  ctx.save();
+  ctx.fillStyle = '#060a07';
+  ctx.fillRect(SLEEVE_X0 - 1, my - 2, 5, G + 4);
+  ctx.restore();
+  prism(ctx, rect(COL_X - 8, by - 30, 64, 60), 46, SM, { sil: 3 });
+  if (!LOD.card) for (const yy of [by - 18, by + 18]) ball(ctx, COL_X + 48, yy, 4, SM);
+}
+function hand(ctx, gx, hy, gusset, active) {
+  const ox = gx - GX_REST, oy = hy - HAND_DROP;
+  // inner boom (telescopes out of the sleeve)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, SLEEVE_X0 + 30, H);
+  ctx.clip();
+  ctx.translate(ox, oy);
+  spriteAct(ctx, 'why-boom', [GX_REST + 112, BY + HAND_DROP - 26, BOOM_LEN + 30, 44], active, handBoom);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(ox, oy);
+  if (gusset) {
+    ctx.save();
+    ctx.translate(gusset.dx, 0);
+    sprite(ctx, 'why-gus', GX_REST - 6, ARM_TOP + ARM_T + HAND_DROP - 16, G + 30, G + 26, (c) => gussetSolid(c, GX_REST, ARM_TOP + ARM_T + HAND_DROP, true));
+    ctx.restore();
+  }
+  spriteAct(ctx, 'why-head', [GX_REST + 20, 640, 130, 115], active, handHead);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(0, oy);
+  spriteAct(ctx, 'why-sleeve', [SLEEVE_X0 - 8, 600, COL_X + 90 - SLEEVE_X0, 150], active, handSleeve);
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -813,23 +905,21 @@ export default {
     if (seated) bow = BOW * (1 - springStep(t - he.t1, 0.55, 20));
 
     // Vice jaw and handle (the seam opens and closes them).
-    const jaw = 36 * (easeInOut(seg(t, 7.0, 7.2)) - easeInOut(seg(t, 7.8, 8.0)));
+    const jaw = 36 * (easeInOut(seg(t, 6.98, 7.12)) - easeInOut(seg(t, 7.88, 8.0)));
     const theta = 0.95 + (jaw / 36) * Math.PI * 3; // T-bar rests on a diagonal, turns 1.5 times
-    screwAndHandle(ctx, jaw, theta);
+    if (Math.abs(jaw) < 1e-4) sprite(ctx, 'why-screw', LEG_X + LEG_W + 30, SCREW_Y - 80, END_X + 140 - LEG_X - LEG_W, 160, (c) => screwAndHandle(c, 0, 0.95));
+    else screwAndHandle(ctx, jaw, theta);
 
-    // Brackets: current one; in the seam it lifts out of the jaws and feeds right while the next
-    // one feeds in from the left and drops into the jaws.
-    // Staggered so the two never sit on top of each other: out lifts clear of the jaws and the parked
-    // hand from 7.12, then feeds out along the bench to the right edge, fading only at the end (7.62);
-    // in appears at 7.5, slides to the jaws by 7.8, drops in by 7.92; the jaws close by 8.0.
-    if (t < 7.12) bracket(ctx, { bow, seated });
-    else if (t < 7.62) {
-      const f = easeIn(seg(t, 7.44, 7.62));
-      bracket(ctx, { dx: OUT_RUN * easeIn(seg(t, 7.18, 7.62)), dy: -OUT_LIFT * easeInOut(seg(t, 7.12, 7.3)), s: lerp(1, 0.9, f), alpha: 1 - f, bow, seated });
+    // Brackets: current one; in the seam it lifts out of the jaws and feeds out right while the next
+    // one feeds in from the left at the same height and drops into the jaws. Both stay opaque: the
+    // finished one leaves past the right edge of the frame (gone by 7.7) and the fresh one enters
+    // from wholly off frame left; the feeds keep more than a bracket's length between them.
+    if (t < 7.02) bracket(ctx, { bow, seated });
+    else if (t < 7.7) {
+      bracket(ctx, { dx: OUT_RUN * trap(seg(t, 7.12, 7.7), 0.3, 0.1), dy: -OUT_LIFT * easeInOut(seg(t, 7.02, 7.22)), bow, seated });
     }
-    if (t >= 7.5) {
-      const e = easeOut(seg(t, 7.5, 7.8));
-      bracket(ctx, { dx: -360 * (1 - e), dy: -84 * (1 - easeInOut(seg(t, 7.8, 7.92))), s: lerp(0.9, 1, e), alpha: easeOut(seg(t, 7.5, 7.7)) });
+    if (t >= 7.12) {
+      bracket(ctx, { dx: -IN_RUN * (1 - trap(seg(t, 7.12, 7.78), 0.1, 0.4)), dy: -OUT_LIFT * (1 - easeInOut(seg(t, 7.76, 7.96))) });
     }
 
     // The ring, present 0.7 to 4.2: drop on a stiff spring, presses, lift out.
@@ -852,9 +942,9 @@ export default {
     const { gx, hy } = handPose(he.d);
     let gus = null;
     if (!seated) gus = { dx: 0, s: 1, alpha: 1 };
-    else if (t >= 7.4) {
-      const u = easeOut(seg(t, 7.4, 7.9));
-      gus = { dx: 120 * (1 - u), s: lerp(0.9, 1, u), alpha: u };
+    else if (t >= 7.3) {
+      // the next gusset feeds out of the magazine on the sleeve onto the parked head
+      gus = { dx: (SLEEVE_X0 + 12 - GX_REST) * (1 - trap(seg(t, 7.3, 7.85), 0.25, 0.45)), s: 1, alpha: 1 };
     }
     contactShadow(ctx, gx + 140, FLOOR - 10, 120, 14, 0.35 * (1 - 0.6 * he.d));
     // parked, the head sits on its rest stand: a contact shadow on the stand's top face
@@ -877,8 +967,18 @@ export default {
 
     // Hood: curtains descend 0 to 0.7, rise 3.8 to 4.4; the window over the bracket stays open.
     const edge = BEAM_Y1 + (CURT_END - BEAM_Y1) * (easeInOut(seg(t, 0, 0.7)) - easeInOut(seg(t, 3.8, 4.4)));
-    curtain(ctx, RAIL_XS[0], RAIL_XS[1], edge);
-    curtain(ctx, RAIL_XS[2], RAIL_XS[3], edge);
+    if (edge > BEAM_Y1 + 1) {
+      // the curtains are drawn fully down once and slid up into the beam
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, BEAM_Y1, W, H - BEAM_Y1);
+      ctx.clip();
+      ctx.translate(0, edge - CURT_END);
+      for (const [a, b] of [[0, 1], [2, 3]]) {
+        sprite(ctx, 'why-curtain' + a, RAIL_XS[a], BEAM_Y1, RAIL_XS[b] - RAIL_XS[a], CURT_END + 44 - BEAM_Y1, (c) => curtain(c, RAIL_XS[a], RAIL_XS[b], CURT_END));
+      }
+      ctx.restore();
+    }
 
     cached(ctx, 'why-final-front', frontLayer);
 

@@ -1,8 +1,10 @@
 // /deep-plan at final fidelity (pitch A 3.2, same beats and timing as the animatic's deep-plan.js).
 // A key-cutting jig. The loose idea is an uncut key blank; each decision cuts one bit of the key.
 // For every cut the selector proposes: its detents light and a green tick marks the recommended one.
-// Only the person's key decides: on each press their ivory pin drops into a detent, and the cutter
-// wheel plunges to that depth. The second cut overrides the recommendation. Round 1 opens three
+// Only the person's key decides: each press is held down, and a cable runs from a drum beside the
+// key, up a post, across the top of the bench and down to the selector, so the key going down pays
+// out the cable and lowers their ivory pin into a detent; then the cutter wheel plunges to that
+// depth. The second cut overrides the recommendation. Round 1 opens three
 // positions; the fourth is tied to the second and opens in round 2. Go is a separate key and a
 // separate press: the selector stays dark, the clamp lifts, the cut key slides out to the holder.
 // Nothing is built. Seam: the key leaves right, a fresh blank feeds in at the entry.
@@ -45,7 +47,17 @@ const SEL_X = 1338, SEL_HOME = 346, DET_Y = [384, 429, 474], TICK_X = 1388;
 const CL_PIV = [775, 480], CL_ARM = 62;
 
 // The person's keys: an answer key and a separate Go key.
-const KEY_A = 96, KEY_GO = 206, CAP_Y = 664, KEYBASE_Y = 736;
+const KEY_A = 116, KEY_GO = 222, CAP_Y = 664, KEYBASE_Y = 736, KEYBASE_X0 = 30, KEYBASE_X1 = 270;
+const CAP_RX = 45, CAP_RY = 30, CAP_TH = 14, KEY_TRAVEL = 16;
+
+// The answer key's cable: a drum on the key base pays out cable when the key goes down; the cable
+// runs up a post, over a pulley, across the top of the bench, over a second pulley on the selector
+// column and down to the person's pin, which hangs on it. Cable travel = pin travel.
+const DRUM = { x: 58, y: 754, r: 14 };
+const CAB_X = DRUM.x - DRUM.r; // the rising run, left of the answer key's cap
+const PUL_L = { x: CAB_X + 16, y: 248, r: 16 };
+const PUL_R = { x: SEL_X - 16, y: 248, r: 16 }; // its right tangent drops straight down the selector slot
+const CAB_Y = PUL_L.y - PUL_L.r;
 
 // ---------------------------------------------------------------------------------------------
 // Timing (same contract as the animatic).
@@ -65,15 +77,32 @@ const TO_HOLD = [5.95, 6.55];
 const RESET = [8.12, 8.32]; // the lamps fade out together as the key leaves
 
 const cutT = (c, f) => c.start + f * c.dur;
-const pressT = (c) => cutT(c, 0.2);
-const contactT = (c) => cutT(c, 0.68);
+const pressT = (c) => cutT(c, 0.15);
+const PLUNGE = 0.47; // the cutter starts down only after the person's pin has landed
+const contactT = (c) => cutT(c, 0.7);
 const smooth = (u) => u * u * (3 - 2 * u);
 
-// Key press: quick ease down, spring back with one small undershoot.
-function press(t, t0) {
+// Key press: eased down, held at the bottom, spring back with one small undershoot.
+const KEY_DOWN = 0.07, KEY_HOLD = 0.35;
+function press(t, t0, hold = KEY_HOLD) {
   if (t < t0) return 0;
-  if (t < t0 + 0.06) return easeOut((t - t0) / 0.06);
-  return 1 - springStep(t - t0 - 0.06, 0.55, 42);
+  if (t < t0 + KEY_DOWN) return easeOut((t - t0) / KEY_DOWN);
+  if (t < t0 + KEY_DOWN + hold) return 1;
+  return 1 - springStep(t - t0 - KEY_DOWN - hold, 0.55, 42);
+}
+
+// The person's pin: home at the top; the cable lowers it into the chosen detent once the key is down,
+// and draws it back up after the cut. Returns its y.
+function pinY(t) {
+  let py = SEL_HOME;
+  for (const c of CUTS) {
+    const t0 = pressT(c) + KEY_DOWN;
+    if (t < t0) continue;
+    const down = indexEase(seg(t, t0, t0 + 0.2));
+    const up = easeInOut(seg(t, cutT(c, 0.86), cutT(c, 1)));
+    py = lerp(SEL_HOME, DET_Y[c.pick], down * (1 - up));
+  }
+  return py;
 }
 
 // Wheel bottom (y) and x at time t.
@@ -84,8 +113,8 @@ function cutter(t) {
     if (t < c.start) break;
     const prev = i === 0 ? PARK_X : POS[i - 1];
     x = lerp(prev, POS[i], easeInOut(seg(t, c.start, cutT(c, 0.3))));
-    const down = easeInOut(seg(t, cutT(c, 0.45), contactT(c)));
-    const up = easeIn(seg(t, cutT(c, 0.82), cutT(c, 1)));
+    const down = easeInOut(seg(t, cutT(c, PLUNGE), contactT(c)));
+    const up = easeIn(seg(t, cutT(c, 0.84), cutT(c, 1)));
     b = PARK_B + (BLADE_TOP + DEPTH[c.pick] - PARK_B) * (down - up);
   }
   if (t >= PARK_AT[0]) x = lerp(POS[3], PARK_X, easeInOut(seg(t, PARK_AT[0], PARK_AT[1])));
@@ -107,8 +136,8 @@ function wheelSpin(t) {
 function notchDepth(i, t) {
   const c = CUTS[i];
   if (t >= contactT(c)) return DEPTH[c.pick];
-  if (t < cutT(c, 0.45)) return 0;
-  const b = PARK_B + (BLADE_TOP + DEPTH[c.pick] - PARK_B) * easeInOut(seg(t, cutT(c, 0.45), contactT(c)));
+  if (t < cutT(c, PLUNGE)) return 0;
+  const b = PARK_B + (BLADE_TOP + DEPTH[c.pick] - PARK_B) * easeInOut(seg(t, cutT(c, PLUNGE), contactT(c)));
   return clamp01((b - BLADE_TOP) / DEPTH[c.pick]) * DEPTH[c.pick];
 }
 
@@ -264,24 +293,27 @@ function wheel(ctx, hx, hy, ang, blur) {
   ctx.stroke();
   // turned rings on the face (the disc's own ellipse), and a sharpened bevel near the rim
   if (!LOD.card) {
-    for (const [r, col] of [[R - 12, 'rgba(164,200,172,0.16)'], [R - 22, 'rgba(164,200,172,0.10)'], [R - 34, 'rgba(164,200,172,0.10)']]) {
-      const ring = [];
-      for (let i = 0; i < 40; i++) ring.push(wheelPoint(hx, hy, WHEEL_T / 2, r, (i / 40) * Math.PI * 2));
-      poly(ctx, ring);
+    ctx.lineWidth = 2;
+    for (const [rs, col] of [[[R - 12], 'rgba(164,200,172,0.16)'], [[R - 22, R - 34], 'rgba(164,200,172,0.10)']]) {
+      ctx.beginPath();
+      for (const r of rs) {
+        for (let i = 0; i < 40; i++) { const p = wheelPoint(hx, hy, WHEEL_T / 2, r, (i / 40) * Math.PI * 2); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+        ctx.closePath();
+      }
       ctx.strokeStyle = col;
-      ctx.lineWidth = 2;
       ctx.stroke();
     }
   }
   // three lightening holes and a hex nut: they carry the rotation when the teeth blur
+  ctx.fillStyle = '#0a0e0b';
+  ctx.beginPath();
   for (let k = 0; k < 3; k++) {
     const a = ang + (k / 3) * Math.PI * 2 + 0.5;
     const p = wheelPoint(hx, hy, WHEEL_T / 2, R * 0.52, a);
-    ctx.fillStyle = '#0a0e0b';
-    ctx.beginPath();
+    ctx.moveTo(p[0] + 6.5 * Math.cos(-0.5), p[1] + 6.5 * Math.sin(-0.5));
     ctx.ellipse(p[0], p[1], 6.5, 8.5, -0.5, 0, Math.PI * 2);
-    ctx.fill();
   }
+  ctx.fill();
   const hex = [];
   for (let k = 0; k < 6; k++) hex.push(wheelPoint(hx, hy, WHEEL_T / 2 + 3, 15, ang * 1 + (k / 6) * Math.PI * 2));
   poly(ctx, hex);
@@ -380,17 +412,60 @@ function selector(ctx, t) {
     ctx.stroke();
     ctx.restore();
   }
-  // the person's pin: home at the top, drops into the chosen detent on the press, returns after the cut
-  let py = SEL_HOME;
-  for (const c of CUTS) {
-    const t0 = pressT(c) + 0.05;
-    if (t < t0) continue;
-    const down = indexEase(seg(t, t0, t0 + 0.16));
-    const up = easeInOut(seg(t, cutT(c, 0.86), cutT(c, 1)));
-    py = lerp(SEL_HOME, DET_Y[c.pick], down * (1 - up));
-  }
+  // the person's pin, hanging on the cable from the answer key
+  const py = pinY(t);
+  let held = 0;
+  for (const c of CUTS) held = Math.max(held, press(t, pressT(c)));
+  cable(ctx, py - SEL_HOME, py, held);
   contactShadow(ctx, SEL_X + 6, py + 8, 16, 7, 0.6);
-  ball(ctx, SEL_X, py, 12, { ...MAT.ivory, top: '#fbfbf4', side: '#9fa095', hi: '#ffffff', sil: 'rgba(110,114,100,0.8)' });
+  ball(ctx, SEL_X, py, 12, PIN_MAT);
+}
+
+const PIN_MAT = { ...MAT.ivory, top: '#fbfbf4', side: '#9fa095', hi: '#ffffff', sil: 'rgba(110,114,100,0.8)' };
+
+// Spokes of a turning wheel (drum or pulley); the disc itself is in the static back layer.
+function spokes(ctx, p, ang) {
+  ctx.beginPath();
+  for (let k = 0; k < 3; k++) {
+    const a = ang + (k / 3) * Math.PI * 2;
+    ctx.moveTo(p.x + Math.cos(a) * 4, p.y + Math.sin(a) * 4);
+    ctx.lineTo(p.x + Math.cos(a) * (p.r - 4), p.y + Math.sin(a) * (p.r - 4));
+  }
+  ctx.stroke();
+}
+
+// The cable, paid out by d (= pin travel): drum and pulleys turn by d / r, the crimped sleeves on
+// the cable slide with it, and the end hangs the pin at py.
+function cable(ctx, d, py, held) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#a4c4ab';
+  ctx.lineWidth = lw(3);
+  spokes(ctx, DRUM, d / DRUM.r);
+  spokes(ctx, PUL_L, d / PUL_L.r);
+  spokes(ctx, PUL_R, d / PUL_R.r);
+  // the run: up from the drum, over the left pulley, across, over the right pulley, down to the pin
+  ctx.beginPath();
+  ctx.moveTo(CAB_X, DRUM.y);
+  ctx.lineTo(CAB_X, PUL_L.y);
+  ctx.arc(PUL_L.x, PUL_L.y, PUL_L.r, Math.PI, Math.PI * 1.5);
+  ctx.lineTo(PUL_R.x, CAB_Y);
+  ctx.arc(PUL_R.x, PUL_R.y, PUL_R.r, Math.PI * 1.5, 0);
+  ctx.lineTo(SEL_X, py - 11);
+  ctx.strokeStyle = '#060807';
+  ctx.lineWidth = lw(6.5);
+  ctx.stroke();
+  // the taut cable catches the light while the person holds the key down
+  ctx.strokeStyle = mix('#7f9c86', P.glow, 0.75 * held);
+  ctx.lineWidth = lw(3.5);
+  ctx.stroke();
+  // crimped sleeves: they carry the cable's travel where the eye can see it
+  ctx.fillStyle = '#d6d7cb';
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) ctx.rect(196 + i * 228 + d, CAB_Y - 4.5, 16, 9);
+  ctx.rect(CAB_X - 4.5, 560 - d, 9, 16);
+  ctx.fill();
+  ctx.restore();
 }
 
 function lamps(ctx, t) {
@@ -414,6 +489,7 @@ function lamps(ctx, t) {
   const r = LOD.card ? 15 : 12;
   for (let k = 0; k < 4; k++) {
     const lit = off(seg(t, LIGHT[k], LIGHT[k] + 0.06));
+    if (lit <= 0) continue; // dark glass and its highlight are in the static layers
     const done = off(seg(t, contactT(CUTS[k]), contactT(CUTS[k]) + 0.08));
     const pulse = t >= RESET[0] ? 0 : Math.max(Math.sin(Math.PI * seg(t, LIGHT[k], LIGHT[k] + 0.16)), Math.sin(Math.PI * seg(t, contactT(CUTS[k]), contactT(CUTS[k]) + 0.16)));
     const x = POS[k], y = 724, rr = r * (1 + 0.1 * pulse);
@@ -431,12 +507,28 @@ function lamps(ctx, t) {
     ctx.lineWidth = lw(2.5);
     ctx.stroke();
     if (done > 0) softGlow(ctx, x, y, 34, P.green, 0.28 * done);
-    // glass highlight
-    ctx.fillStyle = 'rgba(243,243,236,0.22)';
-    ctx.beginPath();
-    ctx.ellipse(x - rr * 0.35, y - rr * 0.42, rr * 0.32, rr * 0.18, -0.5, 0, Math.PI * 2);
-    ctx.fill();
   }
+}
+
+// A lamp's dark glass (static) and its highlight (static, laid over the lit glass too).
+function lampGlass(ctx, x, y, r) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, 1, x, y, r);
+  g.addColorStop(0, '#18221b');
+  g.addColorStop(0.5, '#101712');
+  g.addColorStop(1, '#070a08');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#2f3d33';
+  ctx.lineWidth = lw(2.5);
+  ctx.stroke();
+}
+function lampHighlight(ctx, x, y, r) {
+  ctx.fillStyle = 'rgba(243,243,236,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(x - r * 0.35, y - r * 0.42, r * 0.32, r * 0.18, -0.5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // Clamp arm rotates as one rigid lever about the pivot. u: 0 open, 1 shut.
@@ -491,15 +583,16 @@ function clampArm(ctx, u) {
   return { padX: ex, padB };
 }
 
-function personKey(ctx, x, p, legend) {
-  const dy = p * 16;
-  const cy = CAP_Y + dy;
-  rodV(ctx, x, cy + 20, KEYBASE_Y + 2, 12, MAT.fresh);
-  // collar where the stem enters the base
+// The stem and its collar never move (the cap slides down over the stem): they are in the back layer.
+function keyStem(ctx, x) {
+  rodV(ctx, x, CAP_Y + 20, KEYBASE_Y + 2, 12, MAT.fresh);
   prism(ctx, rect(x - 13, KEYBASE_Y - 6, 26, 6), 16, MAT.metal, { sil: 2 });
-  ctx.save();
-  // cap: a typewriter key, a short cylinder tilted toward the viewer inside a metal rim
-  const RX = 45, RY = 30, TH = 14;
+}
+
+// Cap: a typewriter key, a short cylinder tilted toward the viewer inside a metal rim. Drawn once per
+// scale into a sprite at its rest height; a press translates the sprite down.
+function keyCap(ctx, x, cy) {
+  const RX = CAP_RX, RY = CAP_RY, TH = CAP_TH;
   const sg = ctx.createLinearGradient(x - RX, 0, x + RX, 0);
   sg.addColorStop(0, '#c9cabe');
   sg.addColorStop(0.35, '#e4e5d9');
@@ -540,16 +633,48 @@ function personKey(ctx, x, p, legend) {
     ctx.ellipse(x, cy, RX - 1.5, RY - 1.2, 0, Math.PI * 1.08, Math.PI * 1.62);
     ctx.stroke();
   }
+}
+
+function personKey(ctx, x, p, legend) {
+  const dy = p * KEY_TRAVEL;
+  const x0 = Math.floor((x - 52) / 8) * 8;
+  sprite(ctx, 'deep-plan-cap-' + x, x0, CAP_Y - 40, 112, 96, (c) => keyCap(c, x, CAP_Y), 0, dy);
   if (legend) {
+    // the legend stays live text (the font may load after the first frame)
+    ctx.save();
     ctx.fillStyle = P.ink;
     ctx.font = PERSON_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.translate(x, cy + 1);
+    ctx.translate(x, CAP_Y + dy + 1);
     ctx.scale(1, 0.86);
     ctx.fillText(legend, -2, 0);
+    ctx.restore();
   }
-  ctx.restore();
+}
+
+// Small static sprites cached per device scale (one scale per id), drawn translated. Like kit
+// cached(), the sprite is drawn with the same calls every time, so output never depends on the cache.
+const sprites = new Map();
+function sprite(ctx, id, x0, y0, w, h, draw, dx = 0, dy = 0) {
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  let L = sprites.get(id);
+  if (!L || L.s !== s) {
+    if (L) L.cv.width = L.cv.height = 0;
+    const cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.scale(cw / w, ch / h);
+    c.translate(-x0, -y0);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    L = { cv, s };
+    sprites.set(id, L);
+  }
+  ctx.drawImage(L.cv, x0 + dx, y0 + dy, w, h);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -559,7 +684,10 @@ function backLayer(ctx) {
   benchFinal(ctx, 900, 600);
   // rail column, behind the out-rail, with the selector plate on its face
   contactShadow(ctx, 1400, FLOOR - 40, 80, 14, 0.5);
-  prism(ctx, rect(1352, 300, 46, 380), 40, MAT.metal, { sil: 3 });
+  prism(ctx, rect(1352, PUL_R.y - 14, 46, FLOOR - 92 - PUL_R.y + 14), 40, MAT.metal, { sil: 3 });
+  // the cable's pulley on an arm off the column top
+  prism(ctx, rect(PUL_R.x, PUL_R.y - 6, 1352 - PUL_R.x, 12), 20, MAT.metal, { sil: 2 });
+  pulleyDisc(ctx, PUL_R);
   // overhead rail and its gusset
   prism(ctx, rect(700, RAIL_Y0, 700, RAIL_Y1 - RAIL_Y0), 44, MAT.metal, { sil: 3 });
   ctx.fillStyle = '#5f8167';
@@ -625,14 +753,52 @@ function backLayer(ctx) {
     ctx.stroke();
   }
   for (const x of [652, 1254]) { ball(ctx, x, YB + 18, 4, MAT.lit); ball(ctx, x, FLOOR - 14, 4, MAT.lit); }
-  // the person's key base
-  contactShadow(ctx, 160, FLOOR - 6, 136, 16, 0.55);
-  prism(ctx, rect(36, KEYBASE_Y, 228, FLOOR - KEYBASE_Y), 70, MAT.metal, { sil: 3 });
+  for (const x of POS) lampGlass(ctx, x, 724, LOD.card ? 15 : 12);
+  // the cable post behind the key base, its pulley on top
+  prism(ctx, rect(PUL_L.x - 7, PUL_L.y, 14, FLOOR - PUL_L.y), 24, MAT.metal, { sil: 2.5 });
+  pulleyDisc(ctx, PUL_L);
+  // the person's key base, the cable drum on its end, the key stems
+  contactShadow(ctx, (KEYBASE_X0 + KEYBASE_X1) / 2, FLOOR - 6, 136, 16, 0.55);
+  prism(ctx, rect(KEYBASE_X0, KEYBASE_Y, KEYBASE_X1 - KEYBASE_X0, FLOOR - KEYBASE_Y), 70, MAT.metal, { sil: 3 });
   ctx.fillStyle = '#4f6f57';
-  ctx.fillRect(38, KEYBASE_Y + 1, 224, 2);
+  ctx.fillRect(KEYBASE_X0 + 2, KEYBASE_Y + 1, KEYBASE_X1 - KEYBASE_X0 - 4, 2);
+  pulleyDisc(ctx, DRUM);
+  keyStem(ctx, KEY_A);
+  keyStem(ctx, KEY_GO);
+}
+
+// A grooved pulley or drum face, seen end on; its spokes are drawn turning on top of it.
+function pulleyDisc(ctx, p) {
+  ctx.fillStyle = '#060807';
+  ctx.beginPath();
+  ctx.arc(p.x + 2, p.y + 3, p.r + 1, 0, Math.PI * 2);
+  ctx.fill();
+  const g = ctx.createRadialGradient(p.x - p.r * 0.4, p.y - p.r * 0.45, 1, p.x, p.y, p.r);
+  g.addColorStop(0, '#5b7563');
+  g.addColorStop(0.5, '#2a362d');
+  g.addColorStop(1, '#131915');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#86a98e';
+  ctx.lineWidth = lw(2);
+  ctx.stroke();
+  ctx.strokeStyle = '#0b100d';
+  ctx.lineWidth = lw(1.5);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r - 3.5, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function frontLayer(ctx) {
+  for (const x of POS) lampHighlight(ctx, x, 724, LOD.card ? 15 : 12);
+  // the guide eye the cable runs through on the rail
+  ctx.strokeStyle = '#86a98e';
+  ctx.lineWidth = lw(2.5);
+  ctx.beginPath();
+  ctx.ellipse(SEL_X, (RAIL_Y0 + RAIL_Y1) / 2, 7, 10, 0, 0, Math.PI * 2);
+  ctx.stroke();
   lampFalloff(ctx, 940, 560, 420, 1250, 0.55);
 }
 
@@ -641,7 +807,7 @@ function frontLayer(ctx) {
 export default {
   id: 'deep-plan',
   name: '/deep-plan',
-  caption: 'interview a loose idea into decisions the user made',
+  caption: 'Interview a loose idea into decisions the user made',
   period: T,
   draw(ctx, t) {
     t = ((t % T) + T) % T;
@@ -694,8 +860,8 @@ export default {
       const c = CUTS[i];
       const ct = contactT(c);
       contactGlow(ctx, POS[i], BLADE_TOP + DEPTH[c.pick], (t - ct) / 0.12, 38);
-      dust(ctx, POS[i] - 6, BLADE_TOP + DEPTH[c.pick] - 4, t - ct, 0xd0 + i, { ang: -Math.PI * 0.8, spread: 1.1, n: 10, dur: 0.5 });
-      dust(ctx, POS[i] + 8, BLADE_TOP + DEPTH[c.pick] - 2, t - ct - 0.05, 0xe0 + i, { ang: -Math.PI * 0.2, spread: 0.9, n: 6, dur: 0.4 });
+      dust(ctx, POS[i] - 6, BLADE_TOP + DEPTH[c.pick] - 4, t - ct, 0xd0 + i, { ang: -Math.PI * 0.8, spread: 1.1, n: 7, dur: 0.5 });
+      dust(ctx, POS[i] + 8, BLADE_TOP + DEPTH[c.pick] - 2, t - ct - 0.05, 0xe0 + i, { ang: -Math.PI * 0.2, spread: 0.9, n: 4, dur: 0.4 });
     }
     contactGlow(ctx, clamp.padX, YB - BOW_H, (t - CLAMP_SHUT[1]) / 0.12, 26);
     // the pressed key glows faintly at its stem while held down

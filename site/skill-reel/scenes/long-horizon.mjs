@@ -1,220 +1,228 @@
-// /long-horizon at final fidelity (pitch A 3.3, same beats and timing as the animatic's long-horizon.js).
+// /long-horizon at final fidelity (pitch A 3.3, same beats as the animatic's long-horizon.js).
 // A dividing engine. A lead screw spans the bench; the carriage (the Manager, hatched: it persists)
-// rides it and carries the contract, the cut key /deep-plan hands over. The work is a chain of
-// blanks, one per step. Each round: a fresh dial gauge comes down from the beam and is set and
-// sealed before anything else; then a fresh cutting bit drops into the tool post, rules one mark,
-// and is thrown into the discard bin; only then does the sealed gauge swing its probe onto the mark.
-// When the needle settles in band the pawl lifts, the carriage indexes one pitch and the pawl drops
-// into the next gap. The ruled trail behind the carriage is Verified progress. Seam: carriage, chain
-// and screw thread shift left one pitch together; the bin's magazine sinks by one bit.
+// rides it. The work is a chain of blanks, one per step. Each round: a fresh go/no-go plug gauge
+// comes down out of the beam on a cable and a lead seal is crimped onto it before anything else;
+// it waits to one side. Then a fresh cutting bit drops into the tool post, rules one slot into the
+// blank under the carriage, and is lobbed over the screw's end bearing into the discard bin. Only
+// once the bit is gone does the sealed gauge run along the beam to the work: its GO pin slides into
+// the slot, it lifts and turns end for end, and its NO-GO pin stops on the slot's mouth. Then the
+// pawl lifts, the carriage indexes one pitch and the pawl drops into the next gap; the gauge reels
+// back up into the beam. The ruled trail behind the station is verified progress. Seam: carriage,
+// chain and screw thread shift left one pitch together; the bin's magazine sinks by one bit.
 // Pure function of t. No Math.random, no setTransform; static layers cached per device scale.
 
 import {
   W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
-  mix, rgba, springStep, indexEase, follow, setLod, lw, cached, grainOver, poly, prism, rect, hole,
+  rgba, springStep, indexEase, setLod, lw, cached, grainOver, poly, prism, rect, hole,
   rodV, rodH, ball, contactShadow, contactGlow, softGlow, dust, centreLine, dimension,
   benchFinal, lampFalloff, activeMat,
 } from '../kit.mjs';
 
 const T = 9.0;
+const smooth = (u) => u * u * (3 - 2 * u);
 
 // ---------------------------------------------------------------------------------------------
 // Geometry (stage units, 1920x1080).
 
 const PITCH = 130; // one step = one blank = one pitch of the engine
-const CX0 = 640; // carriage start, left third
+const CX0 = 640; // the cutting station, left third
 const BW = 100, BH = 150, B_T = 14;
 const BED_TOP = 728, B_TOP = BED_TOP - BH;
-const MARK_TOP = 600, MARK_BOT = 690, MARK_W = 5;
+const MARK_TOP = B_TOP, MARK_BOT = 690, MARK_W = 9; // the ruled slot opens at the blank's top edge
 const LINK_Y = 711;
 
-const SCREW_Y = 470, SCREW_D = 30, THREAD = 26, SCREW_END = 1580; // THREAD divides PITCH: the thread repeats every pitch
-const CAR_Y0 = 430, CAR_Y1 = 515, CAR_HW = 80;
-const SEAT_TIP = 560, BIT_L = 100, BIT_W = 20; // bit tip when seated in the post
-const RULE_DROP = MARK_BOT - SEAT_TIP; // post travel down to the foot of the mark
+const SCREW_Y = 375, SCREW_D = 30, THREAD = 26, SCREW_END = 1300; // THREAD divides PITCH
+const CAR_Y0 = 335, CAR_Y1 = 420, CAR_HW = 80;
+const SEAT_TIP = 465, BIT_L = 100, BIT_W = 20; // bit tip when seated in the post
+const RULE_DROP = MARK_BOT - SEAT_TIP; // post travel down to the foot of the slot
 
 const BEAM_Y0 = 236, BEAM_Y1 = 258;
 
-// Gauge: fixed station left of the cutting point, hung from the beam.
-const G = { x: CX0 - 180, y: 470 }, G_R = 52;
-const PIV = { x: G.x + 38, y: G.y + 46 };
-const PROBE_TARGET = [CX0, (MARK_TOP + MARK_BOT) / 2];
-const PROBE_L = Math.hypot(PROBE_TARGET[0] - PIV.x, PROBE_TARGET[1] - PIV.y);
-const A_MEASURE = Math.atan2(PROBE_TARGET[1] - PIV.y, PROBE_TARGET[0] - PIV.x);
-const A_REST = A_MEASURE + 0.43;
-const N_REST = -2.55, N_BAND = -Math.PI / 2, BAND_HALF = 0.2;
+// The auditor: a double-ended go/no-go plug gauge. A bar hung at its middle on a cable from the
+// beam slot; a long thin GO pin at one end, a short fat NO-GO pin at the other.
+const GX_WAIT = 300, GX_TEST = CX0 - 100; // cable x while it waits, and at the work
+const G_OFF = 100, G_HALF = 112, G_R = 13, G_SHANK = 13, G_GRIP = 36; // G_R: half the handle and collar diameter
+const GO_L = 60, GO_W = 7, NOGO_L = 20, NOGO_W = 18;
+const YB_WAIT = 470; // bar centre while waiting and running
+const YB_GO = B_TOP - G_R; // GO all the way in: the bar sits on the blank tops
+const YB_LIFT = 490; // GO clear of the slot
+const YB_NOGO = B_TOP - NOGO_L - G_R; // NO-GO stopped on the slot's mouth
 
 // Discard bin with a sinking magazine floor.
-const BIN = { x0: 1652, x1: 1838, y0: 452, y1: 568, d: 64 };
-const BIN_LAYER = 21, BIN_N = 4;
+const BIN = { x0: 1648, x1: 1840, y0: 448, y1: 568, d: 64 };
+const BIN_LAYER = 24, BIN_N = 4;
 const binLayerY = (j) => BIN.y1 - 14 - j * BIN_LAYER;
-const BIN_CX = (BIN.x0 + BIN.x1) / 2 - 4;
-
-// The contract: the cut key from /deep-plan (same outline, scaled), seated on the carriage.
-// Off: /long-horizon takes any task, so its own loop must not imply it always follows /deep-plan.
-const SHOW_CONTRACT = false;
-const KEY = { L: 560, BOW_W: 150, BOW_H: 150, BLADE_H: 66, TIP_C: 22, BOW_R: 40, SH: [16, 12], RING: [72, 92, 22] };
-const KEY_NOTCH = [228, 310, 392, 474], KEY_DEPTH = [22, 32, 32, 22];
-const KEY_S = 0.26;
+const BIN_TIP_X = (BIN.x0 + BIN.x1) / 2 + 46; // a spent bit lies with its point here
+const BIN_WIN = { x0: 1656, x1: 1832, y0: 368, y1: 560 }; // the magazine's visible window
 
 // ---------------------------------------------------------------------------------------------
-// Timing (same contract as the animatic, with the probe kept on the mark through the hold).
+// Timing.
 
-const GAUGE_IN = 0.0, SET = [0.5, 0.64], SEAL = [0.64, 0.8];
-const BIT_IN = [1.0, 1.5], DESCEND = [1.5, 1.75], RULE = [1.75, 2.75], RETRACT = [2.78, 3.0], TOSS = [3.0, 3.74], LIFT_OUT = 3.14;
-const PROBE_ON = [3.8, 4.12], PROBE_OFF = [7.3, 7.5], GAUGE_OUT = [7.5, 7.9];
-const PAWL_UP = [5.0, 5.12], INDEX = [5.12, 5.5], PAWL_DOWN = [5.46, 5.58];
+const GAUGE_IN = 0.0, SEAL = [0.62, 0.82];
+const BIT_IN = [1.0, 1.5], DESCEND = [1.5, 1.75], RULE = [1.75, 2.75], RETRACT = [2.78, 3.0];
+const TOSS = [3.0, 3.74], LIFT_OUT = 3.12;
+const G_RUN = [3.8, 4.1], G_GO = [4.1, 4.42], G_LIFT = [4.5, 4.64], G_SPIN = [4.64, 4.96], G_NOGO = [4.96, 5.08];
+const PAWL_UP = [5.28, 5.4], INDEX = [5.4, 5.78], PAWL_DOWN = [5.74, 5.86];
+const G_OUT = [7.4, 7.8];
 const SEAM = [8.2, 9.0], SINK = [8.2, 8.36];
 
 const seamOff = (t) => -PITCH * easeInOut(seg(t, SEAM[0], SEAM[1]));
 const carriageX = (t) => CX0 + PITCH * indexEase(seg(t, INDEX[0], INDEX[1])) + seamOff(t);
 
 // ---------------------------------------------------------------------------------------------
-// The chain of blanks.
+// Layers cached per device scale (one scale per id), drawn translated or cropped. Like kit cached(),
+// a layer is drawn with the same calls every time, so the output never depends on the cache.
+
+const bands = new Map();
+function band(ctx, id, x0, y0, w, h, draw) {
+  const m = ctx.getTransform();
+  const s = Math.hypot(m.a, m.b) || 1;
+  let L = bands.get(id);
+  if (!L || L.s !== s) {
+    if (L) L.cv.width = L.cv.height = 0;
+    const cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
+    const cv = new OffscreenCanvas(cw, ch);
+    const c = cv.getContext('2d');
+    c.scale(cw / w, ch / h);
+    c.translate(-x0, -y0);
+    const saved = { ...LOD };
+    setLod(c);
+    draw(c);
+    Object.assign(LOD, saved);
+    L = { cv, s, kx: cw / w, ky: ch / h, x0, y0, w, h };
+    bands.set(id, L);
+  }
+  return L;
+}
+// Whole layer at an offset.
+const put = (ctx, L, dx = 0, dy = 0) => ctx.drawImage(L.cv, L.x0 + dx, L.y0 + dy, L.w, L.h);
+// The stage rect (sx, sy, sw, sh) of the layer, drawn at (dx, dy).
+const blit = (ctx, L, sx, sy, sw, sh, dx, dy) =>
+  ctx.drawImage(L.cv, (sx - L.x0) * L.kx, (sy - L.y0) * L.ky, sw * L.kx, sh * L.ky, dx, dy, sw, sh);
+
+// ---------------------------------------------------------------------------------------------
+// The chain of blanks: one static strip, ruled behind the station and blank ahead of it. The
+// strip repeats every pitch, so the seam slide is the strip translated; the slot being ruled on
+// the station's blank is drawn live on top.
 
 const BLANK_MAT = { ...MAT.ivory, line: 'rgba(120,124,112,0.5)' };
+const CHAIN = { x0: -304, y0: 552, w: 2576, h: 192 };
 
 function blankPts(cx) {
   const x = cx - BW / 2, y = B_TOP, c = 22;
   return [[x, y], [x + BW - c, y], [x + BW, y + c], [x + BW, y + BH], [x, y + BH]];
 }
 
-function chain(ctx, t, off) {
-  // links first, behind the blanks' front faces at the gaps
-  for (let k = -7; k <= 11; k++) {
-    const cx = CX0 + k * PITCH + off;
-    if (cx < -PITCH || cx > W + PITCH) continue;
+function chainStrip(ctx) {
+  for (let k = -7; k <= 12; k++) {
+    const cx = CX0 + k * PITCH;
     const xa = cx + BW / 2 - 18, xb = cx + PITCH - BW / 2 + 18;
     prism(ctx, rect(xa, LINK_Y - 8, xb - xa, 16), 8, MAT.metal, { sil: 2 });
   }
-  const ruled = markLen(t);
-  for (let k = -7; k <= 11; k++) {
-    const cx = CX0 + k * PITCH + off;
-    if (cx < -BW || cx > W + BW) continue;
-    const pts = blankPts(cx);
-    prism(ctx, pts, B_T, BLANK_MAT);
-    // lit top edge
-    ctx.save();
+  for (let k = -7; k <= 12; k++) {
+    const cx = CX0 + k * PITCH;
+    prism(ctx, blankPts(cx), B_T, BLANK_MAT);
     ctx.strokeStyle = 'rgba(255,255,250,0.85)';
     ctx.lineWidth = lw(2);
     ctx.beginPath();
     ctx.moveTo(cx - BW / 2 + 1, B_TOP + 1.5);
     ctx.lineTo(cx + BW / 2 - 23, B_TOP + 1.5);
     ctx.stroke();
-    ctx.restore();
     hole(ctx, cx - BW / 2 + BW * 0.3, B_TOP + 26, 8, B_T, MAT.ivory);
-    // pins for the links
     for (const px of [cx - BW / 2 + 12, cx + BW / 2 - 12]) ball(ctx, px, LINK_Y, 5, MAT.lit);
-    // the mark: ruled behind the carriage, being ruled on blank 0, none ahead
-    let len = k < 0 ? MARK_BOT - MARK_TOP : k === 0 ? ruled : 0;
-    if (len > 0.5) mark(ctx, cx, MARK_BOT - len, MARK_BOT);
+    if (k < 0) slot(ctx, cx, MARK_TOP, MARK_BOT);
   }
 }
 
-function mark(ctx, x, y0, y1) {
-  ctx.save();
-  ctx.lineCap = 'butt';
-  ctx.strokeStyle = '#30362c';
-  ctx.lineWidth = lw(MARK_W);
-  ctx.beginPath();
-  ctx.moveTo(x, y0);
-  ctx.lineTo(x, y1);
-  ctx.stroke();
+// The ruled slot: dark groove, its lit far wall and shaded near wall.
+function slot(ctx, x, y0, y1) {
+  const w = lw(MARK_W);
+  ctx.fillStyle = '#1b2019';
+  ctx.fillRect(x - w / 2, y0, w, y1 - y0);
   if (!LOD.card) {
-    ctx.strokeStyle = 'rgba(255,255,250,0.75)';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(x + MARK_W / 2 + 1, y0 + 1);
-    ctx.lineTo(x + MARK_W / 2 + 1, y1);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(70,74,64,0.8)';
-    ctx.beginPath();
-    ctx.moveTo(x - MARK_W / 2 - 0.5, y0);
-    ctx.lineTo(x - MARK_W / 2 - 0.5, y1);
-    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,250,0.7)';
+    ctx.fillRect(x + w / 2, y0 + 1, 1.6, y1 - y0 - 1);
+    ctx.fillStyle = 'rgba(70,74,64,0.85)';
+    ctx.fillRect(x - w / 2 - 1.5, y0, 1.5, y1 - y0);
   }
-  ctx.restore();
 }
 
-// Length of the mark on blank 0, ruled upward from the foot.
+// Length of the slot on the station's blank, ruled upward from the foot.
 function markLen(t) {
   if (t < RULE[0]) return 0;
   return (MARK_BOT - MARK_TOP) * easeInOut(seg(t, RULE[0], RULE[1]));
 }
 
-// ---------------------------------------------------------------------------------------------
-// Lead screw threads (the rod is static; the thread phase follows the carriage).
+// Depth falloff on the chain: the blank at the station keeps full light, the verified trail
+// recedes, the blanks still to do recede further. Fixed to the station, so the seam slide carries
+// the ruled blank into the trail's shade and the next blank into the light.
+function shade(ctx) {
+  const x = CX0, a0 = 0.36, a1 = 0.6;
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  const at = (v) => clamp01(v / W);
+  g.addColorStop(0, `rgba(10,13,11,${a0})`);
+  g.addColorStop(at(x - 96), `rgba(10,13,11,${a0})`);
+  g.addColorStop(at(x - 58), 'rgba(10,13,11,0)');
+  g.addColorStop(at(x + 58), 'rgba(10,13,11,0)');
+  g.addColorStop(at(x + 96), `rgba(10,13,11,${a1})`);
+  g.addColorStop(1, `rgba(10,13,11,${a1})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, B_TOP - 6, W, BED_TOP - B_TOP + 6);
+}
 
-function screwThreads(ctx, phase) {
+// ---------------------------------------------------------------------------------------------
+// Lead screw threads: a static strip, slid by the thread phase and cropped at the end bearing.
+
+const THR = { x0: -32, y0: 352, w: SCREW_END + 32 + 4, h: 48 };
+
+function threadStrip(ctx) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(THR.x0, SCREW_Y - SCREW_D / 2, THR.w, SCREW_D);
+  ctx.clip();
   if (LOD.card) {
-    ctx.save();
     ctx.strokeStyle = '#0b100c';
     ctx.lineWidth = lw(2);
     ctx.beginPath();
-    const ph = ((phase % THREAD) + THREAD) % THREAD;
-    for (let x = ph - THREAD; x < SCREW_END - 12; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 10, SCREW_Y - SCREW_D / 2); }
+    for (let x = -THREAD; x < SCREW_END; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 10, SCREW_Y - SCREW_D / 2); }
     ctx.stroke();
-    ctx.restore();
-    return;
+  } else {
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#080c09';
+    ctx.beginPath();
+    for (let x = -THREAD; x < SCREW_END; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 11, SCREW_Y - SCREW_D / 2); }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(134,169,142,0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = -THREAD + 5; x < SCREW_END; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 11, SCREW_Y - SCREW_D / 2); }
+    ctx.stroke();
   }
-  const ph = ((phase % THREAD) + THREAD) % THREAD;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, SCREW_Y - SCREW_D / 2, SCREW_END, SCREW_D);
-  ctx.clip();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#080c09';
-  ctx.beginPath();
-  for (let x = ph - THREAD; x < SCREW_END - 12; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 11, SCREW_Y - SCREW_D / 2); }
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(134,169,142,0.55)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let x = ph - THREAD + 5; x < SCREW_END - 12; x += THREAD) { ctx.moveTo(x, SCREW_Y + SCREW_D / 2); ctx.lineTo(x + 11, SCREW_Y - SCREW_D / 2); }
-  ctx.stroke();
   ctx.restore();
 }
 
+function threads(ctx, phase) {
+  let ph = ((phase % THREAD) + THREAD) % THREAD;
+  if (ph < 1e-4 || ph > THREAD - 1e-4) ph = 0;
+  const L = band(ctx, 'long-horizon-threads', THR.x0, THR.y0, THR.w, THR.h, threadStrip);
+  const x1 = SCREW_END - 14; // the bearing block's face
+  blit(ctx, L, -ph, THR.y0, x1, THR.h, 0, THR.y0);
+}
+
 // ---------------------------------------------------------------------------------------------
-// The contract key, the carriage, the pawl, the post and the bit.
+// The carriage, the pawl, the post and the bit.
 
-function keyOutline(x0, yb, s) {
-  const X = (u) => x0 + u * s, Y = (v) => yb - v * s;
-  const { L, BOW_W, BOW_H, BLADE_H, TIP_C, BOW_R, SH } = KEY;
-  const pts = [[X(0), Y(0)]];
-  for (const [cx, a0] of [[BOW_R, Math.PI], [BOW_W - BOW_R, Math.PI / 2]]) {
-    for (let i = 0; i <= 6; i++) {
-      const a = a0 - (i / 6) * (Math.PI / 2);
-      pts.push([X(cx + BOW_R * Math.cos(a)), Y(BOW_H - BOW_R + BOW_R * Math.sin(a))]);
-    }
-  }
-  pts.push([X(BOW_W), Y(BLADE_H + SH[1])], [X(BOW_W + SH[0]), Y(BLADE_H + SH[1])], [X(BOW_W + SH[0]), Y(BLADE_H)]);
-  for (let k = 0; k < 4; k++) {
-    const n = KEY_NOTCH[k], d = KEY_DEPTH[k], h = 4 + d * 0.9;
-    pts.push([X(n - h), Y(BLADE_H)], [X(n - 4), Y(BLADE_H - d)], [X(n + 4), Y(BLADE_H - d)], [X(n + h), Y(BLADE_H)]);
-  }
-  pts.push([X(L - TIP_C), Y(BLADE_H)], [X(L), Y(BLADE_H - TIP_C)], [X(L), Y(0)]);
-  return pts;
-}
-
-function contractKey(ctx, x0, yb, s) {
-  prism(ctx, keyOutline(x0, yb, s), 14 * s * 1.6, BLANK_MAT);
-  hole(ctx, x0 + KEY.RING[0] * s, yb - KEY.RING[1] * s, KEY.RING[2] * s, 6, MAT.ivory);
-}
-
-function carriage(ctx, cx, t, active) {
+function carriage(ctx, cx, active) {
   const SM = activeMat(MAT.session, active);
   // nut collars where the screw enters
   for (const x of [cx - CAR_HW - 12, cx + CAR_HW]) prism(ctx, rect(x, SCREW_Y - 24, 12, 48), 40, SM, { sil: 2.5 });
   prism(ctx, rect(cx - CAR_HW, CAR_Y0, CAR_HW * 2, CAR_Y1 - CAR_Y0), 56, SM, { hatch: true, sil: 3.5 });
-  // gib screws
-  if (!LOD.card) for (const x of [cx - CAR_HW + 12, cx + CAR_HW - 12]) for (const y of [CAR_Y0 + 12, CAR_Y1 - 12]) ball(ctx, x, y, 3.5, SM);
-  // contract cradle on top, the key standing in it
-  if (SHOW_CONTRACT) {
-    const kx = cx - (KEY.L * KEY_S) / 2;
-    for (const x of [cx - 52, cx + 40]) prism(ctx, rect(x, CAR_Y0 - 10, 14, 10), 30, SM, { sil: 2 });
-    contractKey(ctx, kx, CAR_Y0 - 3, KEY_S);
-    for (const x of [cx - 52, cx + 40]) prism(ctx, rect(x - 2, CAR_Y0 - 14, 18, 8), 12, SM, { sil: 2 });
+  if (!LOD.card) {
+    // gib screws
+    ctx.fillStyle = '#3f7d52';
+    ctx.beginPath();
+    for (const x of [cx - CAR_HW + 12, cx + CAR_HW - 12]) for (const y of [CAR_Y0 + 12, CAR_Y1 - 12]) { ctx.moveTo(x + 3.5, y); ctx.arc(x, y, 3.5, 0, Math.PI * 2); }
+    ctx.fill();
   }
 }
 
@@ -237,12 +245,6 @@ function pawl(ctx, cx, lift) {
   ctx.strokeStyle = '#24492f';
   ctx.lineWidth = lw(10);
   ctx.stroke();
-  ctx.strokeStyle = P.green;
-  ctx.lineWidth = lw(2.2);
-  ctx.beginPath();
-  ctx.moveTo(px - 4, py);
-  ctx.lineTo(ex - 4, ey);
-  ctx.stroke();
   // square tooth that seats between the blanks, turned with the lever
   const ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
   const q = (s, w) => [ex + ux * s + vx * w, ey + uy * s + vy * w];
@@ -254,15 +256,19 @@ function pawl(ctx, cx, lift) {
   ctx.strokeStyle = P.green;
   ctx.lineWidth = lw(2);
   ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px - 4, py);
+  ctx.lineTo(ex - 4, ey);
+  ctx.lineWidth = lw(2.2);
+  ctx.stroke();
   ctx.restore();
   ball(ctx, px, py, 7, MAT.session);
   return [ex, ey + 10];
 }
 
 // The fresh cutting bit: square shank, ground graver point. Drawn about its tip, angle 0 = point down.
-function bit(ctx, x, y, ang, alpha = 1, mat = MAT.fresh) {
+function bit(ctx, x, y, ang, mat = MAT.fresh) {
   ctx.save();
-  ctx.globalAlpha *= alpha;
   ctx.translate(x, y);
   if (ang) ctx.rotate(ang);
   const w = BIT_W, L = BIT_L;
@@ -279,7 +285,7 @@ function bit(ctx, x, y, ang, alpha = 1, mat = MAT.fresh) {
   ctx.restore();
 }
 
-// Post travel below the seated position (0 at rest) and the bit's place in the post.
+// Post travel below the seated position (0 at rest).
 function postDrop(t) {
   if (t < DESCEND[0] || t >= RETRACT[1]) return 0;
   if (t < DESCEND[1]) return RULE_DROP * easeInOut(seg(t, DESCEND[0], DESCEND[1]));
@@ -287,18 +293,21 @@ function postDrop(t) {
   return (MARK_TOP - SEAT_TIP) * (1 - easeIn(seg(t, RETRACT[0], RETRACT[1])));
 }
 
-// Bit pose: [x, tipY, angle] or null.
+// Bit pose: [x, tipY, angle] or null. After ruling it is plucked out of the post, tipping as it
+// rises, then lobbed: its run slows to a stop over the bin's opening while it is still high, and
+// it drops in from above, clear of the end bearing and the bin walls.
+const Y_PLUCK = SEAT_TIP - 45, A_PLUCK = -0.6, LOB_H = 160;
 function bitPose(t, cx) {
   if (t < BIT_IN[0] || t >= TOSS[1]) return null;
   if (t < BIT_IN[1]) return [cx, SEAT_TIP - 560 * (1 - springStep(t - BIT_IN[0], 0.86, 12.5)), 0];
   if (t < TOSS[0]) return [cx, SEAT_TIP + postDrop(t), 0];
-  // pulled up out of the post, then thrown: a ballistic arc over the chain onto the magazine's top layer
-  const yLift = SEAT_TIP - 70;
-  if (t < LIFT_OUT) return [cx, lerp(SEAT_TIP, yLift, easeOut(seg(t, TOSS[0], LIFT_OUT))), 0];
+  if (t < LIFT_OUT) { const u = easeOut(seg(t, TOSS[0], LIFT_OUT)); return [cx, lerp(SEAT_TIP, Y_PLUCK, u), A_PLUCK * u]; }
   const u = seg(t, LIFT_OUT, TOSS[1]);
-  const x = lerp(cx, BIN_CX + 50, u);
-  const y = lerp(yLift, binLayerY(BIN_N) + 10, u) - 4 * 120 * u * (1 - u);
-  return [x, y, (-Math.PI / 2) * u];
+  const ux = Math.min(1, u / 0.8);
+  const x = lerp(cx, BIN_TIP_X, 1 - (1 - ux) * (1 - ux));
+  const yEnd = binLayerY(BIN_N) + 10;
+  const y = lerp(Y_PLUCK, yEnd, u) - 4 * LOB_H * u * (1 - u);
+  return [x, y, A_PLUCK + (-Math.PI / 2 - A_PLUCK) * smooth(Math.min(1, u / 0.3))];
 }
 
 function postAndClamp(ctx, cx, drop, active) {
@@ -312,173 +321,143 @@ function postAndClamp(ctx, cx, drop, active) {
 // ---------------------------------------------------------------------------------------------
 // The gauge.
 
-function dial(ctx, x, y, needle, band, sealU) {
-  // bezel (fresh: clean outline, no hatching)
-  let g = ctx.createRadialGradient(x - 18, y - 20, 4, x, y, G_R + 4);
-  g.addColorStop(0, '#3f7d52');
-  g.addColorStop(1, '#0e1d14');
-  ctx.fillStyle = g;
+// Bar centre y, cable x and turn angle at t; null when it is up inside the beam.
+function gaugePose(t) {
+  let gx = GX_WAIT, yb, th = 0;
+  if (t < G_RUN[0]) {
+    yb = YB_WAIT - 640 * (1 - springStep(t - GAUGE_IN, 0.82, 11));
+  } else {
+    gx = lerp(GX_WAIT, GX_TEST, easeInOut(seg(t, G_RUN[0], G_RUN[1])));
+    yb = YB_WAIT;
+    if (t >= G_GO[0]) yb = lerp(YB_WAIT, YB_GO, easeInOut(seg(t, G_GO[0], G_GO[1])));
+    if (t >= G_LIFT[0]) yb = lerp(YB_GO, YB_LIFT, easeInOut(seg(t, G_LIFT[0], G_LIFT[1])));
+    th = Math.PI * easeInOut(seg(t, G_SPIN[0], G_SPIN[1]));
+    if (t >= G_NOGO[0]) {
+      // drops onto the slot's mouth and stops dead: a hard landing with one small rebound
+      const u = seg(t, G_NOGO[0], G_NOGO[1]);
+      yb = lerp(YB_LIFT, YB_NOGO, easeIn(u));
+      const tau = t - G_NOGO[1];
+      if (tau > 0) yb -= 3.2 * Math.exp(-18 * tau) * Math.sin(Math.min(Math.PI, 30 * tau));
+    }
+    if (t >= G_OUT[0]) yb -= 700 * easeIn(seg(t, G_OUT[0], G_OUT[1]));
+  }
+  if (yb < BEAM_Y0 - 140) return null;
+  return { gx, yb, th };
+}
+
+// Time the GO pin's tip reaches the slot's mouth (for the contact light).
+const T_GO_IN = (() => {
+  const target = (B_TOP - G_R - GO_L - YB_WAIT) / (YB_GO - YB_WAIT);
+  let a = 0, b = 1;
+  for (let i = 0; i < 30; i++) { const m = (a + b) / 2; if (easeInOut(m) < target) a = m; else b = m; }
+  return lerp(G_GO[0], G_GO[1], a);
+})();
+
+const PIN_LIT = { ...MAT.fresh, top: '#5fae78' };
+
+function gauge(ctx, g, sealU) {
+  const { gx, yb, th } = g;
+  const c = Math.cos(th), s = Math.sin(th);
+  const at = (u) => [gx + u * c + D.x * u * s, yb + D.y * u * s];
+  const by = G_R;
+  ctx.save();
+  // cable from the beam slot to the eye
+  ctx.strokeStyle = '#060807';
+  ctx.lineWidth = lw(5);
   ctx.beginPath();
-  ctx.arc(x, y, G_R, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = P.green;
-  ctx.lineWidth = lw(3.5);
+  ctx.moveTo(gx, BEAM_Y1 - 3);
+  ctx.lineTo(gx, yb - by - 12);
   ctx.stroke();
-  // face
-  g = ctx.createRadialGradient(x, y - 8, 2, x, y, G_R - 8);
-  g.addColorStop(0, '#141d16');
-  g.addColorStop(1, '#090d0a');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, G_R - 8, 0, Math.PI * 2);
+  ctx.strokeStyle = '#7f9c86';
+  ctx.lineWidth = lw(2.5);
+  ctx.stroke();
+  // GO pin (at +G_OFF), always the far one while it turns; then the bar; then the NO-GO pin
+  const k = LOD.card ? 1.5 : 1;
+  const go = at(G_OFF), ng = at(-G_OFF);
+  rodV(ctx, go[0], go[1] + by - 2, go[1] + by + GO_L - 4, GO_W * k, PIN_LIT);
+  ctx.fillStyle = P.green;
+  poly(ctx, [[go[0] - GO_W * k / 2, go[1] + by + GO_L - 4], [go[0] + GO_W * k / 2, go[1] + by + GO_L - 4], [go[0] + 1.5, go[1] + by + GO_L], [go[0] - 1.5, go[1] + by + GO_L]]);
   ctx.fill();
-  // tolerance band, carried by the bezel: it turns into place when the gauge is set
+  // the bar, turned from one piece: thin shanks out to a collar at each end, a fat grip in the
+  // middle. Each section is a stroke along the bar's axis, shaded as a cylinder lit from above.
+  const seg2 = (u0, u1) => { const p = at(u0), q = at(u1); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); };
+  const shanks = () => { ctx.beginPath(); seg2(-G_HALF, -G_GRIP); seg2(G_GRIP, G_HALF); };
+  const fats = () => { ctx.beginPath(); seg2(-G_GRIP, G_GRIP); seg2(-G_OFF - 9, -G_OFF + 9); seg2(G_OFF - 9, G_OFF + 9); };
+  const cyl = (r) => { const gr = ctx.createLinearGradient(0, yb - r, 0, yb + r); gr.addColorStop(0, '#5fae78'); gr.addColorStop(0.35, '#2f6a45'); gr.addColorStop(1, '#0e1d14'); return gr; };
   ctx.lineCap = 'butt';
-  ctx.strokeStyle = 'rgba(83,219,118,0.55)';
-  ctx.lineWidth = lw(7);
-  ctx.beginPath();
-  ctx.arc(x, y, G_R - 17, band - BAND_HALF, band + BAND_HALF);
-  ctx.stroke();
-  // ticks (turn with the bezel)
-  ctx.strokeStyle = 'rgba(194,201,186,0.75)';
-  ctx.beginPath();
-  const N = 40;
-  for (let i = 0; i < N; i++) {
-    const major = i % 5 === 0;
-    if (LOD.card && !major) continue;
-    const a = band + (i / N) * Math.PI * 2;
-    const r1 = G_R - 9, r0 = major ? G_R - 18 : G_R - 13;
-    ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
-    ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
-  }
-  ctx.lineWidth = lw(LOD.card ? 2 : 1.6);
-  ctx.stroke();
-  // needle with counterweight and shadow
-  const c = Math.cos(needle), s = Math.sin(needle);
-  const path = (ox, oy) => {
-    ctx.beginPath();
-    ctx.moveTo(x + ox + c * (G_R - 12), y + oy + s * (G_R - 12));
-    ctx.lineTo(x + ox - s * 3, y + oy + c * 3);
-    ctx.lineTo(x + ox - c * 11, y + oy - s * 11);
-    ctx.lineTo(x + ox + s * 3, y + oy - c * 3);
-    ctx.closePath();
-  };
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  path(2, 3);
-  ctx.fill();
-  ctx.fillStyle = P.bright;
-  path(0, 0);
-  ctx.fill();
-  ball(ctx, x, y, 6, MAT.fresh);
+  ctx.strokeStyle = P.green;
+  shanks(); ctx.lineWidth = G_SHANK + lw(4.5); ctx.stroke();
+  fats(); ctx.lineWidth = 2 * G_R + lw(4.5); ctx.stroke();
+  shanks(); ctx.strokeStyle = cyl(G_SHANK / 2); ctx.lineWidth = G_SHANK; ctx.stroke();
+  fats(); ctx.strokeStyle = cyl(G_R); ctx.lineWidth = 2 * G_R; ctx.stroke();
   if (!LOD.card) {
-    ctx.save();
+    // lit line along the top of the grip, and the grip's turned grooves
     ctx.beginPath();
-    ctx.arc(x, y, G_R - 9, 0, Math.PI * 2);
-    ctx.clip();
-    g = ctx.createLinearGradient(x - 40, y - 40, x + 8, y + 8);
-    g.addColorStop(0, 'rgba(243,243,236,0.10)');
-    g.addColorStop(0.5, 'rgba(243,243,236,0.03)');
-    g.addColorStop(0.51, 'rgba(243,243,236,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x - G_R, y - G_R, G_R * 2, G_R * 2);
-    ctx.restore();
+    const p0 = at(-G_GRIP + 2), p1 = at(G_GRIP - 2);
+    ctx.moveTo(p0[0], p0[1] - by + 4);
+    ctx.lineTo(p1[0], p1[1] - by + 4);
+    ctx.strokeStyle = 'rgba(200,250,214,0.7)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (Math.abs(c) > 0.3) {
+      ctx.beginPath();
+      for (let i = -3; i <= 3; i++) { if (!i) continue; const p = at(i * 9.5 * Math.sign(c)); ctx.moveTo(p[0], p[1] - by + 3); ctx.lineTo(p[0], p[1] + by - 3); }
+      ctx.strokeStyle = 'rgba(8,14,10,0.75)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
-  // bezel lock screw and the ivory seal on its wire
-  const la = -0.72;
-  const lx = x + Math.cos(la) * (G_R - 1), ly = y + Math.sin(la) * (G_R - 1);
-  ball(ctx, lx, ly, 6, MAT.fresh);
+  // NO-GO pin: short, two slots wide, with a turned ring that marks it
+  rodV(ctx, ng[0], ng[1] + by - 2, ng[1] + by + NOGO_L, NOGO_W * k, PIN_LIT);
+  ctx.fillStyle = '#0e1d14';
+  ctx.fillRect(ng[0] - NOGO_W * k / 2, ng[1] + by + 6, NOGO_W * k, 3 * k);
+  // the eye on top, and the lead seal crimped on its wire
+  ctx.strokeStyle = P.green;
+  ctx.lineWidth = lw(2.5);
+  ctx.beginPath();
+  ctx.arc(gx, yb - by - 7, 5.5, 0, Math.PI * 2);
+  ctx.stroke();
   if (sealU > 0) {
-    const drop = (1 - indexEase(sealU)) * -34;
-    ctx.save();
+    const dy = (1 - indexEase(sealU)) * -38;
+    const sx = gx, sy = yb + dy;
     ctx.globalAlpha *= clamp01(sealU * 4);
-    const sx = lx + 16, sy = ly + 20 + drop;
     ctx.strokeStyle = '#a3c2aa';
     ctx.lineWidth = lw(1.8);
     ctx.beginPath();
-    ctx.moveTo(lx, ly);
-    ctx.quadraticCurveTo(lx + 12, ly + 2 + drop * 0.5, sx, sy - 9);
+    ctx.moveTo(gx - 3, yb - by - 6);
+    ctx.quadraticCurveTo(gx - 16, sy - 12, sx - 4, sy - 8);
     ctx.stroke();
-    ctx.translate(sx, sy);
-    ctx.rotate(0.18);
-    ctx.fillStyle = 'rgba(2,4,3,0.4)';
-    ctx.fillRect(-8, -9, 20, 24);
-    const sg = ctx.createLinearGradient(0, -11, 0, 13);
-    sg.addColorStop(0, '#fbfbf4');
-    sg.addColorStop(1, '#d4d5c9');
+    const r = LOD.card ? 10 : 8.5;
+    const sg = ctx.createRadialGradient(sx - 3, sy - 3, 1, sx, sy, r);
+    sg.addColorStop(0, '#fdfdf7');
+    sg.addColorStop(1, '#bfc0b4');
     ctx.fillStyle = sg;
     ctx.beginPath();
-    ctx.roundRect(-10, -11, 20, 24, 3);
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#7d8a7f';
-    ctx.beginPath();
-    ctx.arc(0, -5, 2.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.fillRect(sx - 3.5, sy - 1, 7, 2);
   }
-}
-
-function gauge(ctx, t, needle, probeA) {
-  const yIn = 560 * (1 - springStep(t - GAUGE_IN, 0.82, 11));
-  const yOut = 620 * easeIn(seg(t, GAUGE_OUT[0], GAUGE_OUT[1]));
-  const dy = -yIn - yOut;
-  const gy = G.y + dy;
-  if (gy < -G_R) return null;
-  // hanger telescoping from the beam
-  rodV(ctx, G.x, BEAM_Y1 - 6, gy - G_R - 10, 12, MAT.fresh);
-  prism(ctx, rect(G.x - 12, gy - G_R - 16, 24, 16), 18, MAT.fresh, { sil: 2.5 });
-  // probe lever on its boss
-  const px = PIV.x, py = PIV.y + dy;
-  const tx = px + PROBE_L * Math.cos(probeA), ty = py + PROBE_L * Math.sin(probeA);
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#0e1d14';
-  ctx.lineWidth = lw(9);
-  ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.lineTo(tx, ty);
-  ctx.stroke();
-  ctx.strokeStyle = '#3f7d52';
-  ctx.lineWidth = lw(5);
-  ctx.stroke();
-  ctx.strokeStyle = P.green;
-  ctx.lineWidth = lw(1.8);
-  ctx.beginPath();
-  ctx.moveTo(px, py - 3);
-  ctx.lineTo(tx, ty - 3);
-  ctx.stroke();
   ctx.restore();
-  ball(ctx, tx, ty, 7, MAT.fresh);
-  const sealU = seg(t, SEAL[0], SEAL[1]);
-  const band = N_BAND + 1.1 * (1 - indexEase(seg(t, SET[0], SET[1])));
-  dial(ctx, G.x, gy, needle, band, sealU);
-  prism(ctx, rect(px - 10, py - 10, 20, 20), 14, MAT.fresh, { sil: 2.5 });
-  ball(ctx, px, py, 4, MAT.fresh);
-  centreLine(ctx, G.x - G_R - 18, gy, G.x + G_R + 18, gy, 0.4);
-  return [tx, ty];
 }
-
-const probeAngle = (t) => A_REST - (A_REST - A_MEASURE) * (easeInOut(seg(t, PROBE_ON[0], PROBE_ON[1])) - easeIn(seg(t, PROBE_OFF[0], PROBE_OFF[1])));
-const onMark = (s) => s >= PROBE_ON[1] && s < PROBE_OFF[0];
-const needleTarget = (s) => (onMark(s) ? N_BAND - N_REST : 0);
-// The needle lags, overshoots and damps; integrated from rest at a fixed step, so it is a pure function of t.
-const needleAt = (t) => N_REST + (t < PROBE_ON[1] - 0.02 ? 0 : follow(needleTarget, PROBE_ON[1] - 0.02, Math.min(t, GAUGE_OUT[1]), 0.32, 30));
 
 // ---------------------------------------------------------------------------------------------
-// Bin contents (the magazine sinks by one bit at the seam).
+// The bin: spent bits stacked on a magazine floor that sinks one bit per round.
+
+const SPENT = { ...MAT.fresh, front: ['#1b3325', '#10201a'], top: '#2a5038', sil: '#3a7a50', hi: '#4f8a62', line: '#24412f' };
+
+function magazine(ctx) {
+  for (let j = 0; j < BIN_N; j++) bit(ctx, BIN_TIP_X, binLayerY(j) + 10, -Math.PI / 2, SPENT);
+}
 
 function binContents(ctx, t) {
-  const sink = BIN_LAYER * indexEase(seg(t, SINK[0], SINK[1]));
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(BIN.x0 + 4, BIN.y0 - 80, BIN.x1 - BIN.x0 - 8, BIN.y1 - 4 - (BIN.y0 - 80));
-  ctx.clip();
-  const DM = { ...MAT.fresh, front: ['#1b3325', '#10201a'], top: '#2a5038', sil: '#3a7a50', hi: '#4f8a62', line: '#24412f' };
-  const n = t >= TOSS[1] ? BIN_N + 1 : BIN_N;
-  for (let j = 0; j < n; j++) {
-    const y = binLayerY(j) + sink;
-    bit(ctx, BIN_CX + 50, y + 10, -Math.PI / 2, 1, DM);
-  }
-  ctx.restore();
+  const L = band(ctx, 'long-horizon-magazine', BIN_WIN.x0, BIN_WIN.y0 - BIN_LAYER, BIN_WIN.x1 - BIN_WIN.x0, BIN_WIN.y1 - BIN_WIN.y0 + BIN_LAYER, magazine);
+  // after the sink the stack looks exactly as it did at the start of the round
+  const sinking = t >= TOSS[1] && t < SINK[1];
+  const sink = sinking ? BIN_LAYER * indexEase(seg(t, SINK[0], SINK[1])) : 0;
+  const w = BIN_WIN.x1 - BIN_WIN.x0, h = BIN_WIN.y1 - BIN_WIN.y0;
+  blit(ctx, L, BIN_WIN.x0, BIN_WIN.y0 - sink, w, h, BIN_WIN.x0, BIN_WIN.y0);
+  if (sinking) bit(ctx, BIN_TIP_X, binLayerY(BIN_N) + 10 + sink, -Math.PI / 2, SPENT);
 }
 
 // Fresh tools come out of the beam: nothing of theirs shows above it (the caption band stays empty).
@@ -497,7 +476,8 @@ function belowBeam(ctx, fn) {
 function backLayer(ctx) {
   benchFinal(ctx, 700, 600);
   // bin on its bracket, behind the chain
-  prism(ctx, rect(BIN_CX - 10, BIN.y1, 20, FLOOR - 20 - BIN.y1), 30, MAT.metal, { sil: 2.5 });
+  const bcx = (BIN.x0 + BIN.x1) / 2;
+  prism(ctx, rect(bcx - 14, BIN.y1, 20, FLOOR - 20 - BIN.y1), 30, MAT.metal, { sil: 2.5 });
   const dx = D.x * BIN.d, dy = D.y * BIN.d;
   ctx.fillStyle = '#0a0e0b';
   poly(ctx, [[BIN.x0, BIN.y0], [BIN.x1, BIN.y0], [BIN.x1 + dx, BIN.y0 + dy], [BIN.x0 + dx, BIN.y0 + dy]]);
@@ -526,16 +506,15 @@ function backLayer(ctx) {
   for (const y of [SCREW_Y - 22, SCREW_Y + 22]) ball(ctx, SCREW_END + 30, y, 3.5, MAT.lit);
 }
 
+const BINF = { x0: 1640, y0: 424, w: 272, h: 152 };
 function binFront(ctx) {
   // wire front so the spent bits show through
   const x0 = BIN.x0, x1 = BIN.x1, y0 = BIN.y0, y1 = BIN.y1;
-  ctx.save();
   ctx.strokeStyle = '#2c3d31';
   ctx.lineWidth = lw(3);
   ctx.beginPath();
   for (let x = x0 + 20; x < x1 - 8; x += 22) { ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y1 - 4); }
   ctx.stroke();
-  ctx.restore();
   prism(ctx, rect(x0, y1 - 14, x1 - x0, 14), BIN.d, MAT.metal, { sil: 2.5 });
   prism(ctx, rect(x0, y0, 10, y1 - y0), BIN.d, MAT.metal, { sil: 2.5 });
   prism(ctx, rect(x1 - 10, y0, 10, y1 - y0), BIN.d, MAT.metal, { sil: 2.5 });
@@ -543,13 +522,13 @@ function binFront(ctx) {
 }
 
 function frontLayer(ctx) {
-  // the overhead beam fresh tools come down from, on two end posts
+  // the overhead beam fresh tools come down from, on two end posts, with the slot they run in
   for (const x of [26, 1872]) {
     prism(ctx, rect(x, BEAM_Y1, 22, BED_TOP - BEAM_Y1), 24, MAT.metal, { sil: 3 });
   }
   prism(ctx, rect(14, BEAM_Y0, W - 28, BEAM_Y1 - BEAM_Y0), 30, MAT.metal, { sil: 3 });
   ctx.fillStyle = '#060807';
-  ctx.fillRect(300, BEAM_Y1 - 5, 1300, 3);
+  ctx.fillRect(240, BEAM_Y1 - 5, 1360, 3);
   if (!LOD.card) for (let x = 120; x < W - 80; x += 180) ball(ctx, x, (BEAM_Y0 + BEAM_Y1) / 2, 3.2, MAT.metal);
   lampFalloff(ctx, 690, 560, 400, 1250, 0.58);
 }
@@ -559,7 +538,7 @@ function frontLayer(ctx) {
 export default {
   id: 'long-horizon',
   name: '/long-horizon',
-  caption: 'run big tasks in audited rounds',
+  caption: 'Run big tasks in audited rounds',
   period: T,
   draw(ctx, t) {
     t = ((t % T) + T) % T;
@@ -568,56 +547,59 @@ export default {
 
     const off = seamOff(t);
     const cx = carriageX(t);
-    screwThreads(ctx, cx - CX0);
+    threads(ctx, cx - CX0);
 
-    chain(ctx, t, off);
+    // the chain: past the seam's midpoint the strip is drawn one pitch on, where the station's
+    // blank is already a ruled one, so the last frame is drawn exactly like the first
+    const second = off <= -PITCH / 2;
+    let o = second ? off + PITCH : off;
+    if (Math.abs(o) < 1e-3) o = 0;
+    put(ctx, band(ctx, 'long-horizon-chain', CHAIN.x0, CHAIN.y0, CHAIN.w, CHAIN.h, chainStrip), o, 0);
+    const len = markLen(t);
+    if (!second && len > 0.5) slot(ctx, CX0 + off, MARK_BOT - len, MARK_BOT);
+    put(ctx, band(ctx, 'long-horizon-shade', 0, B_TOP - 10, W, BED_TOP - B_TOP + 18, shade));
 
-    // bin: contents, then the flying bit once it is over the bin, then the wire front
+    // bin: contents, then the falling bit once it is over the bin, then the wire front
     binContents(ctx, t);
     const bp = bitPose(t, CX0);
     const overBin = bp && bp[0] > BIN.x0 - 40;
     if (overBin) bit(ctx, bp[0], bp[1], bp[2]);
-    cached(ctx, 'long-horizon-final-binfront', binFront);
+    put(ctx, band(ctx, 'long-horizon-binfront', BINF.x0, BINF.y0, BINF.w, BINF.h, binFront));
 
     // carriage: lit while the round works, dims through the hold
-    const active = easeInOut(seg(t, 0.9, 1.2)) - easeInOut(seg(t, 5.6, 6.2));
+    const active = easeInOut(seg(t, 0.9, 1.2)) - easeInOut(seg(t, 5.9, 6.5));
     const pl = indexEase(seg(t, PAWL_UP[0], PAWL_UP[1])) - indexEase(seg(t, PAWL_DOWN[0], PAWL_DOWN[1]));
     contactShadow(ctx, cx + 20, B_TOP - 4, 90, 7, 0.35);
     const nose = pawl(ctx, cx, clamp01(pl));
-    carriage(ctx, cx, t, active);
-    const drop = postDrop(t);
+    carriage(ctx, cx, active);
     if (bp && !overBin) belowBeam(ctx, () => bit(ctx, bp[0], bp[1], bp[2]));
-    postAndClamp(ctx, cx, drop, active);
+    postAndClamp(ctx, cx, postDrop(t), active);
 
     // the sealed gauge
-    const needle = needleAt(t);
-    let tip = null;
-    belowBeam(ctx, () => { tip = gauge(ctx, t, needle, probeAngle(t)); });
+    const gp = gaugePose(t);
+    if (gp) belowBeam(ctx, () => gauge(ctx, gp, seg(t, SEAL[0], SEAL[1])));
 
     cached(ctx, 'long-horizon-final-front', frontLayer);
 
-    // light: seat, ruling contact along the cut only, probe contact, pawl click, landing
-    contactGlow(ctx, G.x, G.y - G_R - 16, (t - 0.42) / 0.12, 24);
+    // light: seat, ruling contact along the cut only, GO entering, NO-GO stopping, pawl click
     contactGlow(ctx, CX0, SEAT_TIP - BIT_L + 30, (t - BIT_IN[1] + 0.06) / 0.12, 24);
     if (t >= RULE[0] && t < RULE[1] + 0.06) {
       const y = MARK_BOT - markLen(t);
       const a = Math.min(1, (t - RULE[0]) / 0.06) * (1 - seg(t, RULE[1] - 0.02, RULE[1] + 0.06));
       softGlow(ctx, CX0, y, 30, P.bright, 0.55 * a);
-      ctx.save();
       ctx.fillStyle = `rgba(240,255,244,${0.9 * a})`;
       ctx.beginPath();
       ctx.arc(CX0, y, 4.5 * LOD.k, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
-      for (let i = 0; i < 8; i++) {
-        const ti = RULE[0] + i * 0.12;
-        const yi = MARK_BOT - markLen(ti);
-        dust(ctx, CX0 + 4, yi, t - ti, 0x1a0 + i, { ang: -Math.PI * 0.15, spread: 1.0, n: 5, dur: 0.4 });
+      for (let i = 0; i < 5; i++) {
+        const ti = RULE[0] + i * 0.2;
+        dust(ctx, CX0 + 6, MARK_BOT - markLen(ti), t - ti, 0x1a0 + i, { ang: -Math.PI * 0.15, spread: 1.0, n: 4, dur: 0.4 });
       }
     }
-    if (tip) contactGlow(ctx, tip[0], tip[1], (t - PROBE_ON[1]) / 0.12, 28);
+    contactGlow(ctx, CX0, B_TOP, (t - T_GO_IN) / 0.12, 26);
+    contactGlow(ctx, CX0, B_TOP - 2, (t - G_NOGO[1]) / 0.14, 36);
     contactGlow(ctx, nose[0], nose[1] - 4, (t - PAWL_DOWN[1] + 0.04) / 0.12, 22);
-    dust(ctx, BIN_CX + 30, binLayerY(BIN_N) + 4, t - TOSS[1], 0x2b1, { ang: -Math.PI / 2, spread: 2.2, n: 8, dur: 0.45 });
+    dust(ctx, BIN_TIP_X - 20, binLayerY(BIN_N) + 4, t - TOSS[1], 0x2b1, { ang: -Math.PI / 2, spread: 2.2, n: 6, dur: 0.45 });
 
     grainOver(ctx, 0.3, 'soft-light');
   },

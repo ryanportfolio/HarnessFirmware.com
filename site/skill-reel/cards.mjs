@@ -1,15 +1,20 @@
 // Skills reel cards on /skills: one looping canvas per `[data-reel-scene]` card.
 // Each scene module (./scenes/<id>.mjs) draws in a 1920x1080 logical stage; the canvas scales that
-// stage to the card box at a device pixel ratio capped at 1.5. Every card keeps its own clock,
-// which advances only while the card is on screen and the tab is visible, and draws scene.draw(ctx,
-// t mod period). Scene modules load lazily when their card nears the viewport. The first paint waits
-// for the site faces, so no frame is ever set in a fallback face that a late font then replaces.
+// stage to the card's content box at a device pixel ratio capped at 2 for cards narrower than
+// 600 CSS px and 1.5 otherwise. A card plays only while at least half of it is on screen and the
+// tab is visible; its clock is real time and draws scene.draw(ctx, t mod period). Up to three
+// playing cards redraw every frame; with more, each redraws at 30 Hz, staggered so only part of
+// them paint on any one frame. Scene modules load lazily when their card nears the viewport and
+// paint their t = 0 frame once. The first paint waits for the site faces, so no frame is ever set
+// in a fallback face that a late font then replaces.
 // A missing or throwing scene hides its canvas box; the card text is real HTML either way.
 // No reduced-motion variant (owner decision, same as the homepage explainer).
 
 const STAGE_W = 1920, STAGE_H = 1080;
-const DPR_CAP = 1.5;
+const DPR_CAP = 1.5, DPR_CAP_SMALL = 2, SMALL_W = 600; // CSS px
 const DT_CAP = 0.064; // seconds; a long frame (tab switch, GC) never jumps a loop forward
+const FULL_RATE_MAX = 3; // playing cards that still redraw every frame
+const SLOW_MS = 1000 / 30; // redraw interval once more than FULL_RATE_MAX cards play
 const NEAR = '600px 0px'; // start loading a scene this far before its card scrolls in
 const FACES = ['781 72px "Lineal"', '500 34px "Harness Text"', '400 26px "Departure Mono"', 'italic 600 34px "Fraunces"'];
 
@@ -52,15 +57,16 @@ function mount(root) {
     const box = el.querySelector('.sr-media') || el;
     const cv = document.createElement('canvas');
     box.appendChild(cv);
-    return { el, box, cv, ctx: cv.getContext('2d'), id: el.dataset.reelScene, scene: null, t: 0, visible: false, sized: false, painted: false };
+    return { el, box, cv, ctx: cv.getContext('2d'), id: el.dataset.reelScene, scene: null, t: 0, visible: false, sized: false, painted: false, due: 0 };
   });
   if (!cards.length) return;
   const byEl = new Map(cards.map((c) => [c.box, c]));
   let raf = 0, last = null;
 
+  // The canvas fills the box inside its border (inset: 0), so its own rect is the content box.
   const size = (c) => {
-    const r = c.box.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    const r = c.cv.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, r.width < SMALL_W ? DPR_CAP_SMALL : DPR_CAP);
     const bw = Math.max(1, Math.round(r.width * dpr)), bh = Math.max(1, Math.round(r.height * dpr));
     if (c.cv.width !== bw || c.cv.height !== bh) {
       c.cv.width = bw;
@@ -108,11 +114,23 @@ function mount(root) {
     raf = 0;
     const dt = last === null ? 0 : Math.min(DT_CAP, (now - last) / 1000);
     last = now;
-    for (const c of cards) {
-      if (!c.visible || !c.scene) continue;
+    const playing = cards.filter((c) => c.visible && c.scene);
+    const slow = playing.length > FULL_RATE_MAX;
+    playing.forEach((c, k) => {
       c.t = (c.t + dt) % c.scene.period;
-      paint(c);
-    }
+      if (!slow) {
+        c.due = 0;
+        paint(c);
+        return;
+      }
+      // Stagger: a card entering the throttled set starts at its own fraction of the interval.
+      if (!c.due) c.due = now + (k / playing.length) * SLOW_MS;
+      // Paint on the frame nearest the due time (half a frame of slack), then keep the phase.
+      if (now >= c.due - 5) {
+        paint(c);
+        c.due += SLOW_MS * Math.max(1, Math.ceil((now - c.due + 5) / SLOW_MS));
+      }
+    });
     if (running()) raf = requestAnimationFrame(frame);
     else last = null;
   };
@@ -143,14 +161,15 @@ function mount(root) {
     }
   }, { rootMargin: NEAR });
 
-  // Play only while on screen.
+  // Play only while at least half the card is on screen; a card below that holds its last frame.
   const seen = new IntersectionObserver((entries) => {
     for (const e of entries) {
       const c = byEl.get(e.target);
-      c.visible = e.isIntersecting;
+      c.visible = e.isIntersecting && e.intersectionRatio >= 0.5;
+      if (!c.visible) c.due = 0;
     }
     wake();
-  });
+  }, { threshold: [0, 0.5] });
 
   const resize = new ResizeObserver((entries) => {
     for (const e of entries) {
