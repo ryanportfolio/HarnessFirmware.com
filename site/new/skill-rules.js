@@ -12,14 +12,29 @@ export const HARNESS_SKILL_DEPENDENCIES = Object.freeze({
     "codex-review",
     "external-review"
   ],
+  "caveman": [
+    "why"
+  ],
   "codex-fullreview": [
     "impartial-review"
   ],
   "codex-review": [
     "external-review"
   ],
-  "merge-ready": [
+  "deep-plan": [
+    "why"
+  ],
+  "design-prototypes": [
+    "codex-image-gen"
+  ],
+  "merge": [
     "codex-fullreview",
     "codex-review"
+  ],
+  "opus-fullreview": [
+    "impartial-review"
+  ],
+  "wrapup": [
+    "servers"
   ]
 });
