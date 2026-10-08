@@ -20,7 +20,7 @@
 // rigid moving parts are drawn once into per-scale sprites and placed each frame.
 
 import {
-  W, P, D, MAT, FLOOR, BACK_Y, BENCH_Y, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
+  W, P, D, MAT, FLOOR, BACK_Y, BENCH_Y, LOD, clamp01, lerp, seg, easeIn, easeInOut,
   mix, rgba, indexEase, setLod, lw, cached, grainOver, poly, prism, rect,
   rodV, rodH, ball, contactShadow, contactGlow, softGlow, dust, dimension, centreLine,
   benchFinal, lampFalloff,
@@ -29,7 +29,6 @@ import {
 const T = 10.0;
 const sm = (u) => { const v = clamp01(u); return v * v * (3 - 2 * v); };
 const sseg = (t, a, b) => sm(seg(t, a, b));
-const eOut3 = (u) => 1 - Math.pow(1 - clamp01(u), 3);
 
 // ---------------------------------------------------------------------------------------------
 // Sprites: a rigid part drawn once per device scale into a small canvas, then placed by
@@ -129,7 +128,7 @@ const RUNS = [
   { s: 1.85, lane: 0, drop: 0.245, jy: 6 }, // B
   { s: 2.78, lane: 1, drop: 0.196, jy: -6, up: 8 }, // C1
   { s: 4.95, lane: 0, drop: 0.192, jy: 0 }, // C1, now the baseline
-  { s: 5.83, lane: 1, drop: 0.19, jy: 1, dwell: 0.16 }, // C2 (the sled waits at the foot while the inspector passes over the top)
+  { s: 5.83, lane: 1, drop: 0.19, jy: 1 }, // C2
 ];
 for (const r of RUNS) {
   r.dwell = r.dwell || 0;
@@ -159,12 +158,13 @@ const K = {
   reset: [9.6, 9.95],
 };
 
-// The two inspectors. Each is its own agent: own trolley on the overhead rail, own lamp; the
-// first comes from off stage right, the second from off stage left (over the rig, head up).
+// The two inspectors, one fresh agent per round, two different instruments on two paths: a
+// caliper trolley on the overhead rail (round 1, leaves off stage for good) and a bar-gauge cart on
+// its own bench rail (round 2). Every move is eased with a peak under 1,500 units/s.
 const HY_UP = 266, HY_DOWN = BAND.y0 - 10; // caliper beam top, stowed and at the band
 const INSP = [
-  { t0: 2.85, arr: 0.5, xs: 2150, xc: 0, down: [3.1, 3.42], spread: [3.44, 3.68], press: [3.72, 3.84], up: [3.9, 4.2], leave: [4.16, 4.56], xe: 2150, ri: 0 },
-  { t0: 6.02, arr: 0.8, xs: -230, xc: 0, down: [6.5, 6.82], spread: [6.84, 7.04], press: [7.07, 7.19], up: [7.23, 7.53], leave: [7.49, 7.89], xe: 2150, ri: 1 },
+  { kind: 'trolley', t0: 2.85, arr: 0.6, xs: 2040, xc: 0, down: [3.15, 3.47], spread: [3.49, 3.72], press: [3.74, 3.86], up: [3.92, 4.22], leave: [4.18, 4.78], xe: 2040, ri: 0 },
+  { kind: 'cart', t0: 5.98, arr: 0.75, xs: 1990, xc: 0, down: [6.73, 6.85], spread: [6.87, 7.0], press: [7.02, 7.14], up: [7.18, 7.28], leave: [7.26, 7.96], xe: 1990, ri: 1 },
 ];
 
 // Cradle index: 0 home (left pocket under the gap), -1 indexed (right pocket under the gap).
@@ -203,7 +203,7 @@ function penX(t, lane) {
 // The lamp: on the rig during the runs, over the chart while an inspector reads, back on the rig
 // for the keep, then between the track and the magazine for the revert and the hold.
 const ei = (t, a, b) => easeInOut(seg(t, a, b));
-const lampX = (t) => 560 + 1066 * (ei(t, 2.85, 3.35) - ei(t, 3.95, 4.4)) + 924 * ei(t, 6.35, 6.85) - 584 * ei(t, 7.24, 7.7) - 340 * ei(t, ...K.reset);
+const lampX = (t) => 560 + 1066 * (ei(t, 2.85, 3.35) - ei(t, 3.95, 4.4)) + 924 * ei(t, 6.2, 6.7) - 584 * ei(t, 7.24, 7.7) - 340 * ei(t, ...K.reset);
 
 // ---------------------------------------------------------------------------------------------
 // Materials.
@@ -728,49 +728,103 @@ function drawJaw(c, s) {
   prism(c, rect(Math.min(xo, xi) - 3, HY_DOWN - 5, JB + 6, 19), 16, FRESH, { sil: 2 });
   prism(c, [[xo, y1], [xi, y1], [xi, y2 - 7], [xi + s * 5, y2], [xo, y2]], 10, FRESH, { sil: 2 });
 }
+// The second inspector is a different instrument on a different path: a floor cart on its own
+// short bench rail in front of the recorder, a mast with a lamp on top, and a bar gauge (a slim
+// bar with two pin feelers) carried on an arm into the band between the lanes.
+const CART_RAIL_Y = 786; // top of the cart's bench rail
+function drawCart(c) {
+  const x = PREF, wy = CART_RAIL_Y - 9;
+  // mast with a foot gusset, arm out to the gauge's link, lamp hood on top
+  prism(c, rect(x + 193, 470, 14, 280), 14, FRESH, { sil: 2.5 });
+  prism(c, [[x + 193, 748], [x + 168, 748], [x + 193, 716]], 8, FRESH, { sil: 1.5 });
+  prism(c, rect(x + 40, 476, 160, 10), 12, FRESH, { sil: 2.5 });
+  prism(c, [[x + 186, 452], [x + 216, 452], [x + 222, 466], [x + 180, 466]], 12, FRESH, { sil: 2 });
+  // chassis on three wheels
+  prism(c, [[x + 86, 744], [x + 258, 744], [x + 268, 754], [x + 268, wy - 4], [x + 86, wy - 4]], 22, FRESH, { sil: 2.5 });
+  for (const wx of [x + 112, x + 176, x + 240]) {
+    ball(c, wx, wy, 9, FRESH);
+    c.fillStyle = '#0e1d14';
+    c.beginPath();
+    c.arc(wx, wy, 2.6, 0, Math.PI * 2);
+    c.fill();
+  }
+  screwRow(c, [[x + 100, 752], [x + 150, 752], [x + 210, 752], [x + 254, 760]], 2.4);
+}
+const LENS2 = [PREF + 184, 470];
+const G_FEEL = 58; // feeler pins from the gauge centre
+function drawGauge(c) {
+  const x = PREF, y = BAND.y0 + 2; // bar top
+  prism(c, rect(x + 44, 484, 8, y - 484), 8, FRESH, { sil: 1.5 }); // link up to the arm
+  prism(c, rect(x - 66, y, 132, 9), 10, FRESH, { sil: 2.5 });
+  for (const s of [-1, 1]) {
+    const px = x + s * G_FEEL;
+    prism(c, [[px - 4, y + 9], [px + 4, y + 9], [px + 4, y + 28], [px, y + 36], [px - 4, y + 28]], 6, FRESH, { sil: 2 });
+  }
+  if (!LOD.card) {
+    c.strokeStyle = 'rgba(164,245,186,0.5)';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { const xx = x + s * (64 - i * 3); c.moveTo(xx, y + 1); c.lineTo(xx, y + 8); }
+    c.stroke();
+  }
+}
+const eOut2 = (u) => 1 - (1 - clamp01(u)) ** 2;
+const eIn2 = (u) => clamp01(u) ** 2;
 function inspPose(t, I) {
   if (t < I.t0 || t >= I.leave[1]) return null;
   let x;
-  if (t < I.t0 + I.arr) x = lerp(I.xs, I.xc, eOut3(seg(t, I.t0, I.t0 + I.arr)));
-  else x = lerp(I.xc, I.xe, easeIn(seg(t, ...I.leave)));
-  const down = easeOut(seg(t, ...I.down)) * (1 - easeIn(seg(t, ...I.up)));
-  const hy = lerp(HY_UP, HY_DOWN, down);
-  let open;
-  if (I.open > 0) open = I.open * easeInOut(seg(t, ...I.spread)) * (1 - easeInOut(seg(t, I.up[0] - 0.04, I.up[0] + 0.14)));
-  else open = 4 * Math.sin(Math.PI * seg(t, ...I.spread)); // blocked: the jaws push and stop
+  if (t < I.t0 + I.arr) x = lerp(I.xs, I.xc, eOut2(seg(t, I.t0, I.t0 + I.arr)));
+  else x = lerp(I.xc, I.xe, eIn2(seg(t, ...I.leave)));
+  const down = eOut2(seg(t, ...I.down)) * (1 - eIn2(seg(t, ...I.up)));
   const lamp = seg(t, I.down[0] - 0.15, I.down[0] + 0.1) * (1 - seg(t, I.up[0], I.up[0] + 0.25));
-  return { x, hy, open, lamp, carried: t < I.press[0] + 0.06, I };
+  const carried = t < I.press[0] + 0.06;
+  if (I.kind === 'cart') return { x, gdy: -10 * (1 - down), lamp, carried, I };
+  const hy = lerp(HY_UP, HY_DOWN, down);
+  const open = I.open * easeInOut(seg(t, ...I.spread)) * (1 - easeInOut(seg(t, I.up[0] - 0.04, I.up[0] + 0.14)));
+  return { x, hy, open, lamp, carried, I };
 }
+const lensOf = (p) => (p.I.kind === 'cart' ? [LENS2[0] + p.x - PREF, LENS2[1]] : [LENS[0] + p.x - PREF, LENS[1]]);
 function inspector(ctx, p) {
-  const dx = p.x - PREF, dy = p.hy - HY_DOWN;
-  // hangers: sleeves on the trolley, rods down to the beam
-  const len = p.hy + 2 - (TB + 26);
-  if (len > 0.5) {
-    // one full-length rod sprite, cropped to the extended length
-    const S = sprite(ctx, 'pl5-hanger', [PREF - 60 - 6, TB + 26, 12, HY_DOWN + 2 - (TB + 26)], (c) => rodV(c, PREF - 60, TB + 26, HY_DOWN + 2, 6, FRESH));
-    const sh = Math.min(S.ch, Math.ceil((S.l + len) * S.s));
-    for (const s of [-1, 1]) ctx.drawImage(S.cv, 0, 0, S.cw, sh, S.x0 + p.x - PREF + (s + 1) * 60 - S.k, S.y0 - S.l, S.cw / S.s, sh / S.s);
+  const dx = p.x - PREF;
+  const lens = lensOf(p);
+  if (p.I.kind === 'cart') {
+    blit(ctx, sprite(ctx, 'pl6-gauge', [PREF - 74, 478, 150, BAND.y0 + 48 - 478], drawGauge), dx, p.gdy);
+    blit(ctx, sprite(ctx, 'pl6-cart', [PREF + 30, 440, 250, CART_RAIL_Y + 6 - 440], drawCart), dx, 0);
+    if (p.carried) plateAt(ctx, p.x, PLATE_Y + p.gdy, 'blank', 0);
+  } else {
+    const dy = p.hy - HY_DOWN;
+    // hangers: sleeves on the trolley, rods down to the beam
+    const len = p.hy + 2 - (TB + 26);
+    if (len > 0.5) {
+      // one full-length rod sprite, cropped to the extended length
+      const S = sprite(ctx, 'pl5-hanger', [PREF - 60 - 6, TB + 26, 12, HY_DOWN + 2 - (TB + 26)], (c) => rodV(c, PREF - 60, TB + 26, HY_DOWN + 2, 6, FRESH));
+      const sh = Math.min(S.ch, Math.ceil((S.l + len) * S.s));
+      for (const s of [-1, 1]) ctx.drawImage(S.cv, 0, 0, S.cw, sh, S.x0 + p.x - PREF + (s + 1) * 60 - S.k, S.y0 - S.l, S.cw / S.s, sh / S.s);
+    }
+    blit(ctx, sprite(ctx, 'pl5-trolley', [PREF - 80, RAIL_Y - 4, 190, TB + 30 - RAIL_Y], drawTrolley), dx, 0);
+    blit(ctx, sprite(ctx, 'pl5-beam', [PREF - 104, HY_DOWN - 10, 208, 30], drawBeam), dx, dy);
+    for (const s of [-1, 1]) blit(ctx, sprite(ctx, 'pl5-jaw' + s, [PREF + s * JC - 16, HY_DOWN - 12, 32, 66], (c) => drawJaw(c, s)), dx + s * p.open, dy);
+    if (p.carried) plateAt(ctx, p.x, PLATE_Y + dy, 'blank', 0);
+    if (!LOD.card && p.open > 24) dimension(ctx, p.x - JC - p.open, p.hy + 50, p.x + JC + p.open, p.hy + 50, 16, 0.75);
   }
-  blit(ctx, sprite(ctx, 'pl5-trolley', [PREF - 80, RAIL_Y - 4, 190, TB + 30 - RAIL_Y], drawTrolley), dx, 0);
-  blit(ctx, sprite(ctx, 'pl5-beam', [PREF - 104, HY_DOWN - 10, 208, 30], drawBeam), dx, dy);
-  for (const s of [-1, 1]) blit(ctx, sprite(ctx, 'pl5-jaw' + s, [PREF + s * JC - 16, HY_DOWN - 12, 32, 66], (c) => drawJaw(c, s)), dx + s * p.open, dy);
-  if (p.carried) plateAt(ctx, p.x, PLATE_Y + dy, 'blank', 0);
-  // the lens
-  const on = p.lamp;
-  ball(ctx, LENS[0] + dx, LENS[1], 5, { ...FRESH, top: mix('#2f6141', '#e9fff0', on), hi: '#ffffff' });
-  if (!LOD.card && p.open > 24) dimension(ctx, p.x - JC - p.open, p.hy + 50, p.x + JC + p.open, p.hy + 50, 16, 0.75);
+  // the lens: dark and lit sprites, crossfaded by the lamp
+  const lensS = (on) => sprite(ctx, 'pl6-lens' + on, [PREF - 8, 492, 16, 16], (c) => ball(c, PREF, 500, 5, { ...FRESH, top: on ? '#e9fff0' : '#2f6141', hi: '#ffffff' }));
+  if (p.lamp < 1) blit(ctx, lensS(0), lens[0] - PREF, lens[1] - 500);
+  if (p.lamp > 0) { ctx.save(); ctx.globalAlpha *= p.lamp; blit(ctx, lensS(1), lens[0] - PREF, lens[1] - 500); ctx.restore(); }
 }
 // The inspector's own light: a cone from the lens and a pool on the chart glass.
 function inspectorLight(ctx, p) {
   if (p.lamp <= 0) return;
-  const lx = LENS[0] + p.x - PREF, ly = LENS[1];
+  const [lx, ly] = lensOf(p);
+  const yb = LANE[1].y + LANE[1].h;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createLinearGradient(0, ly, 0, LANE[1].y + LANE[1].h);
+  const g = ctx.createLinearGradient(0, ly, 0, yb);
   g.addColorStop(0, `rgba(205,245,215,${0.16 * p.lamp})`);
   g.addColorStop(1, 'rgba(205,245,215,0)');
   ctx.fillStyle = g;
-  poly(ctx, [[lx - 7, ly], [lx + 7, ly], [p.x + 170, LANE[1].y + LANE[1].h], [p.x - 170, LANE[1].y + LANE[1].h]]);
+  const wide = p.I.kind === 'cart' ? [p.x - 150, p.x + 110] : [p.x - 170, p.x + 170];
+  poly(ctx, [[lx - 7, ly], [lx + 7, ly], [wide[1], yb], [wide[0], yb]]);
   ctx.fill();
   ctx.restore();
   softGlow(ctx, p.x, BAND.mid, 230, '#cdf5d7', 0.11 * p.lamp);
@@ -951,6 +1005,9 @@ function frontLayer(ctx) {
   ctx.strokeStyle = '#5f8167';
   ctx.lineWidth = lw(2.5);
   ctx.strokeRect(WIN.x, WIN.y, WIN.w, WIN.h);
+  // the second inspector's bench rail, in front of the recorder, with an end stop
+  prism(ctx, rect(1110, CART_RAIL_Y, W - 1110, 6), 26, MAT.lit, { sil: 2 });
+  prism(ctx, rect(1104, CART_RAIL_Y - 14, 10, 20), 26, MAT.lit, { sil: 2 });
   if (!LOD.card) {
     centreLine(ctx, ...lp(-20, TH / 2), ...lp(L + 20, TH / 2), 0.35);
     const a = lp(GATES[0], TH), b = lp(GATES[1], TH);

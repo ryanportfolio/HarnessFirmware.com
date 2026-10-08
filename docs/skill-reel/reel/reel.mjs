@@ -22,15 +22,15 @@ const FALLBACK_OPENER = 5.5;
 // Reel timing, pitch A section 4 with BRIEF.md changes. The intro absorbs the difference to TARGET,
 // within [introMin, introMax], so the reel lands near 90 s whatever the scene periods add up to.
 export const TIMING = {
-  target: 95,
-  introMin: 4.5,     // the product line under the title needs about 4 s on screen
+  target: 98,
+  introMin: 4.0,     // the product line under the title stays on about 3 s
   introMax: 4.5,
-  truck: 1.0,       // transition length; the incoming loop starts when the truck starts
-  pullback: 3.0,    // the end move: camera pulls back while the bench folds into three lines of three
-  liftAt: 0.6,      // the earlier runs lift to their lines (off to the left) from here
-  lift: 0.8,
-  slideAt: 1.1,     // and slide right into place from here to the end of the move
-  slate: 3.4,       // end slate hold (the plate arrives 0.5 s before it, so the URL holds about 3.9 s)
+  truck: 0.9,       // transition: the outgoing station holds its rest frame, the incoming loop starts with it
+  pullback: 2.6,    // the end move: camera pulls back while the bench folds into three lines of three
+  liftAt: 0.5,      // the earlier runs lift to their lines (off to the left) from here
+  lift: 0.7,
+  slideAt: 0.95,    // and slide right into place from here to the end of the move
+  slate: 3.0,       // end slate hold (the plate arrives 0.5 s before it, so the URL holds about 3.5 s)
   capInDelay: 0.6,  // caption plate slides in this long after a loop starts
   capIn: 0.4,       // ease-out
   capOutLead: 0.4,  // caption starts leaving this long before the truck (or the pull back)
@@ -212,9 +212,11 @@ function setTracking(ctx, px) {
 
 // ---------------------------------------------------------------------------------------------
 // Reel timeline, built from the scenes' periods.
-//   merge loop starts at intro + opener; loop i+1 starts truck/2 before loop i ends;
-//   the truck between them runs [start(i+1), start(i+1) + truck]; the last loop ends, then pull back and slate.
-//   total = intro + opener + sum(periods) - (n - 1) * truck / 2 + pullback + slate
+//   merge loop starts at intro + opener; loop i+1 starts when loop i ends, with the truck between
+//   them over [start(i+1), start(i+1) + truck]: the outgoing station holds its rest frame (t = 0,
+//   pixel-equal to t = period) while it slides out, so no moving work is cut by the panel edge, and
+//   the incoming loop plays from t = 0 as it slides in. The last loop ends, then pull back and slate.
+//   total = intro + opener + sum(periods) + pullback + slate
 
 export function buildReel(scenes) {
   const T = TIMING;
@@ -222,15 +224,14 @@ export function buildReel(scenes) {
   const openerDur = merge.opener ? merge.opener.duration : 0;
   const sum = scenes.reduce((s, sc) => s + sc.period, 0);
   const endMove = T.pullback;
-  const rest = openerDur + sum - ((scenes.length - 1) * T.truck) / 2 + endMove + T.slate;
+  const rest = openerDur + sum + endMove + T.slate;
   const intro = Math.min(T.introMax, Math.max(T.introMin, T.target - rest));
   const opener = merge.opener ? { a: intro, b: intro + openerDur } : null;
   let t = opener ? opener.b : intro;
   const loops = scenes.map((sc, i) => {
     const a = t, b = t + sc.period;
-    const isLast = i === scenes.length - 1;
-    t = isLast ? b : b - T.truck / 2;
-    const leave = isLast ? b : b - T.truck / 2; // truck start, or pull back start
+    t = b;
+    const leave = b; // truck start, or pull back start
     return { sc, i, a, b, leave };
   });
   const showEnd = loops[loops.length - 1].b;
@@ -286,7 +287,7 @@ export function buildReel(scenes) {
   if (opener) chapters.push({ t: opener.a, name: merge.name + ' opener' });
   for (const L of loops) chapters.push({ t: L.a, name: L.sc.name });
   chapters.push({ t: pullback.a, name: 'pull back' }, { t: pullback.fold.a, name: 'fold' }, { t: slate.a, name: 'end slate' });
-  const formula = `intro ${qt(intro)} + opener ${openerDur} + sum(periods) ${qt(sum)} - ${scenes.length - 1} x ${T.truck / 2} + end move ${T.pullback} + slate ${T.slate}`;
+  const formula = `intro ${qt(intro)} + opener ${openerDur} + sum(periods) ${qt(sum)} + end move ${T.pullback} + slate ${T.slate}`;
   return { intro, opener, loops, plates, pullback, slate, total, chapters, formula };
 }
 
@@ -666,7 +667,7 @@ function drawReelFrame(ctx, cv, reel, scenes, t) {
         const Pv = reel.loops[j - 1];
         const e = easeInOut(seg(t, L.a, L.a + TIMING.truck));
         const xa = -Math.round(W * e * base) / base;
-        drawPanel(ctx, base, xa, 0, 1, Pv.sc, Pv.sc.draw, qt(mod(t - Pv.a, Pv.sc.period)));
+        drawPanel(ctx, base, xa, 0, 1, Pv.sc, Pv.sc.draw, 0); // the outgoing station at rest
         drawPanel(ctx, base, xa + W, 0, 1, L.sc, L.sc.draw, local);
         note = `truck  ${Pv.sc.name} -> ${L.sc.name}`;
       } else {

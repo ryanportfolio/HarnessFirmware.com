@@ -11,7 +11,7 @@
 // skill-reel\skills-reel.mp4; a partial range gets a -<from>-<to> suffix), --ffmpeg <path>.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,6 +74,7 @@ async function main() {
   });
   let browser = null;
   let enc = null; // function scope so cleanup can stop the encoder whatever failed
+  let part = null; // the encoder writes here; renamed to the output only after a clean finish
   try {
     await waitForServer(server, o.port);
     const { launchPlacedChrome } = await import(new URL('../../../scripts/lib/launch-chrome.mjs', import.meta.url));
@@ -101,6 +102,7 @@ async function main() {
     const defaultDir = 'D:\\CoreWise\\_artifacts\\HarnessFirmware.com\\skill-reel';
     let out = o.out || path.join(defaultDir, partial ? `skills-reel-${from}-${to}.mp4` : 'skills-reel.mp4');
     mkdirSync(path.dirname(out), { recursive: true });
+    part = out + '.part';
 
     enc = spawn(ffmpeg, [
       '-y', '-v', 'error',
@@ -113,7 +115,7 @@ async function main() {
       '-g', String(o.fps * 2), '-bf', '2',
       '-color_primaries', 'bt709', '-colorspace', 'bt709', '-color_trc', 'iec61966-2-1',
       '-an', '-movflags', '+faststart',
-      out,
+      '-f', 'mp4', part,
     ], { stdio: ['pipe', 'inherit', 'inherit'] });
     const encDone = new Promise((res, rej) => enc.on('exit', (c) => (c === 0 ? res() : rej(new Error(`ffmpeg exited with ${c}`)))));
     // An encoder that dies mid-export is recorded at once (no unhandled rejection) and stops the frame loop.
@@ -132,7 +134,16 @@ async function main() {
       const pw = png.length > 24 ? png.readUInt32BE(16) : 0, ph = png.length > 24 ? png.readUInt32BE(20) : 0;
       if (pw !== 1920 || ph !== 1080) throw new Error(`frame ${f} is ${pw}x${ph}, not 1920x1080: export aborted, ${out} is incomplete`);
       if (f === f0) firstPng = png;
-      if (!enc.stdin.write(png)) await new Promise((r) => { enc.stdin.once('drain', r); enc.once('exit', r); });
+      if (!enc.stdin.write(png) && !encError && enc.exitCode === null && enc.signalCode === null) {
+        // One pair of listeners per wait, both removed when either fires. Only while the encoder
+        // still runs: an 'exit' that already happened would never fire again.
+        await new Promise((r) => {
+          const done = () => { enc.stdin.off('drain', done); enc.off('exit', done); enc.stdin.off('error', done); r(); };
+          enc.stdin.once('drain', done);
+          enc.stdin.once('error', done);
+          enc.once('exit', done);
+        });
+      }
       const n = f - f0 + 1;
       if (n % 60 === 0 || f === f1 - 1) {
         const s = (Date.now() - started) / 1000;
@@ -141,6 +152,8 @@ async function main() {
     }
     enc.stdin.end();
     await encDone;
+    renameSync(part, out);
+    part = null;
     process.stdout.write('\n');
     const secs = (Date.now() - started) / 1000;
     console.log(`encoded ${f1 - f0} frames in ${secs.toFixed(1)} s -> ${out} (${(statSync(out).size / 1048576).toFixed(2)} MB)`);
@@ -158,7 +171,9 @@ async function main() {
       const p = path.parse(out);
       const ref = path.join(p.dir, `${p.name}-first.png`); // never the video path, whatever its extension
       writeFileSync(ref, firstPng);
-      const ps = spawnSync(ffmpeg, ['-v', 'info', '-i', out, '-i', ref, '-frames:v', '1', '-lavfi', '[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr', '-f', 'null', '-'], { encoding: 'utf8' });
+      // frame 0 of the video only, decoded with the matrix and range it was encoded with
+      const graph = '[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale=in_color_matrix=bt709:in_range=tv,format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr';
+      const ps = spawnSync(ffmpeg, ['-v', 'info', '-i', out, '-i', ref, '-lavfi', graph, '-f', 'null', '-'], { encoding: 'utf8' });
       const m = /PSNR.*average:([\d.inf]+)/.exec(ps.stderr || '');
       console.log(`first frame PSNR vs source PNG: ${m ? m[1] : 'n/a'} dB (${ref})`);
     }
@@ -169,6 +184,11 @@ async function main() {
     }
     if (browser) await browser.close().catch(() => {});
     server.kill();
+    // a failed export leaves no file that looks like a finished one
+    if (part) {
+      if (enc && enc.exitCode === null) await new Promise((r) => { enc.once('exit', r); setTimeout(r, 2000); });
+      try { rmSync(part, { force: true }); } catch { /* best effort */ }
+    }
   }
 }
 
