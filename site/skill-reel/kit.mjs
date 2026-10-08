@@ -117,8 +117,12 @@ export const lw = (w) => w * LOD.k;
 // The render options (RENDER) are part of the key, so a layer that reads them stays correct.
 const layers = new Map();
 const scaleOf = new Map(); // key -> the one id (key@scale) held for it
-const LAYER_BUDGET = 96 * 1024 * 1024;
+let LAYER_BUDGET = 96 * 1024 * 1024;
 let layerBytes = 0;
+// A host that draws many full-size layers in turn (the reel) can hold its whole working set.
+export function setLayerBudget(bytes) {
+  LAYER_BUDGET = Math.max(0, Number(bytes) || 0);
+}
 export function cached(ctx, key, draw) {
   const m = ctx.getTransform();
   const s = Math.hypot(m.a, m.b) || 1;
@@ -129,6 +133,10 @@ export function cached(ctx, key, draw) {
     layers.delete(id);
     layers.set(id, L);
   } else {
+    // A host warming a scene ahead of time can cap how many layers one call builds: a layer past
+    // the cap is neither built nor drawn (that draw goes to a scratch canvas nobody sees).
+    if (RENDER.buildsLeft <= 0) return;
+    RENDER.buildsLeft--;
     const prev = scaleOf.get(k0);
     if (prev !== undefined) {
       const old = layers.get(prev);
@@ -169,7 +177,8 @@ export function layerStats() {
 // Render options a host sets before drawing a scene. Defaults are the card look; the reel turns
 // the per-scene vignette off and draws one vignette over its whole frame, so neighbouring panels
 // in a truck meet without a dark band. Scenes that draw their own falloff check RENDER.vignette.
-export const RENDER = { vignette: true };
+// RENDER.buildsLeft: layers cached() may still build (default unlimited; see warm-ups in the reel).
+export const RENDER = { vignette: true, buildsLeft: Infinity };
 export function setVignette(on) {
   RENDER.vignette = !!on;
 }

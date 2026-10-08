@@ -58,10 +58,10 @@ const BIN_WIN = { x0: 1656, x1: 1832, y0: 368, y1: 560 }; // the magazine's visi
 // ---------------------------------------------------------------------------------------------
 // Timing.
 
-const GAUGE_IN = 0.0, SEAL = [0.62, 0.82];
+const GAUGE_IN = 0.0, SEAL = [0.62, 0.82], G_STOW = [0.95, 1.3]; // sealed, then reeled up out of the way
 const BIT_IN = [1.0, 1.5], DESCEND = [1.5, 1.75], RULE = [1.75, 2.75], RETRACT = [2.78, 3.0];
-const TOSS = [3.0, 3.74], LIFT_OUT = 3.12;
-const G_RUN = [3.8, 4.1], G_GO = [4.1, 4.42], G_LIFT = [4.5, 4.64], G_SPIN = [4.64, 4.96], G_NOGO = [4.96, 5.08];
+const TOSS = [3.0, 3.74], LIFT_OUT = 3.12, LAND = 3.62; // pluck, fly, land nose first and topple
+const G_DROP = 3.66, G_RUN = [4.02, 4.28], G_GO = [4.28, 4.56], G_LIFT = [4.6, 4.72], G_SPIN = [4.72, 5.0], G_NOGO = [5.0, 5.12];
 const PAWL_UP = [5.28, 5.4], INDEX = [5.4, 5.78], PAWL_DOWN = [5.74, 5.86];
 const G_OUT = [7.4, 7.8];
 const SEAM = [8.2, 9.0], SINK = [8.2, 8.36];
@@ -294,20 +294,24 @@ function postDrop(t) {
 }
 
 // Bit pose: [x, tipY, angle] or null. After ruling it is plucked out of the post, tipping as it
-// rises, then lobbed: its run slows to a stop over the bin's opening while it is still high, and
-// it drops in from above, clear of the end bearing and the bin walls.
+// rises, then thrown: one ballistic arc (constant run, gravity on the rise) high over the end
+// bearing and down into the bin's opening point first; it lands on the stack and topples flat.
+// Angle 0 = point down; in flight the point turns to lead along the path.
 const Y_PLUCK = SEAT_TIP - 45, A_PLUCK = -0.6, LOB_H = 160;
+const LAND_Y = binLayerY(BIN_N) + 10;
+const flightY = (u) => lerp(Y_PLUCK, LAND_Y, u) - 4 * LOB_H * u * (1 - u);
+const flightA = (u) => { const vy = (LAND_Y - Y_PLUCK) - 4 * LOB_H * (1 - 2 * u), vx = BIN_TIP_X - CX0; return Math.atan2(-vx, vy); };
 function bitPose(t, cx) {
   if (t < BIT_IN[0] || t >= TOSS[1]) return null;
   if (t < BIT_IN[1]) return [cx, SEAT_TIP - 560 * (1 - springStep(t - BIT_IN[0], 0.86, 12.5)), 0];
   if (t < TOSS[0]) return [cx, SEAT_TIP + postDrop(t), 0];
   if (t < LIFT_OUT) { const u = easeOut(seg(t, TOSS[0], LIFT_OUT)); return [cx, lerp(SEAT_TIP, Y_PLUCK, u), A_PLUCK * u]; }
-  const u = seg(t, LIFT_OUT, TOSS[1]);
-  const ux = Math.min(1, u / 0.8);
-  const x = lerp(cx, BIN_TIP_X, 1 - (1 - ux) * (1 - ux));
-  const yEnd = binLayerY(BIN_N) + 10;
-  const y = lerp(Y_PLUCK, yEnd, u) - 4 * LOB_H * u * (1 - u);
-  return [x, y, A_PLUCK + (-Math.PI / 2 - A_PLUCK) * smooth(Math.min(1, u / 0.3))];
+  if (t < LAND) {
+    const u = seg(t, LIFT_OUT, LAND);
+    return [lerp(cx, BIN_TIP_X, u), flightY(u), lerp(A_PLUCK, flightA(u), smooth(Math.min(1, u / 0.35)))];
+  }
+  // toppling flat about its point
+  return [BIN_TIP_X, LAND_Y, lerp(flightA(1), -Math.PI / 2, easeIn(seg(t, LAND, TOSS[1])))];
 }
 
 function postAndClamp(ctx, cx, drop, active) {
@@ -324,12 +328,14 @@ function postAndClamp(ctx, cx, drop, active) {
 // Bar centre y, cable x and turn angle at t; null when it is up inside the beam.
 function gaugePose(t) {
   let gx = GX_WAIT, yb, th = 0;
-  if (t < G_RUN[0]) {
-    yb = YB_WAIT - 640 * (1 - springStep(t - GAUGE_IN, 0.82, 11));
+  if (t < G_DROP) {
+    // comes down fresh, is sealed, and reels back up before the bit exists
+    yb = YB_WAIT - 640 * (1 - springStep(t - GAUGE_IN, 0.82, 11)) - 700 * easeIn(seg(t, G_STOW[0], G_STOW[1]));
   } else {
+    // comes back down, seal on, only once the bit is gone, and runs along the beam to the work
+    yb = YB_WAIT - 640 * (1 - springStep(t - G_DROP, 0.82, 11));
     gx = lerp(GX_WAIT, GX_TEST, easeInOut(seg(t, G_RUN[0], G_RUN[1])));
-    yb = YB_WAIT;
-    if (t >= G_GO[0]) yb = lerp(YB_WAIT, YB_GO, easeInOut(seg(t, G_GO[0], G_GO[1])));
+    if (t >= G_GO[0]) yb = lerp(yb, YB_GO, easeInOut(seg(t, G_GO[0], G_GO[1])));
     if (t >= G_LIFT[0]) yb = lerp(YB_GO, YB_LIFT, easeInOut(seg(t, G_LIFT[0], G_LIFT[1])));
     th = Math.PI * easeInOut(seg(t, G_SPIN[0], G_SPIN[1]));
     if (t >= G_NOGO[0]) {
@@ -427,7 +433,7 @@ function gauge(ctx, g, sealU) {
     ctx.moveTo(gx - 3, yb - by - 6);
     ctx.quadraticCurveTo(gx - 16, sy - 12, sx - 4, sy - 8);
     ctx.stroke();
-    const r = LOD.card ? 10 : 8.5;
+    const r = LOD.card ? 13 : 12; // 24 units across: 6 px on a card
     const sg = ctx.createRadialGradient(sx - 3, sy - 3, 1, sx, sy, r);
     sg.addColorStop(0, '#fdfdf7');
     sg.addColorStop(1, '#bfc0b4');
@@ -436,7 +442,7 @@ function gauge(ctx, g, sealU) {
     ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#7d8a7f';
-    ctx.fillRect(sx - 3.5, sy - 1, 7, 2);
+    ctx.fillRect(sx - r * 0.45, sy - 1.5, r * 0.9, 3);
   }
   ctx.restore();
 }

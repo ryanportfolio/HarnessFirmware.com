@@ -28,7 +28,7 @@ const CY = P_BOT - PH / 2; // piece centre height on the rail; the ring axis
 const ENTRY = 210, IX = 1270;
 const RINGS = [400, 535, 670, 805, 940];
 const RO = 96, RI = 74, RW = 18, RZ = PD / 2;
-const FEED_T = 1.3, FEED_A = 0.5, FEED_D = 0.2;
+const WAIT = 0.6, FEED_T = 1.2, FEED_A = 0.45, FEED_D = 0.2; // the piece waits at the entry, then feeds
 const SETTLE = 14, SEAT = P_BOT + SETTLE;
 const RAIL_END = IX - 56;
 
@@ -45,7 +45,7 @@ const COL_X = 1540;
 const CORNER = [IX + PW / 2 - PC / 2 + 2, P_BOT - PH + PC / 2 - 2]; // pad seats here
 const M_REST = 1436;
 const BOOM_Y = CORNER[1] - 30;
-const FILE_T0 = 3.6, FILE_A = (0.9 - 0.2) / 1.75, FILE_TC = FILE_T0 + FILE_A;
+const FILE_T0 = 3.95, FILE_A = (0.9 - 0.2) / 1.75, FILE_TC = FILE_T0 + FILE_A;
 
 // Evidence cards and tray.
 const CW = 150, CH = 110;
@@ -56,17 +56,17 @@ const LAYER = 8, K0 = 9, PER_LOOP = 6;
 
 // Critic rounds (fresh pairs). clicks: camera captures; move: camera from view 1 to view 2; mic: engage.
 const ROUNDS = [
-  { tin: 1.3, din: 0.5, tout: 3.2, clicks: [1.8, 2.25], move: [1.95, 2.2], mic: [2.2, 0.3] },
-  { tin: 4.5, din: 0.4, tout: 5.9, clicks: [4.95, 5.3], move: [5.05, 5.25], mic: [5.0, 0.2] },
+  { tin: 1.75, din: 0.45, tout: 3.55, clicks: [2.15, 2.7], move: [2.3, 2.6], mic: [2.55, 0.3] },
+  { tin: 4.7, din: 0.4, tout: 6.1, clicks: [5.1, 5.45], move: [5.2, 5.4], mic: [5.15, 0.2] },
 ];
 // [eject, arrive, holdEnd, dropEnd, source, view, burr, amber]
 const CARDS = [
-  [1.85, 2.15, 2.25, 2.4, 'cam', 1, true, false],
-  [2.3, 2.6, 2.9, 3.05, 'cam', 2, true, true],
-  [2.92, 3.18, 3.24, 3.36, 'mic', 0, true, false],
-  [5.0, 5.25, 5.3, 5.42, 'cam', 1, false, false],
-  [5.35, 5.6, 5.65, 5.77, 'cam', 2, false, false],
-  [5.56, 5.84, 5.88, 5.98, 'mic', 0, false, false],
+  [2.2, 2.75, 2.83, 3.13, 'cam', 1, true, false],
+  [2.75, 3.3, 3.65, 3.95, 'cam', 2, true, true],
+  [3.5, 3.95, 4.03, 4.33, 'mic', 0, true, false],
+  [5.15, 5.7, 5.78, 6.08, 'cam', 1, false, false],
+  [5.55, 6.1, 6.18, 6.48, 'cam', 2, false, false],
+  [6.05, 6.5, 6.58, 6.88, 'mic', 0, false, false],
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -147,10 +147,10 @@ function tilt(ctx, x0, y0, h, th) {
   ctx.transform(1, 0, -s * D.x, c - D.y * s, x0 + s * D.x * h, y0 + h * (D.y * s - c));
 }
 
-const feedX = (t) => ENTRY + (IX - ENTRY) * trap(t / FEED_T, FEED_A / FEED_T, FEED_D / FEED_T);
+const feedX = (t) => ENTRY + (IX - ENTRY) * trap((t - WAIT) / FEED_T, FEED_A / FEED_T, FEED_D / FEED_T);
 // When the piece's trailing edge clears each ring (solved once; the feed is monotonic).
 const CLEAR = RINGS.map((rx) => {
-  let lo = 0, hi = FEED_T;
+  let lo = WAIT, hi = WAIT + FEED_T;
   for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (feedX(m) - PW / 2 > rx + RW / 2 + 8) hi = m; else lo = m; }
   return hi;
 });
@@ -335,7 +335,7 @@ function flagBody(ctx, rx, st) {
 // ---------------------------------------------------------------------------------------------
 // The seam's exit: the gate drops, the piece slides forward off the cradle onto the front of the
 // bench (tipping over the gate's edge) and runs out past the right edge of the frame.
-const OUT_A = 8.33, OUT_B = 8.95, OUT_X1 = 2010, OUT_Z = -64;
+const OUT_A = 8.45, OUT_B = 8.97, OUT_X1 = 2040, OUT_Z = -96; // the front lane, well in front of the tray
 function outPose(t) {
   const u = seg(t, OUT_A, OUT_B);
   return {
@@ -611,11 +611,11 @@ const AMBER_AT = [CARD_CX2 + (PW * CARD_K2) / 2 - (PC * CARD_K2) / 2 + 2, CARD_T
 const cardOf = (s) => CARDS[(((s - K0) % PER_LOOP) + PER_LOOP) % PER_LOOP];
 
 function trayLayers(ctx, t) {
-  let shift = PER_LOOP * LAYER * indexEase(seg(t, 8.5, 8.64));
+  let shift = PER_LOOP * LAYER * indexEase(seg(t, 8.65, 8.79));
   let top = K0;
   for (let k = 0; k < CARDS.length; k++) if (t >= CARDS[k][3]) top = K0 + k + 1;
   // once the floor has indexed this loop's cards down, the stack is exactly the t = 0 stack
-  if (t >= 8.64) { shift = 0; top = K0; }
+  if (t >= 8.79) { shift = 0; top = K0; }
   ctx.save();
   ctx.beginPath();
   ctx.rect(TRAY_X0 + TWALL, 300, TRAY_X1 - TRAY_X0 + 80, TRAY_FLOOR - 300);
@@ -750,8 +750,35 @@ function boardClip(ctx) {
   ctx.restore();
 }
 
+// Where the lamp stands: on the piece while it waits and runs the rings, then on the inspection.
+const LAMP_IN = 470, LAMP_INSPECT = 1230;
+function lampX(t) {
+  if (t >= 8.45) return lerp(LAMP_INSPECT, LAMP_IN, easeInOut(seg(t, 8.45, T)));
+  return Math.min(LAMP_INSPECT, Math.max(LAMP_IN, feedX(t) + 40));
+}
+function lampPool(ctx, x) {
+  let g = ctx.createRadialGradient(x, 600, 0, x, 600, 640);
+  g.addColorStop(0, 'rgba(150,215,170,0.12)');
+  g.addColorStop(0.5, 'rgba(150,215,170,0.045)');
+  g.addColorStop(1, 'rgba(150,215,170,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(Math.max(0, x - 640), 0, 1280, BENCH_Y - 92);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, BENCH_Y - 92, W, 92);
+  ctx.clip();
+  ctx.translate(x, FLOOR - 6);
+  ctx.scale(1, 0.12);
+  g = ctx.createRadialGradient(0, 0, 0, 0, 0, 700);
+  g.addColorStop(0, 'rgba(225,240,225,0.10)');
+  g.addColorStop(1, 'rgba(225,240,225,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-700, -700, 1400, 1400);
+  ctx.restore();
+}
+
 function backLayer(ctx) {
-  benchFinal(ctx, 1180, 600);
+  benchFinal(ctx, -6000, 600);
   showBoard(ctx);
   // rail and its posts
   for (const x of [118, RAIL_END - 26]) {
@@ -791,34 +818,36 @@ export default {
     t = ((t % T) + T) % T;
     setLod(ctx);
     cached(ctx, 'wow-loop-back', backLayer);
+    const lx = lampX(t);
+    lampPool(ctx, lx);
 
     // Builder column (behind the cradle and the piece).
-    const act = easeInOut(seg(t, 3.35, 3.6)) - easeInOut(seg(t, 4.5, 4.9));
+    const act = easeInOut(seg(t, 3.7, 3.95)) - easeInOut(seg(t, 4.75, 5.1));
     builderColumn(ctx, act);
 
     // Cradle: pins drop at settle; gate opens in the seam and closes again.
-    const gate = easeInOut(seg(t, 8.3, 8.45)) - easeInOut(seg(t, 8.75, 9.0));
-    const pins = 1 - easeInOut(seg(t, 6.3, 6.8)) + easeInOut(seg(t, 8.6, 8.9));
+    const gate = easeInOut(seg(t, 8.45, 8.57)) - easeInOut(seg(t, 8.8, 9.0));
+    const pins = 1 - easeInOut(seg(t, 6.45, 6.95)) + easeInOut(seg(t, 8.65, 8.92));
     cradle(ctx, gate, pins);
 
     // The piece: feed through the rings, inspection, filing, settle, out through the gate.
     const fe = engage(t, FILE_T0, FILE_A);
     const burr = t < FILE_TC + 0.1;
     const filed = t >= FILE_TC + 0.1 ? 1 - easeInOut(seg(t, FILE_TC + 0.1, 6.0)) * 0.6 : 0;
-    const px = feedX(t), pb = P_BOT + SETTLE * easeOut(seg(t, 6.3, 6.8));
+    const px = feedX(t), pb = P_BOT + SETTLE * easeOut(seg(t, 6.45, 6.95));
     const leaving = t >= OUT_A;
     if (!leaving) {
-      if (pb < SEAT - 1 || t < 6.3) contactShadow(ctx, px + 16, FLOOR - 6, 40, 7, 0.3);
+      if (pb < SEAT - 1 || t < 6.45) contactShadow(ctx, px + 16, FLOOR - 6, 40, 7, 0.3);
       piece(ctx, px, pb, { burr, filed });
     }
-    if (t >= 8.4) {
-      const nx = lerp(-90, ENTRY, easeInOut(seg(t, 8.4, 9.0)));
+    if (t >= 8.5) {
+      const nx = lerp(-90, ENTRY, easeInOut(seg(t, 8.5, 9.0)));
       contactShadow(ctx, nx + 16, FLOOR - 6, 40, 7, 0.3);
       piece(ctx, nx, P_BOT, { burr: true });
     }
 
     cached(ctx, 'wow-loop-rings-front', ringsFront);
-    const reset = indexEase(seg(t, 8.4, 8.54));
+    const reset = indexEase(seg(t, 8.55, 8.69));
     RINGS.forEach((rx, i) => flag(ctx, rx, indexEase(seg(t, CLEAR[i], CLEAR[i] + 0.14)) * (1 - reset)));
 
     // Builder arm: telescopes in, files the corner (three strokes), withdraws.
@@ -861,9 +890,13 @@ export default {
         let s0;
         if (src === 'cam') s0 = camLocal(camPose(te, r), 18, 4);
         else s0 = [MX + 40 + D.x * RZ, MIC_HEAD + 20 + D.y * RZ];
-        const u = easeInOut(seg(t, te, ta));
-        const s = lerp(0.4, 1, u);
-        const cx = lerp(s0[0], SHOW[0], u), cy = lerp(s0[1], SHOW[1], u) - 70 * Math.sin(Math.PI * u);
+        const u0 = seg(t, te, ta);
+        const u = u0 * u0 * (3 - 2 * u0);
+        const s = 0.3 + 0.7 * u0 * u0;
+        const c1 = src === 'cam' ? [s0[0] + 52, 250] : [s0[0] + 84, 330];
+        const c2 = src === 'cam' ? [1450, 250] : [1600, 330];
+        const cub = (a, b, c, d) => (1 - u) * (1 - u) * (1 - u) * a + 3 * (1 - u) * (1 - u) * u * b + 3 * (1 - u) * u * u * c + u * u * u * d;
+        const cx = cub(s0[0], c1[0], c2[0], SHOW[0]), cy = cub(s0[1], c1[1], c2[1], SHOW[1]);
         ctx.save();
         ctx.fillStyle = 'rgba(2,4,3,0.35)';
         ctx.fillRect(cx - (CW / 2) * s + 6, cy - (CH / 2) * s + 9, CW * s, CH * s);
@@ -872,7 +905,8 @@ export default {
         prism(ctx, rect(cx - (CW / 2) * s, cy - (CH / 2) * s, CW * s, CH * s), 4, CARD_EDGE, { noLines: true });
         cardFlat(ctx, cx - (CW / 2) * s, cy + (CH / 2) * s, 0, view, cb, amber, s);
       } else {
-        const u = easeIn(seg(t, th, td));
+        const ud = seg(t, th, td);
+        const u = ud * ud * (3 - 2 * ud);
         const slot = K0 + k;
         const yb = TRAY_FLOOR - slot * LAYER - LAYER;
         ctx.save();
@@ -896,7 +930,7 @@ export default {
       ctx.restore();
     }
 
-    lampFalloff(ctx, 1230, 600, 420, 1250, 0.56);
+    lampFalloff(ctx, lx, 600, 420, 1250, 0.56);
 
     // Light on top of the lamp falloff.
     for (const [x, y, u, r] of flashes) contactGlow(ctx, x, y, u, r);

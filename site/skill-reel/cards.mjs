@@ -3,10 +3,10 @@
 // stage to the card's content box at a device pixel ratio capped at 2 for cards narrower than
 // 600 CSS px and 1.5 otherwise. A card plays only while at least half of it is on screen and the
 // tab is visible; its clock is real time and draws scene.draw(ctx, t mod period). Up to three
-// playing cards redraw every frame; with more, each redraws at 30 Hz, staggered so only part of
-// them paint on any one frame. Scene modules load lazily when their card nears the viewport and
-// paint their t = 0 frame once. The first paint waits for the site faces, so no frame is ever set
-// in a fallback face that a late font then replaces.
+// playing cards redraw every frame; with more, each redraws at 30 Hz, with phases spread evenly so
+// the same share of them paints on every frame. Scene modules load lazily when their card nears
+// the viewport and paint their t = 0 frame once, one card per animation frame. The first paint
+// waits for the site faces, so no frame is ever set in a fallback face that a late font replaces.
 // A missing or throwing scene hides its canvas box; the card text is real HTML either way.
 // No reduced-motion variant (owner decision, same as the homepage explainer).
 
@@ -110,27 +110,35 @@ function mount(root) {
 
   const running = () => !document.hidden && cards.some((c) => c.visible && c.scene);
 
+  let playingKey = '';
   const frame = (now) => {
     raf = 0;
     const dt = last === null ? 0 : Math.min(DT_CAP, (now - last) / 1000);
     last = now;
     const playing = cards.filter((c) => c.visible && c.scene);
     const slow = playing.length > FULL_RATE_MAX;
-    playing.forEach((c, k) => {
+    // Stagger: whenever the set of playing cards changes, spread all their phases evenly over the
+    // interval, so the same share of them paints on every frame.
+    const key = playing.map((c) => c.id).join();
+    if (slow && key !== playingKey) playing.forEach((c, k) => { c.due = now + (k / playing.length) * SLOW_MS; });
+    playingKey = slow ? key : '';
+    for (const c of playing) {
       c.t = (c.t + dt) % c.scene.period;
-      if (!slow) {
-        c.due = 0;
-        paint(c);
-        return;
+      // a card whose first frame was painted this frame starts playing on the next one
+      if (c.fresh) {
+        c.fresh = false;
+        continue;
       }
-      // Stagger: a card entering the throttled set starts at its own fraction of the interval.
-      if (!c.due) c.due = now + (k / playing.length) * SLOW_MS;
+      if (!slow) {
+        paint(c);
+        continue;
+      }
       // Paint on the frame nearest the due time (half a frame of slack), then keep the phase.
       if (now >= c.due - 5) {
         paint(c);
         c.due += SLOW_MS * Math.max(1, Math.ceil((now - c.due + 5) / SLOW_MS));
       }
-    });
+    }
     if (running()) raf = requestAnimationFrame(frame);
     else last = null;
   };
@@ -140,6 +148,23 @@ function mount(root) {
       last = null;
       raf = requestAnimationFrame(frame);
     }
+  };
+
+  // First frames: a scene's first paint builds its cached layers (several ms each), so loaded
+  // scenes queue here and paint their t = 0 frame one per animation frame, never all in one task.
+  const firstQueue = [];
+  let firstRaf = 0;
+  const drainFirst = () => {
+    firstRaf = 0;
+    // on-screen cards first, then the ones loaded ahead of the viewport
+    let i = firstQueue.findIndex((q) => q.c.visible);
+    if (i < 0) i = 0;
+    const [{ c, scene }] = firstQueue.splice(i, 1);
+    c.scene = scene;
+    paint(c);
+    c.fresh = true;
+    wake();
+    if (firstQueue.length) firstRaf = requestAnimationFrame(drainFirst);
   };
 
   // Load a scene when its card comes within NEAR of the viewport, then paint its t = 0 frame once
@@ -154,9 +179,8 @@ function mount(root) {
           c.el.classList.add('is-unavailable');
           return;
         }
-        c.scene = scene;
-        paint(c);
-        wake();
+        firstQueue.push({ c, scene });
+        if (!firstRaf) firstRaf = requestAnimationFrame(drainFirst);
       });
     }
   }, { rootMargin: NEAR });

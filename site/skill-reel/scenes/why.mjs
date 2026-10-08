@@ -1,9 +1,11 @@
 // /why at final fidelity (pitch A 3.5, same beats and timing as scenes/why.js).
-// A hood lowers so only the recommendation is in view: an ivory bracket in a vice with the user's
-// slip clipped to it. One fresh proving ring (clean green, same model as the session, never steel)
+// The session's arm reaches in from the right and sets the recommendation in the vice: an ivory
+// bracket with the user's slip clipped to it. A hood lowers so only the recommendation is in view. One fresh proving ring (clean green, same model as the session, never steel)
 // drops in and presses three times; the third bows the bracket and the needle passes the amber
-// mark. The ring lifts out, the hood rises, the session's hatched hand fits a gusset and the
-// bracket straightens. Hold. Seam: the vice opens, the bracket feeds out, a fresh one feeds in.
+// mark. The ring lifts out, the hood rises, the session's hatched arm fits a gusset and the
+// bracket straightens. Hold. Seam: the vice opens and the same arm carries the bracket out right;
+// it is the arm that brings the next one in at the start of the loop. The arm is the session's
+// (hatched, dim green), never a tester: the clean-outlined ring is the only reviewer.
 // Nothing goes to a tray or file: /why changes nothing on disk.
 // Pure function of t. No Math.random, no setTransform; static layers cached per device scale.
 
@@ -29,8 +31,7 @@ const G = 100; // gusset leg length
 
 // Vice.
 const JAW_Y = 660, SCREW_Y = 703, END_X = 968;
-const OUT_LIFT = 240, OUT_RUN = 1200; // lifted, the leg clears the hand's column // the seam: the finished bracket lifts and feeds out past the right edge
-const IN_RUN = LEG_X + ARM_L + 40; // the fresh bracket starts wholly off frame left
+const LIFT = 100, RUN = 1200; // the arm lifts the bracket clear of the jaws and carries it past the right edge
 
 // Feed with a constant-speed middle: accelerate over fraction a, decelerate over fraction d.
 function trap(u, a, d) {
@@ -117,19 +118,28 @@ function engage(t, t0, a, dwell = 0.2) {
   return { d, t1, t3, c: (t - t1) / 0.12 };
 }
 
+// Loop timeline.
+const ENTRY_B = 1.05, LOWER_A = 1.0, LOWER_B = 1.25; // the arm brings the bracket in and sets it
+const RETRACT_A = 1.3, RETRACT_B = 1.9; // the arm lets go and parks in the right bay
+const HOOD_DOWN = [1.35, 1.95], HOOD_UP = [4.3, 4.85];
+const RING_IN = 1.9, P0 = 2.4, PP = 0.6, P_END = P0 + 3 * PP, RING_OUT = [P_END, P_END + 0.4];
+const FIT_A = 4.45, FIT_B = 5.0; // the arm carries the gusset in and seats it
+const REGRIP = [6.8, 6.95], JAW_OPEN = [6.82, 6.94], LIFT_T = [6.9, 7.2], RUN_T = [7.08, T];
+const JAW_CLOSE = [1.18, 1.33];
+
 // The three presses: ring x, ring travel below hover, needle target, bracket bow, contacts.
 function presses(t) {
   let rx = PX[0], travel = 0, needle = 0, bow = 0;
   const flashes = [];
   for (let i = 0; i < 3; i++) {
-    const s = 1.4 + 0.8 * i;
+    const s = P0 + PP * i;
     if (t >= s && i > 0) rx = lerp(PX[i - 1], PX[i], indexEase(seg(t, s, s + 0.26)));
     const dwell = i === 2 ? 0.3 : 0.2;
-    const e = engage(t, s + 0.15, (0.65 - dwell) / 1.75, dwell);
+    const e = engage(t, s + 0.12, (PP - 0.15 - dwell) / 1.75, dwell);
     const bmax = i < 2 ? ELASTIC : BOW;
     const sh = shape(PX[i] - LEG_X);
     const total = HOVER + bmax * sh;
-    if (t >= s && t < s + 0.8) {
+    if (t >= s && t < s + PP) {
       travel = e.d * total;
       needle = e.d * (i < 2 ? NEEDLE_BAND : NEEDLE_OVER);
       bow = bmax * clamp01((travel - HOVER) / (bmax * sh));
@@ -137,12 +147,12 @@ function presses(t) {
     }
     if (e.c > 0 && e.c < 1) flashes.push({ i, c: e.c });
   }
-  if (t >= 3.8) rx = PX[2];
+  if (t >= P_END) rx = PX[2];
   return { rx, travel, needle, bow, flashes };
 }
-const needleTarget = (s) => (s < 1.4 || s > 4.4 ? 0 : presses(s).needle);
+const needleTarget = (s) => (s < P0 || s > P_END + 0.6 ? 0 : presses(s).needle);
 // The needle lags, overshoots and damps (about 5 Hz), integrated from rest at a fixed step.
-const needleAt = (t) => (t < 1.4 || t > 4.6 ? 0 : follow(needleTarget, 1.35, t, 0.3, 34));
+const needleAt = (t) => (t < P0 || t > RING_OUT[1] ? 0 : follow(needleTarget, P0 - 0.05, t, 0.3, 34));
 
 // ---------------------------------------------------------------------------------------------
 // Bracket, drawn in local coordinates (origin bottom-left of the leg's front face).
@@ -676,8 +686,10 @@ function movingJaw(ctx, jaw) {
 // ---------------------------------------------------------------------------------------------
 // Session hand.
 
-// The hand is drawn from sprites made at its parked pose (gx GX_REST, hy HAND_DROP) and moved.
-const BOOM_LEN = 640; // longer than the boom ever shows; the sleeve hides the rest
+// The arm is drawn from sprites made at its parked pose (gx GX_REST, hy HAND_DROP) and moved. Its
+// boom runs in from beyond the right edge of the frame.
+const BOOM_LEN = 1300;
+const ARM_ACT = 0.5; // the arm never lights to the ring's clean green: it is the session, not a tester
 function handBoom(ctx, active) {
   const SM = activeMat(MAT.session, active);
   const headR = GX_REST + G / 2 + 76, by = BY + HAND_DROP;
@@ -703,33 +715,11 @@ function handHead(ctx, active) {
   // wrist pivot
   ball(ctx, headR - 22, M[1] + 20, 7, SM);
 }
-function handSleeve(ctx, active) {
-  const SM = activeMat(MAT.session, active);
-  const by = BY + HAND_DROP, hy = HAND_DROP;
-  // sleeve, on a carriage that rides the column
-  prism(ctx, rect(SLEEVE_X0, by - 18, COL_X - SLEEVE_X0, 36), 40, SM, { hatch: true, sil: 3.5 });
-  // gusset magazine on the sleeve: the next plate waits inside it and feeds out to the head
-  const my = ARM_TOP + ARM_T + hy;
-  prism(ctx, rect(SLEEVE_X0, my - 8, MAG_W, G + 16), 44, SM, { hatch: true, sil: 3.5 });
-  ctx.save();
-  ctx.fillStyle = '#060a07';
-  ctx.fillRect(SLEEVE_X0 - 1, my - 2, 5, G + 4);
-  ctx.restore();
-  prism(ctx, rect(COL_X - 8, by - 30, 64, 60), 46, SM, { sil: 3 });
-  if (!LOD.card) for (const yy of [by - 18, by + 18]) ball(ctx, COL_X + 48, yy, 4, SM);
-}
 function hand(ctx, gx, hy, gusset, active) {
   const ox = gx - GX_REST, oy = hy - HAND_DROP;
-  // inner boom (telescopes out of the sleeve)
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, SLEEVE_X0 + 30, H);
-  ctx.clip();
   ctx.translate(ox, oy);
   spriteAct(ctx, 'why-boom', [GX_REST + 112, BY + HAND_DROP - 26, BOOM_LEN + 30, 44], active, handBoom);
-  ctx.restore();
-  ctx.save();
-  ctx.translate(ox, oy);
   if (gusset) {
     ctx.save();
     ctx.translate(gusset.dx, 0);
@@ -738,11 +728,35 @@ function hand(ctx, gx, hy, gusset, active) {
   }
   spriteAct(ctx, 'why-head', [GX_REST + 20, 640, 130, 115], active, handHead);
   ctx.restore();
-  ctx.save();
-  ctx.translate(0, oy);
-  spriteAct(ctx, 'why-sleeve', [SLEEVE_X0 - 8, 600, COL_X + 90 - SLEEVE_X0, 150], active, handSleeve);
-  ctx.restore();
 }
+
+// Arm poses (gusset-corner x gx, drop hy). FIT: the gusset centred on the inside corner. CARRY: the
+// head under the bracket's arm, just right of the gusset, holding it up. PARK: on its rest stand.
+const PARK = [GX_REST, HAND_DROP], FIT = [GX_FIT, 0], CARRY = [GX_FIT + 24, -29];
+const bezPose = (p0, p1, p2, p3, u) => [bez(p0[0], p1[0], p2[0], p3[0], u), bez(p0[1], p1[1], p2[1], p3[1], u)];
+function armPose(t) {
+  if (t < LOWER_B) {
+    // carrying the bracket in from beyond the right edge, lifted, then setting it in the jaws
+    const dx = RUN * (1 - trap(seg(t, 0, ENTRY_B), 0.05, 0.35));
+    const dy = -LIFT * (1 - smooth(seg(t, LOWER_A, LOWER_B)));
+    return { gx: CARRY[0] + dx, hy: CARRY[1] + dy, dx, dy, carrying: true };
+  }
+  if (t < RETRACT_A) return { gx: CARRY[0], hy: CARRY[1] };
+  if (t < FIT_A) {
+    const [gx, hy] = bezPose(CARRY, [CARRY[0] + 30, 60], [1150, HAND_DROP], PARK, smooth(seg(t, RETRACT_A, RETRACT_B)));
+    return { gx, hy };
+  }
+  if (t < REGRIP[0]) {
+    const [gx, hy] = bezPose(PARK, HAND_P1, HAND_P2, FIT, smooth(seg(t, FIT_A, FIT_B)));
+    return { gx, hy };
+  }
+  // re-grip under the arm, lift clear of the jaws, carry out past the right edge
+  const r = smooth(seg(t, REGRIP[0], REGRIP[1]));
+  const dx = RUN * trap(seg(t, RUN_T[0], RUN_T[1]), 0.3, 0);
+  const dy = -LIFT * smooth(seg(t, LIFT_T[0], LIFT_T[1]));
+  return { gx: lerp(FIT[0], CARRY[0], r) + dx, hy: lerp(FIT[1], CARRY[1], r) + dy, dx, dy, carrying: t >= REGRIP[1] };
+}
+const smooth = (u) => u * u * (3 - 2 * u);
 
 // ---------------------------------------------------------------------------------------------
 // Hood: roller curtains between rails, rolled up into the beam.
@@ -843,7 +857,6 @@ function backLayer(ctx) {
   lightShaft(ctx, WIN_X0 + 40, WIN_X1 - 40, BEAM_Y1, WIN_X0 - 10, WIN_X1 + 10, BENCH_Y, 0.045);
   // contact shadows on the bench
   contactShadow(ctx, 880, FLOOR - 8, 230, 26, 0.6);
-  contactShadow(ctx, COL_X + 40, FLOOR - 8, 90, 18, 0.5);
   slipSpike(ctx, 380);
   // vice body: base with slots, fixed jaw, end block
   prism(ctx, rect(700, BASE, END_X + 36 - 700, FLOOR - BASE), 80, MAT.lit);
@@ -857,14 +870,10 @@ function backLayer(ctx) {
   viceJaw(ctx, LEG_X, -1);
   prism(ctx, rect(END_X, 676, 36, BASE - 676), 80, MAT.lit);
   centreLine(ctx, LEG_X + LEG_W + 30, SCREW_Y, END_X + 120, SCREW_Y, 0.45);
-  // session column and foot (the hand's fixed part), and the stand its head rests on when parked
-  const idle = activeMat(MAT.session, 0);
+  // the stand the arm's head rests on when parked
   contactShadow(ctx, STAND_X + STAND_W / 2 + 14, FLOOR - 6, 70, 12, 0.5);
   prism(ctx, rect(STAND_X, STAND_TOP, STAND_W, FLOOR - STAND_TOP), 50, MAT.metal, { sil: 2.5 });
   prism(ctx, rect(STAND_X - 8, FLOOR - 8, STAND_W + 16, 8), 58, MAT.metal, { sil: 2 });
-  prism(ctx, rect(COL_X - 26, FLOOR - 14, 100, 14), 60, idle, { sil: 3 });
-  prism(ctx, rect(COL_X, 520, 48, FLOOR - 14 - 520), 40, idle, { hatch: true, sil: 3.5 });
-  prism(ctx, rect(COL_X - 6, 506, 60, 16), 44, idle, { sil: 3 });
 }
 
 function frontLayer(ctx) {
@@ -898,36 +907,33 @@ export default {
     // Ring presses and the bow they leave.
     const pr = presses(t);
     let bow = pr.bow;
-    if (t >= 3.8) bow = BOW;
-    // The session hand carries the gusset in; on contact the arm springs straight (one small overshoot).
-    const he = engage(t, 4.4, HAND_A);
-    const seated = t >= he.t1;
-    if (seated) bow = BOW * (1 - springStep(t - he.t1, 0.55, 20));
+    if (t >= P_END) bow = BOW;
+    // The session's arm seats the gusset; on contact the bracket springs straight (one small overshoot).
+    const seated = t >= FIT_B;
+    if (seated) bow = BOW * (1 - springStep(t - FIT_B, 0.55, 20));
+    const arm = armPose(t);
 
-    // Vice jaw and handle (the seam opens and closes them).
-    const jaw = 36 * (easeInOut(seg(t, 6.98, 7.12)) - easeInOut(seg(t, 7.88, 8.0)));
+    // Vice jaw and handle: open at the start (the arm sets the bracket in), closed for the review and
+    // the fit, open again in the seam.
+    const jaw = 36 * (1 - easeInOut(seg(t, JAW_CLOSE[0], JAW_CLOSE[1])) + easeInOut(seg(t, JAW_OPEN[0], JAW_OPEN[1])));
     const theta = 0.95 + (jaw / 36) * Math.PI * 3; // T-bar rests on a diagonal, turns 1.5 times
-    if (Math.abs(jaw) < 1e-4) sprite(ctx, 'why-screw', LEG_X + LEG_W + 30, SCREW_Y - 80, END_X + 140 - LEG_X - LEG_W, 160, (c) => screwAndHandle(c, 0, 0.95));
+    if (Math.abs(jaw) < 1e-4 || Math.abs(jaw - 36) < 1e-4) sprite(ctx, 'why-screw' + (jaw > 18 ? 'o' : ''), LEG_X + LEG_W + 30, SCREW_Y - 80, END_X + 140 - LEG_X - LEG_W, 160, (c) => screwAndHandle(c, jaw > 18 ? 36 : 0, jaw > 18 ? 0.95 + Math.PI * 3 : 0.95));
     else screwAndHandle(ctx, jaw, theta);
 
     // Brackets: current one; in the seam it lifts out of the jaws and feeds out right while the next
     // one feeds in from the left at the same height and drops into the jaws. Both stay opaque: the
     // finished one leaves past the right edge of the frame (gone by 7.7) and the fresh one enters
     // from wholly off frame left; the feeds keep more than a bracket's length between them.
-    if (t < 7.02) bracket(ctx, { bow, seated });
-    else if (t < 7.7) {
-      bracket(ctx, { dx: OUT_RUN * trap(seg(t, 7.12, 7.7), 0.3, 0.1), dy: -OUT_LIFT * easeInOut(seg(t, 7.02, 7.22)), bow, seated });
-    }
-    if (t >= 7.12) {
-      bracket(ctx, { dx: -IN_RUN * (1 - trap(seg(t, 7.12, 7.78), 0.1, 0.4)), dy: -OUT_LIFT * (1 - easeInOut(seg(t, 7.76, 7.96))) });
-    }
+    // The bracket: carried in by the arm, reviewed and fitted in the vice, carried out by the arm.
+    if (arm.dx !== undefined && arm.dx > RUN - 1e-6) { /* wholly beyond the right edge */ }
+    else bracket(ctx, { dx: arm.dx || 0, dy: arm.dy || 0, bow, seated });
 
     // The ring, present 0.7 to 4.2: drop on a stiff spring, presses, lift out.
-    const ringOn = t >= 0.7 && t < 4.2;
+    const ringOn = t >= RING_IN && t < RING_OUT[1];
     const needle = needleAt(t);
     let ringY = 0;
     if (ringOn) {
-      ringY = RY0 + pr.travel - DROP * (1 - springStep(t - 0.7, 0.8, 11.6)) - DROP * easeIn(seg(t, 3.8, 4.2));
+      ringY = RY0 + pr.travel - DROP * (1 - springStep(t - RING_IN, 0.8, 11.6)) - DROP * easeIn(seg(t, RING_OUT[0], RING_OUT[1]));
       // its shadow on the arm's top face, darker as the plunger closes in
       const tipY = ringY + R_OUT + BOSS_H + PLUNGER + TIP;
       const lx = pr.rx - LEG_X;
@@ -939,18 +945,16 @@ export default {
     movingJaw(ctx, jaw);
 
     // Session hand.
-    const { gx, hy } = handPose(he.d);
+    const { gx, hy } = arm;
+    // the gusset rides on the head from the park (loaded behind the closed hood) until it is seated
     let gus = null;
-    if (!seated) gus = { dx: 0, s: 1, alpha: 1 };
-    else if (t >= 7.3) {
-      // the next gusset feeds out of the magazine on the sleeve onto the parked head
-      gus = { dx: (SLEEVE_X0 + 12 - GX_REST) * (1 - trap(seg(t, 7.3, 7.85), 0.25, 0.45)), s: 1, alpha: 1 };
-    }
-    contactShadow(ctx, gx + 140, FLOOR - 10, 120, 14, 0.35 * (1 - 0.6 * he.d));
+    if (t >= 2.4 && !seated) gus = { dx: 60 * (1 - smooth(seg(t, 2.4, 2.9))) };
+    const parked = clamp01(1 - Math.hypot(gx - PARK[0], hy - PARK[1]) / 60);
+    contactShadow(ctx, gx + 140, FLOOR - 10, 120, 14, 0.3 * clamp01(1 - (gx - 1500) / 300));
     // parked, the head sits on its rest stand: a contact shadow on the stand's top face
-    contactShadow(ctx, gx + 84 + D.x * 24, STAND_TOP + D.y * 24, 50, 8, 0.65 * clamp01(1 - he.d * 8));
-    // the hand brightens while it works and dims back to idle
-    const active = easeInOut(seg(t, 4.05, 4.4)) - easeInOut(seg(t, 5.4, 6.0));
+    contactShadow(ctx, gx + 84 + D.x * 24, STAND_TOP + D.y * 24, 50, 8, 0.65 * parked);
+    // the arm brightens a little while it works (to its own dim session green, never the ring's)
+    const active = ARM_ACT * (1 - parked);
     hand(ctx, gx, hy, gus, active);
 
     if (ringOn) {
@@ -966,7 +970,7 @@ export default {
     }
 
     // Hood: curtains descend 0 to 0.7, rise 3.8 to 4.4; the window over the bracket stays open.
-    const edge = BEAM_Y1 + (CURT_END - BEAM_Y1) * (easeInOut(seg(t, 0, 0.7)) - easeInOut(seg(t, 3.8, 4.4)));
+    const edge = BEAM_Y1 + (CURT_END - BEAM_Y1) * (easeInOut(seg(t, HOOD_DOWN[0], HOOD_DOWN[1])) - easeInOut(seg(t, HOOD_UP[0], HOOD_UP[1])));
     if (edge > BEAM_Y1 + 1) {
       // the curtains are drawn fully down once and slid up into the beam
       ctx.save();
@@ -992,9 +996,9 @@ export default {
       const cx = pr.rx + D.x * 6, cy = ringY + D.y * 6;
       softGlow(ctx, cx + Math.cos(am) * 27, cy + Math.sin(am) * 27, 30, P.amber, 0.5 * clamp01((needle - AMBER_AT) / 0.12));
     }
-    contactGlow(ctx, LEG_X + LEG_W + 4, ARM_TOP + ARM_T + 4, he.c, 40);
+    contactGlow(ctx, LEG_X + LEG_W + 4, ARM_TOP + ARM_T + 4, (t - FIT_B) / 0.12, 40);
     if (seated) {
-      const tau = t - he.t1;
+      const tau = t - FIT_B;
       dust(ctx, LEG_X + LEG_W + 2, ARM_TOP + ARM_T + 70, tau, 0x9a1, { ang: Math.PI * 0.75, spread: 1.4, n: 9, dur: 0.5 });
       dust(ctx, LEG_X + LEG_W + 60, ARM_TOP + ARM_T + 2, tau, 0x9b2, { ang: -Math.PI * 0.35, spread: 1.2, n: 7, dur: 0.45 });
     }

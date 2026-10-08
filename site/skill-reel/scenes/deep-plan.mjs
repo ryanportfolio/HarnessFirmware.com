@@ -18,20 +18,20 @@ import {
 } from '../kit.mjs';
 
 const T = 9.0;
-const PERSON_FONT = 'italic 600 54px "Fraunces", "Fraunces fallback", serif';
+const PERSON_FONT = 'italic 600 40px "Fraunces", "Fraunces fallback", serif'; // as on /merge's key
 
 // ---------------------------------------------------------------------------------------------
 // Geometry (stage units, 1920x1080).
 
 // Key blank, local units from its bottom-left corner, y up. The blank's registration hole is the
 // key's ring; its clipped corner is the blade tip.
-const KL = 560, BOW_W = 150, BOW_H = 150, BLADE_H = 66, TIP_C = 22, KEY_T = 14, BOW_R = 40, SHOULDER = [16, 12];
+const KL = 560, BOW_W = 150, BOW_H = 150, BLADE_H = 84, TIP_C = 22, KEY_T = 14, BOW_R = 40, SHOULDER = [16, 12];
 const RING = { x: 72, y: 92, r: 22 };
 const NOTCH = [228, 310, 392, 474];
-const DEPTH = [12, 22, 32];
-const flank = (d) => 4 + d * 0.9; // constant flank angle, flat root 8 wide
+const DEPTH = [12, 36, 60]; // 24 units apart: 6 px between answers on a 480 wide card
+const flank = (d) => 4 + d * 0.5; // constant flank angle, flat root 8 wide (steep, so deep neighbours never meet)
 const YB = 690; // key bottom (bed top)
-const X_ENTRY = 280, X_JIG = 640, X_HOLD = 1330;
+const X_ENTRY = 440, X_JIG = 640, X_HOLD = 1330;
 const BLADE_TOP = YB - BLADE_H;
 const POS = NOTCH.map((n) => X_JIG + n);
 
@@ -40,32 +40,37 @@ const R_WHEEL = 64, WHEEL_T = 12, TEETH = 24;
 const PARK_X = 1212, PARK_B = 500; // wheel bottom when parked or hovering
 const RAIL_Y0 = 286, RAIL_Y1 = 316, CAR_Y0 = 272, CAR_Y1 = 330;
 
-// Selector: fixed plate on the rail column. Lower detent = deeper cut.
-const SEL_X = 1338, SEL_HOME = 346, DET_Y = [384, 429, 474], TICK_X = 1388;
+// Selector: a plate on its own post between the person's keys and the jig. Lower detent = deeper cut.
+const SEL_X = 500, SEL_HOME = 346, DET_Y = [384, 429, 474], TICK_X = SEL_X + 50;
+const PLATE = { x0: SEL_X - 38, x1: SEL_X + 84, y0: 329, y1: 524 };
 
 // Clamp: toggle clamp on a post behind the bow.
 const CL_PIV = [775, 480], CL_ARM = 62;
 
-// The person's keys: an answer key and a separate Go key.
-const KEY_A = 116, KEY_GO = 222, CAP_Y = 664, KEYBASE_Y = 736, KEYBASE_X0 = 30, KEYBASE_X1 = 270;
-const CAP_RX = 45, CAP_RY = 30, CAP_TH = 14, KEY_TRAVEL = 16;
+// The person's keys, the same object as /merge's key: an ivory cap set in a bezel on a green stem
+// that rides in a guide sleeve. An answer key and a separate Go key.
+const KEY_A = 150, KEY_GO = 320, CAP_W_A = 160, CAP_W_GO = 120, CAP_H = 56;
+const CAP_UP = FLOOR - 88, KEY_TRAVEL = 24, SLEEVE_TOP = FLOOR - 60;
+const KEYBASE_Y = FLOOR - 40, KEYBASE_X0 = 30, KEYBASE_X1 = 410;
 
 // The answer key's cable: a drum on the key base pays out cable when the key goes down; the cable
 // runs up a post, over a pulley, across the top of the bench, over a second pulley on the selector
 // column and down to the person's pin, which hangs on it. Cable travel = pin travel.
-const DRUM = { x: 58, y: 754, r: 14 };
+const DRUM = { x: 58, y: 752, r: 14 };
 const CAB_X = DRUM.x - DRUM.r; // the rising run, left of the answer key's cap
-const PUL_L = { x: CAB_X + 16, y: 248, r: 16 };
-const PUL_R = { x: SEL_X - 16, y: 248, r: 16 }; // its right tangent drops straight down the selector slot
+const PUL_L = { x: CAB_X + 16, y: 300, r: 16 };
+const PUL_R = { x: SEL_X - 16, y: 300, r: 16 }; // its right tangent drops straight down the selector slot
 const CAB_Y = PUL_L.y - PUL_L.r;
+// length of the run from the drum to the top of the selector slot (the lit part grows along it)
+const CAB_LEN = (DRUM.y - PUL_L.y) + Math.PI * PUL_L.r / 2 + (PUL_R.x - PUL_L.x) + Math.PI * PUL_R.r / 2 + (DET_Y[2] - PUL_R.y);
 
 // ---------------------------------------------------------------------------------------------
 // Timing (same contract as the animatic).
 
 const CUTS = [
-  { start: 1.2, dur: 0.9333, rec: 1, pick: 1 },
+  { start: 1.2, dur: 0.9333, rec: 0, pick: 0 },
   { start: 2.1333, dur: 0.9333, rec: 0, pick: 2 }, // override
-  { start: 3.0667, dur: 0.9333, rec: 2, pick: 2 },
+  { start: 3.0667, dur: 0.9333, rec: 1, pick: 1 },
   { start: 4.2, dur: 0.9, rec: 1, pick: 1 }, // round 2, tied to position 2
 ];
 const LIGHT = [0.85, 0.95, 1.05, 4.1];
@@ -77,9 +82,11 @@ const TO_HOLD = [5.95, 6.55];
 const RESET = [8.12, 8.32]; // the lamps fade out together as the key leaves
 
 const cutT = (c, f) => c.start + f * c.dur;
-const pressT = (c) => cutT(c, 0.15);
-const PLUNGE = 0.47; // the cutter starts down only after the person's pin has landed
-const contactT = (c) => cutT(c, 0.7);
+const pressT = (c) => cutT(c, 0.1);
+const TRAVERSE = [0.55, 0.66]; // the cutter moves only after the person's pin has landed
+const PLUNGE = 0.66;
+const contactT = (c) => cutT(c, 0.82);
+const LIGHT_RUN = 0.16, PIN_LAG = 0.14, PIN_MOVE = 0.2; // light runs key to pin; the pin follows
 const smooth = (u) => u * u * (3 - 2 * u);
 
 // Key press: eased down, held at the bottom, spring back with one small undershoot.
@@ -96,10 +103,10 @@ function press(t, t0, hold = KEY_HOLD) {
 function pinY(t) {
   let py = SEL_HOME;
   for (const c of CUTS) {
-    const t0 = pressT(c) + KEY_DOWN;
+    const t0 = pressT(c) + KEY_DOWN + PIN_LAG;
     if (t < t0) continue;
-    const down = indexEase(seg(t, t0, t0 + 0.2));
-    const up = easeInOut(seg(t, cutT(c, 0.86), cutT(c, 1)));
+    const down = indexEase(seg(t, t0, t0 + PIN_MOVE));
+    const up = easeInOut(seg(t, cutT(c, 0.88), cutT(c, 1)));
     py = lerp(SEL_HOME, DET_Y[c.pick], down * (1 - up));
   }
   return py;
@@ -110,11 +117,13 @@ function cutter(t) {
   let x = PARK_X, b = PARK_B;
   for (let i = 0; i < CUTS.length; i++) {
     const c = CUTS[i];
-    if (t < c.start) break;
+    if (t < (i === 0 ? c.start - 0.35 : c.start)) break;
     const prev = i === 0 ? PARK_X : POS[i - 1];
-    x = lerp(prev, POS[i], easeInOut(seg(t, c.start, cutT(c, 0.3))));
+    // the first move to the work happens while the lamps light, before any question is asked
+    const [m0, m1] = i === 0 ? [c.start - 0.35, c.start - 0.05] : [cutT(c, TRAVERSE[0]), cutT(c, TRAVERSE[1])];
+    x = lerp(prev, POS[i], easeInOut(seg(t, m0, m1)));
     const down = easeInOut(seg(t, cutT(c, PLUNGE), contactT(c)));
-    const up = easeIn(seg(t, cutT(c, 0.84), cutT(c, 1)));
+    const up = easeIn(seg(t, cutT(c, 0.88), cutT(c, 1)));
     b = PARK_B + (BLADE_TOP + DEPTH[c.pick] - PARK_B) * (down - up);
   }
   if (t >= PARK_AT[0]) x = lerp(POS[3], PARK_X, easeInOut(seg(t, PARK_AT[0], PARK_AT[1])));
@@ -125,7 +134,7 @@ function cutter(t) {
 function wheelSpin(t) {
   let a = 0, w = 0;
   for (const c of CUTS) {
-    const t0 = cutT(c, 0.38), t1 = cutT(c, 0.97);
+    const t0 = cutT(c, 0.6), t1 = cutT(c, 0.98);
     const u = seg(t, t0, t1);
     a += Math.PI * 2 * smooth(u);
     if (u > 0 && u < 1) w += (Math.PI * 2 * 6 * u * (1 - u)) / (t1 - t0);
@@ -218,7 +227,7 @@ function keyBlank(ctx, o) {
     ctx.beginPath();
     ctx.roundRect(x + 12, YB - BOW_H + 12, BOW_W - 24, BOW_H - 24, [BOW_R - 12, BOW_R - 12, 3, 3]);
     ctx.stroke();
-    const ky = YB - 20;
+    const ky = YB - 13;
     const g = ctx.createLinearGradient(0, ky - 7, 0, ky + 7);
     g.addColorStop(0, '#a2a397');
     g.addColorStop(0.6, '#c6c7bb');
@@ -386,7 +395,7 @@ function selector(ctx, t) {
   for (const c of CUTS) {
     if (t < c.start || t >= cutT(c, 1)) continue;
     q = c;
-    a = indexEase(seg(t, c.start, c.start + 0.16)) * (1 - easeIn(seg(t, cutT(c, 0.86), cutT(c, 1))));
+    a = indexEase(seg(t, c.start, c.start + 0.12)) * (1 - easeIn(seg(t, cutT(c, 0.88), cutT(c, 1))));
   }
   if (q && a > 0) {
     // the open options: each detent gets a faint green ring
@@ -414,11 +423,9 @@ function selector(ctx, t) {
   }
   // the person's pin, hanging on the cable from the answer key
   const py = pinY(t);
-  let held = 0;
-  for (const c of CUTS) held = Math.max(held, press(t, pressT(c)));
-  cable(ctx, py - SEL_HOME, py, held);
-  contactShadow(ctx, SEL_X + 6, py + 8, 16, 7, 0.6);
-  ball(ctx, SEL_X, py, 12, PIN_MAT);
+  cable(ctx, py - SEL_HOME, py, cableLight(t));
+  contactShadow(ctx, SEL_X + 6, py + 10, 19, 8, 0.6);
+  ball(ctx, SEL_X, py, 14, PIN_MAT);
 }
 
 const PIN_MAT = { ...MAT.ivory, top: '#fbfbf4', side: '#9fa095', hi: '#ffffff', sil: 'rgba(110,114,100,0.8)' };
@@ -436,7 +443,22 @@ function spokes(ctx, p, ang) {
 
 // The cable, paid out by d (= pin travel): drum and pulleys turn by d / r, the crimped sleeves on
 // the cable slide with it, and the end hangs the pin at py.
-function cable(ctx, d, py, held) {
+// The cable's light: [lit length from the key end, strength]. It runs from the key to the pin as
+// the key bottoms, holds while the key is held, and fades after the release.
+function cableLight(t) {
+  let len = 0, a = 0;
+  for (const c of CUTS) {
+    const t0 = pressT(c) + KEY_DOWN;
+    if (t < t0) continue;
+    const fade = 1 - seg(t, pressT(c) + KEY_DOWN + KEY_HOLD, pressT(c) + KEY_DOWN + KEY_HOLD + 0.2);
+    if (fade <= 0) continue;
+    len = CAB_LEN * easeOut(seg(t, t0, t0 + LIGHT_RUN));
+    a = fade;
+  }
+  return [len, a];
+}
+
+function cable(ctx, d, py, light) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#a4c4ab';
@@ -455,15 +477,26 @@ function cable(ctx, d, py, held) {
   ctx.strokeStyle = '#060807';
   ctx.lineWidth = lw(6.5);
   ctx.stroke();
-  // the taut cable catches the light while the person holds the key down
-  ctx.strokeStyle = mix('#7f9c86', P.glow, 0.75 * held);
+  ctx.strokeStyle = '#7f9c86';
   ctx.lineWidth = lw(3.5);
   ctx.stroke();
+  // the person's press lights the cable from the key end along its whole run
+  const [len, la] = light;
+  if (la > 0 && len > 1) {
+    ctx.setLineDash([len, 5000]);
+    ctx.strokeStyle = rgba(P.bright, 0.22 * la);
+    ctx.lineWidth = lw(12);
+    ctx.stroke();
+    ctx.strokeStyle = mix('#7f9c86', '#e6ffec', la);
+    ctx.lineWidth = lw(3.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   // crimped sleeves: they carry the cable's travel where the eye can see it
   ctx.fillStyle = '#d6d7cb';
   ctx.beginPath();
-  for (let i = 0; i < 5; i++) ctx.rect(196 + i * 228 + d, CAB_Y - 4.5, 16, 9);
-  ctx.rect(CAB_X - 4.5, 560 - d, 9, 16);
+  for (let i = 0; i < 2; i++) ctx.rect(104 + i * 150 + d, CAB_Y - 4.5, 16, 9);
+  ctx.rect(CAB_X - 4.5, 600 - d, 9, 16);
   ctx.fill();
   ctx.restore();
 }
@@ -583,72 +616,61 @@ function clampArm(ctx, u) {
   return { padX: ex, padB };
 }
 
-// The stem and its collar never move (the cap slides down over the stem): they are in the back layer.
+// The person's keys are /merge's key object: an ivory cap set in a dark bezel on a green stem that
+// rides in a guide sleeve, the legend in Fraunces Italic. The stem and sleeve never move (the cap
+// slides down over the stem): they are in the back layer. The bezel and cap are a sprite at rest
+// height that a press translates down.
+function roundRectPts(x0, y0, x1, y1, r, inset = 0) {
+  const pts = [];
+  const corners = [[x1 - r - inset, y0 + r, -Math.PI / 2], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, Math.PI / 2], [x0 + r + inset, y0 + r, Math.PI]];
+  for (const [cx, cy, a0] of corners) for (let k = 0; k <= 4; k++) { const a = a0 + (k / 4) * (Math.PI / 2); pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  return pts;
+}
+
 function keyStem(ctx, x) {
-  rodV(ctx, x, CAP_Y + 20, KEYBASE_Y + 2, 12, MAT.fresh);
-  prism(ctx, rect(x - 13, KEYBASE_Y - 6, 26, 6), 16, MAT.metal, { sil: 2 });
+  rodV(ctx, x + D.x * 22, CAP_UP - 8, SLEEVE_TOP + 4, 22, MAT.fresh);
+  prism(ctx, rect(x - 26, SLEEVE_TOP, 52, KEYBASE_Y - SLEEVE_TOP), 44, MAT.lit, { sil: 2.6 });
 }
 
-// Cap: a typewriter key, a short cylinder tilted toward the viewer inside a metal rim. Drawn once per
-// scale into a sprite at its rest height; a press translates the sprite down.
-function keyCap(ctx, x, cy) {
-  const RX = CAP_RX, RY = CAP_RY, TH = CAP_TH;
-  const sg = ctx.createLinearGradient(x - RX, 0, x + RX, 0);
-  sg.addColorStop(0, '#c9cabe');
-  sg.addColorStop(0.35, '#e4e5d9');
-  sg.addColorStop(1, '#8e8f84');
-  ctx.fillStyle = sg;
-  ctx.beginPath();
-  ctx.ellipse(x, cy + TH, RX, RY, 0, 0, Math.PI);
-  ctx.lineTo(x - RX, cy);
-  ctx.lineTo(x + RX, cy);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#4f6f57';
-  ctx.lineWidth = lw(3);
-  ctx.beginPath();
-  ctx.ellipse(x, cy + TH, RX, RY, 0, 0, Math.PI);
-  ctx.stroke();
-  // rim ring
-  const rg = ctx.createLinearGradient(0, cy - RY, 0, cy + RY);
-  rg.addColorStop(0, '#a4c4ab');
-  rg.addColorStop(1, '#3a5241');
-  ctx.fillStyle = rg;
-  ctx.beginPath();
-  ctx.ellipse(x, cy, RX, RY, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // dished face: shaded at the top inner edge, light toward the viewer
-  const g = ctx.createLinearGradient(0, cy - RY, 0, cy + RY);
-  g.addColorStop(0, '#cfd0c4');
-  g.addColorStop(0.45, '#f3f3ec');
-  g.addColorStop(1, '#fdfdf8');
+function keyCap(ctx, x, w) {
+  const cb = CAP_UP, ct = cb - CAP_H;
+  const x0 = x - w / 2, x1 = x + w / 2;
+  prism(ctx, roundRectPts(x0 - 7, ct - 6, x1 + 7, cb + 5, 14, 4), 46, MAT.lit, { sil: 2.8 });
+  const pts = roundRectPts(x0, ct, x1, cb, 11, 5);
+  prism(ctx, pts, 40, MAT.ivory, { noLines: true });
+  const g = ctx.createRadialGradient(x - 30, ct + 10, 6, x, (ct + cb) / 2, w * 0.62);
+  g.addColorStop(0, '#fbfbf5');
+  g.addColorStop(0.6, '#ebebe1');
+  g.addColorStop(1, '#cfd0c4');
+  poly(ctx, pts);
   ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.ellipse(x, cy, RX - 5, RY - 4, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (!LOD.card) {
-    ctx.strokeStyle = 'rgba(255,255,250,0.9)';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.ellipse(x, cy, RX - 1.5, RY - 1.2, 0, Math.PI * 1.08, Math.PI * 1.62);
-    ctx.stroke();
-  }
+  ctx.strokeStyle = 'rgba(112,116,104,0.75)';
+  ctx.lineWidth = lw(1.6);
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,250,0.95)';
+  ctx.lineWidth = lw(2);
+  ctx.beginPath();
+  ctx.moveTo(x0 + 18, ct + 1.5);
+  ctx.lineTo(x1 - 18, ct + 1.5);
+  ctx.stroke();
 }
 
-function personKey(ctx, x, p, legend) {
+function personKey(ctx, x, w, p, legend) {
   const dy = p * KEY_TRAVEL;
-  const x0 = Math.floor((x - 52) / 8) * 8;
-  sprite(ctx, 'deep-plan-cap-' + x, x0, CAP_Y - 40, 112, 96, (c) => keyCap(c, x, CAP_Y), 0, dy);
+  // the press darkens the gap under the cap as it seats on the sleeve
+  contactShadow(ctx, x + 20, SLEEVE_TOP - 2, w * 0.34, 8, 0.2 + 0.35 * p);
+  const x0 = Math.floor((x - w / 2 - 16) / 8) * 8;
+  sprite(ctx, 'deep-plan-cap-' + x, x0, 592, w + 64, 112, (c) => keyCap(c, x, w), 0, dy);
   if (legend) {
     // the legend stays live text (the font may load after the first frame)
     ctx.save();
-    ctx.fillStyle = P.ink;
     ctx.font = PERSON_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.translate(x, CAP_Y + dy + 1);
-    ctx.scale(1, 0.86);
-    ctx.fillText(legend, -2, 0);
+    ctx.fillStyle = '#171c18';
+    ctx.fillText(legend, x - 2, CAP_UP - CAP_H / 2 + dy + 2);
     ctx.restore();
   }
 }
@@ -682,12 +704,9 @@ function sprite(ctx, id, x0, y0, w, h, draw, dx = 0, dy = 0) {
 
 function backLayer(ctx) {
   benchFinal(ctx, 900, 600);
-  // rail column, behind the out-rail, with the selector plate on its face
+  // rail column, behind the out-rail
   contactShadow(ctx, 1400, FLOOR - 40, 80, 14, 0.5);
-  prism(ctx, rect(1352, PUL_R.y - 14, 46, FLOOR - 92 - PUL_R.y + 14), 40, MAT.metal, { sil: 3 });
-  // the cable's pulley on an arm off the column top
-  prism(ctx, rect(PUL_R.x, PUL_R.y - 6, 1352 - PUL_R.x, 12), 20, MAT.metal, { sil: 2 });
-  pulleyDisc(ctx, PUL_R);
+  prism(ctx, rect(1352, 300, 46, 380), 40, MAT.metal, { sil: 3 });
   // overhead rail and its gusset
   prism(ctx, rect(700, RAIL_Y0, 700, RAIL_Y1 - RAIL_Y0), 44, MAT.metal, { sil: 3 });
   ctx.fillStyle = '#5f8167';
@@ -697,8 +716,11 @@ function backLayer(ctx) {
   prism(ctx, [[1352, RAIL_Y1], [1352, RAIL_Y1 + 70], [1282, RAIL_Y1]], 30, MAT.metal, { sil: 2.5 });
   if (!LOD.card) for (let x = 740; x < 1340; x += 90) ball(ctx, x, RAIL_Y1 - 6, 3, MAT.metal);
   centreLine(ctx, 700, (RAIL_Y0 + RAIL_Y1) / 2, 1400, (RAIL_Y0 + RAIL_Y1) / 2, 0.35);
-  // selector plate
-  prism(ctx, rect(1300, 329, 122, 195), 18, MAT.lit, { sil: 3 });
+  // selector plate on its own post, behind the entry shelf; the cable's pulley on a bracket above it
+  contactShadow(ctx, SEL_X + 40, FLOOR - 30, 60, 12, 0.45);
+  prism(ctx, rect(SEL_X + 22, PLATE.y1 - 4, 30, FLOOR - 40 - PLATE.y1 + 4), 36, MAT.metal, { sil: 2.5 });
+  prism(ctx, rect(PUL_R.x - 6, PUL_R.y, 12, PLATE.y0 - PUL_R.y + 2), 16, MAT.metal, { sil: 2 });
+  prism(ctx, rect(PLATE.x0, PLATE.y0, PLATE.x1 - PLATE.x0, PLATE.y1 - PLATE.y0), 18, MAT.lit, { sil: 3 });
   ctx.fillStyle = '#070a08';
   ctx.beginPath();
   ctx.roundRect(SEL_X - 6, SEL_HOME - 10, 12, DET_Y[2] - SEL_HOME + 20, 6);
@@ -713,12 +735,13 @@ function backLayer(ctx) {
     ctx.lineWidth = lw(1.5);
     ctx.stroke();
   }
-  for (const [x, y] of [[1308, 337], [1414, 337], [1308, 516], [1414, 516]]) ball(ctx, x, y, 3.2, MAT.lit);
-  dimension(ctx, 1300, DET_Y[0], 1300, DET_Y[2], -26, 0.45);
+  for (const x of [PLATE.x0 + 8, PLATE.x1 - 8]) for (const y of [PLATE.y0 + 8, PLATE.y1 - 8]) ball(ctx, x, y, 3.2, MAT.lit);
+  pulleyDisc(ctx, PUL_R);
+  dimension(ctx, PLATE.x1, DET_Y[0], PLATE.x1, DET_Y[2], 22, 0.45);
   // clamp post behind the bow
   prism(ctx, rect(762, 478, 26, YB - 478), 30, MAT.metal, { sil: 2.5 });
   // entry shelf (left) and out rail (right): thin plates on legs
-  for (const [x0, x1] of [[272, 628], [1282, 1990]]) {
+  for (const [x0, x1] of [[KEYBASE_X1 + 12, 628], [1282, 1990]]) {
     contactShadow(ctx, (x0 + x1) / 2, FLOOR - 6, (x1 - x0) / 2, 16, 0.45);
     for (const lx of [x0 + 28, x1 - 60]) if (lx < W) prism(ctx, rect(lx, YB + 16, 20, FLOOR - YB - 16), 40, MAT.metal, { sil: 2.5 });
     prism(ctx, rect(x0, YB, x1 - x0, 16), 64, MAT.metal, { sil: 3 });
@@ -758,7 +781,7 @@ function backLayer(ctx) {
   prism(ctx, rect(PUL_L.x - 7, PUL_L.y, 14, FLOOR - PUL_L.y), 24, MAT.metal, { sil: 2.5 });
   pulleyDisc(ctx, PUL_L);
   // the person's key base, the cable drum on its end, the key stems
-  contactShadow(ctx, (KEYBASE_X0 + KEYBASE_X1) / 2, FLOOR - 6, 136, 16, 0.55);
+  contactShadow(ctx, (KEYBASE_X0 + KEYBASE_X1) / 2, FLOOR - 6, 210, 16, 0.55);
   prism(ctx, rect(KEYBASE_X0, KEYBASE_Y, KEYBASE_X1 - KEYBASE_X0, FLOOR - KEYBASE_Y), 70, MAT.metal, { sil: 3 });
   ctx.fillStyle = '#4f6f57';
   ctx.fillRect(KEYBASE_X0 + 2, KEYBASE_Y + 1, KEYBASE_X1 - KEYBASE_X0 - 4, 2);
@@ -793,13 +816,7 @@ function pulleyDisc(ctx, p) {
 
 function frontLayer(ctx) {
   for (const x of POS) lampHighlight(ctx, x, 724, LOD.card ? 15 : 12);
-  // the guide eye the cable runs through on the rail
-  ctx.strokeStyle = '#86a98e';
-  ctx.lineWidth = lw(2.5);
-  ctx.beginPath();
-  ctx.ellipse(SEL_X, (RAIL_Y0 + RAIL_Y1) / 2, 7, 10, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  lampFalloff(ctx, 940, 560, 420, 1250, 0.55);
+  lampFalloff(ctx, 820, 560, 560, 1300, 0.5);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -830,7 +847,7 @@ export default {
     }
     if (t >= 8.4) {
       const u = easeOut(seg(t, 8.4, 9.0));
-      keyBlank(ctx, { x: lerp(X_ENTRY - 50, X_ENTRY, u), alpha: easeOut(seg(t, 8.4, 8.75)), s: lerp(0.92, 1, u) });
+      keyBlank(ctx, { x: lerp(X_ENTRY - 20, X_ENTRY, u), alpha: easeOut(seg(t, 8.4, 8.75)), s: lerp(0.92, 1, u) });
     }
 
     // Clamp: swings shut on the bow after the feed, lifts after Go.
@@ -850,8 +867,8 @@ export default {
     // The person's keys: the answer key presses for each cut; Go is its own key and its own press.
     let pa = 0;
     for (const c of CUTS) pa = Math.max(pa, press(t, pressT(c)));
-    personKey(ctx, KEY_A, pa, '');
-    personKey(ctx, KEY_GO, press(t, GO_PRESS), 'Go');
+    personKey(ctx, KEY_A, CAP_W_A, pa, '');
+    personKey(ctx, KEY_GO, CAP_W_GO, press(t, GO_PRESS), 'Go');
 
     cached(ctx, 'deep-plan-final-front', frontLayer);
 
@@ -864,9 +881,11 @@ export default {
       dust(ctx, POS[i] + 8, BLADE_TOP + DEPTH[c.pick] - 2, t - ct - 0.05, 0xe0 + i, { ang: -Math.PI * 0.2, spread: 0.9, n: 4, dur: 0.4 });
     }
     contactGlow(ctx, clamp.padX, YB - BOW_H, (t - CLAMP_SHUT[1]) / 0.12, 26);
-    // the pressed key glows faintly at its stem while held down
-    const glowA = Math.max(pa, press(t, GO_PRESS));
-    if (glowA > 0.05) softGlow(ctx, pa >= press(t, GO_PRESS) ? KEY_A : KEY_GO, KEYBASE_Y - 4, 40, P.green, 0.18 * glowA);
+    // the lamp pool comes onto the key while it is held, and its stem flashes as it seats
+    const pg = press(t, GO_PRESS);
+    for (const [kx, p] of [[KEY_A, pa], [KEY_GO, pg]]) if (p > 0.05) softGlow(ctx, kx, CAP_UP - 20, 150, P.paper, 0.13 * Math.min(1, p));
+    for (const c of CUTS) contactGlow(ctx, KEY_A, SLEEVE_TOP, (t - pressT(c) - KEY_DOWN + 0.02) / 0.12, 30);
+    contactGlow(ctx, KEY_GO, SLEEVE_TOP, (t - GO_PRESS - KEY_DOWN + 0.02) / 0.12, 30);
 
     grainOver(ctx, 0.3, 'soft-light');
   },

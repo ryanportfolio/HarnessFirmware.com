@@ -44,15 +44,17 @@ const ZM = 55; // mid-depth of a sheet's top face
 const topPt = (cx, n) => [cx + D.x * ZM, LINE_Y - n * SH + D.y * ZM];
 const sheetMid = (k) => LINE_Y - k * SH - SH / 2;
 
-// Rerun / automatic review tip: one steel swing arm pivoted under the housing. Same radius reaches
-// the entry stack (opener) and the four-sheet review stack (rerun).
-const PIV_Y = 334;
+// Rerun / automatic review tip: one steel swing arm pivoted behind the beam. Stowed, it lies flat
+// behind the beam and the housing (pointing right for the rerun, left for the opener) and swings
+// down into view in the plane. Same radius reaches the entry stack (opener) and the four-sheet
+// review stack (rerun); each is approached from above, so the tip never crosses the work.
+const PIV_Y = 250;
 const PA = topPt(X_ENTRY, 3), PB = topPt(X_REVIEW, 4);
 const PIV_X = ((PB[0] ** 2 - PA[0] ** 2) + (PIV_Y - PB[1]) ** 2 - (PIV_Y - PA[1]) ** 2) / (2 * (PB[0] - PA[0]));
 const PEND_L = Math.hypot(PA[0] - PIV_X, PA[1] - PIV_Y);
 const TH_A = Math.atan2(PA[1] - PIV_Y, PA[0] - PIV_X);
 const TH_B = Math.atan2(PB[1] - PIV_Y, PB[0] - PIV_X);
-const TH_STOW_R = -0.2, TH_STOW_L = Math.PI + 0.2; // tucked up under the housing, clipped from view
+const TH_STOW_R = 0, TH_STOW_L = Math.PI; // flat behind the beam and housing, hidden by them
 
 // Round 1 gang head: one bar, six different tips that run out of their carriers.
 const GANG_CX = X_REVIEW + D.x * ZM, GANG_W = 300, BAR_H = 38;
@@ -81,6 +83,15 @@ const LAY_X = FIX_SHEET_R; // the sheet's last 14 sit in the wrist block, the ja
 const LAY_Y = LINE_Y - 3 * SH - SH / 2 - JAW_FINGER; // held one finger above the stack
 const LAY_HOVER = LAY_Y - 34;
 
+// The session's sheet magazine: blank fix sheets on a spring feed, on the bench behind the line
+// (depth MAG_DZ) between the tag rail and the session column. The arm picks the top sheet by its
+// right edge, lifts it clear of the rail and lays it on the stack. The bed hides the feed below.
+const MAG_DZ = 140;
+const MAG_CX = 995 + D.x * MAG_DZ; // screen centre of the top sheet's front face
+const MAG_YB = FLOOR + D.y * MAG_DZ - SH; // the top sheet's front bottom edge
+const MAG_HIDE = LINE_Y + D.y * BED_DEP; // the bed's back edge: the magazine shows above it only
+const PICK = [MAG_CX + SW / 2, MAG_YB - SH / 2]; // wrist on the top sheet's right edge
+const LIFT_Y = 470; // carried high enough to clear the rail post
 // Press: two guide columns, a crown under the beam, a hydraulic cylinder in section, ram and platen.
 const CROWN = { x0: 1296, x1: 1644, y0: BEAM_Y1, y1: 312, dep: 130 };
 const COL_Z = 60, COL_W = 26;
@@ -120,7 +131,8 @@ function sprite(ctx, key, box, draw, dx = 0, dy = 0, alpha = 1) {
   const m = ctx.getTransform();
   const s = Math.hypot(m.a, m.b) || 1;
   let S = sprites.get(key);
-  if (!S || S.s !== s) {
+  // a tolerance: under rotate() the scale read back from the transform moves in its last bits
+  if (!S || Math.abs(S.s - s) > 1e-6 * s) {
     const [x0, y0, x1, y1] = box;
     const cw = Math.max(1, Math.ceil((x1 - x0) * s)), ch = Math.max(1, Math.ceil((y1 - y0) * s));
     const cv = new OffscreenCanvas(cw, ch);
@@ -372,7 +384,7 @@ function swingArm(ctx, theta) {
   const bx = tx - 36 * c, by = ty - 36 * s;
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, HOUSE.y1 + 6, W, H);
+  ctx.rect(0, BEAM_Y0, W, H);
   ctx.clip();
   link(ctx, PIV_X, PIV_Y, bx, by, 15, 14, STEEL, { sil: 3 });
   link(ctx, bx - 12 * c, by - 12 * s, bx + 4 * c, by + 4 * s, 24, 18, STEEL_DARK, { sil: 2.5 });
@@ -432,11 +444,9 @@ function housing(ctx) {
   if (!LOD.card) {
     for (const x of [x0 + 10, x1 - 10]) for (const y of [y0 + 11, y1 - 21]) hexHead(ctx, x, y, 4.2, '#9a9e94');
   }
-  // clevis for the swing arm under the housing
-  prism(ctx, [[PIV_X - 26, y1], [PIV_X + 26, y1], [PIV_X + 13, PIV_Y + 13], [PIV_X - 13, PIV_Y + 13]], 30, STEEL_DARK, { sil: 2.6 });
-  ctx.fillStyle = '#121512';
-  ctx.fillRect(PIV_X - 4, PIV_Y - 10, 8, 24); // the slot the arm swings in
-  ball(ctx, PIV_X, PIV_Y, 5.5, STEEL);
+  // the swing arm's slot runs on from the throat to the housing's left end
+  ctx.fillStyle = '#0b0d0b';
+  ctx.fillRect(x0 + 14, y1 - 5, tx0 - x0 - 14, 5);
 }
 
 // A finding: an amber tag hanging from a peg, drawn about the peg (the caller places and swings it).
@@ -498,7 +508,7 @@ function roundRectPts(x0, y0, x1, y1, r, inset = 0) {
   for (const [cx, cy, a0] of corners) for (let k = 0; k <= 4; k++) { const a = a0 + (k / 4) * (Math.PI / 2); pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
   return pts;
 }
-function keyDraw(ctx, press, latch) {
+function keyDraw(ctx, press, latch, legend = true) {
   const dy = press * KEY_TRAVEL;
   const cb = CAP_UP + dy, ct = cb - CAP_H;
   const x0 = KEY_X - CAP_W / 2, x1 = KEY_X + CAP_W / 2;
@@ -528,12 +538,8 @@ function keyDraw(ctx, press, latch) {
   ctx.moveTo(x0 + 18, ct + 1.5);
   ctx.lineTo(x1 - 18, ct + 1.5);
   ctx.stroke();
-  ctx.font = 'italic 600 34px "Fraunces", "Fraunces fallback", serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#171c18';
-  ctx.fillText('/merge', KEY_X - 2, (ct + cb) / 2 + 2);
   ctx.restore();
+  if (legend) keyLegend(ctx, press);
   // latch pawl on a post right of the key; latched, its hook sits on the cap's shoulder
   const PXp = x1 + 36, PYp = CAP_UP + KEY_TRAVEL - CAP_H - 20;
   const ang = lerp(-1.25, 0, latch);
@@ -544,6 +550,17 @@ function keyDraw(ctx, press, latch) {
   ball(ctx, PXp, PYp, 7, MAT.lit);
 }
 const KEY_BOX = [40, 580, 340, 742];
+// The person's words, set live (never baked into a cached bitmap, so a late font load cannot stick).
+function keyLegend(ctx, press) {
+  const cb = CAP_UP + press * KEY_TRAVEL, ct = cb - CAP_H;
+  ctx.save();
+  ctx.font = 'italic 600 34px "Fraunces", "Fraunces fallback", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#171c18';
+  ctx.fillText('/merge', KEY_X - 2, (ct + cb) / 2 + 2);
+  ctx.restore();
+}
 
 // The press frame: guide columns, the cylinder cut through its axis (hatched walls, flange and
 // gland), and the crown bolted under the beam. feet: the column flanges on the bed top.
@@ -660,14 +677,6 @@ function backLayer(ctx) {
   prism(ctx, rect(SHOULDER[0] - 50, FLOOR - 14, 100, 14), 60, idle, { sil: 3 });
   prism(ctx, rect(SHOULDER[0] - 22, SHOULDER[1] + 20, 44, FLOOR - 14 - SHOULDER[1] - 20), 36, idle, { hatch: true, sil: 3.2 });
   prism(ctx, rect(SHOULDER[0] - 46, SHOULDER[1] - 28, 92, 56), 48, idle, { hatch: true, sil: 3.2 });
-  // tag rail
-  const pz = D.y * RAIL_DZ;
-  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, FLOOR - 12 + pz - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
-  prism(ctx, rect(POST_X - 28, FLOOR - 12 + pz, 56, 12), 30, MAT.lit, { sil: 2.4 });
-  for (let k = 0; k < 4; k++) {
-    rodH(ctx, PEG_X, POST_X - 6, pegY(k), 6, MAT.lit);
-    ball(ctx, PEG_X, pegY(k), 4.4, MAT.lit);
-  }
   // conveyor bed
   prism(ctx, rect(330, LINE_Y, TRAY_X0 - 330, FLOOR - LINE_Y), BED_DEP, MAT.metal, { sil: 3 });
   if (!LOD.card) {
@@ -714,6 +723,45 @@ function backLayer(ctx) {
   ctx.strokeStyle = '#2c3d31';
   ctx.lineWidth = lw(2);
   ctx.stroke();
+}
+
+// The tag rail and the magazine's cheeks: in front of the magazine sheets, drawn over them. The bed
+// hides the post below its top.
+const RAIL_BOT = LINE_Y + D.y * RAIL_DZ;
+function railFront(ctx) {
+  const idle = activeMat(MAT.session, 0);
+  const top = MAG_YB - SH - 8 + D.y * 0;
+  // corner posts at the magazine's front: the sheets stand between them
+  for (const fx of [995 - SW / 2 - 10, 995 + SW / 2 + 2]) {
+    const x = fx + D.x * MAG_DZ;
+    prism(ctx, rect(x, top, 8, MAG_HIDE - top), 10, idle, { sil: 2.2 });
+  }
+  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, RAIL_BOT - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
+  for (let k = 0; k < 4; k++) {
+    rodH(ctx, PEG_X, POST_X - 6, pegY(k), 6, MAT.lit);
+    ball(ctx, PEG_X, pegY(k), 4.4, MAT.lit);
+  }
+}
+const RAIL_BOX = [995 - SW / 2 - 20 + D.x * MAG_DZ, pegY(3) - 48, 995 + SW / 2 + 12 + D.x * MAG_DZ + D.x * SDEP + 10, RAIL_BOT + 4];
+
+const MAG_BOX = [MAG_CX - SW / 2 - 6, MAG_YB - SH - 36, MAG_CX + SW / 2 + D.x * SDEP + 8, MAG_YB + 2 * SH + 4];
+function magazine(ctx, dy) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, BEAM_Y1, W, MAG_HIDE - BEAM_Y1);
+  ctx.clip();
+  if (dy === null) {
+    sprite(ctx, 'merge-mag', MAG_BOX, (c) => {
+      sheet(c, MAG_CX, MAG_YB + SH, SH, { top: false });
+      sheet(c, MAG_CX, MAG_YB, SH);
+    });
+  } else {
+    sprite(ctx, 'merge-mag-rest', MAG_BOX, (c) => {
+      sheet(c, MAG_CX, MAG_YB + 2 * SH, SH, { top: false });
+      sheet(c, MAG_CX, MAG_YB + SH, SH);
+    }, 0, dy);
+  }
+  ctx.restore();
 }
 
 function trayFront(ctx) {
@@ -776,8 +824,13 @@ const FINDINGS = [
   { tip: 3, sheet: 0, read: 3.0, fix: 3.38, clear: 3.46 },
   { tip: 4, sheet: 1, read: 3.78, fix: 4.16, clear: 4.24 },
 ];
-const OPEN_JAW = [4.36, 4.58], EXTRUDE = [4.58, 4.86], LOWER = [4.86, 4.98], SLIP = [4.98, 5.08];
-const LAY = 5.08; // the fix sheet sits on the stack
+// the fix sheet: to the magazine with the jaws opening, onto the sheet's edge, grip, lift it clear of
+// the rail, carry it to the stack, lower, slip the lower finger out, and it sits on the stack
+const OPEN_JAW = [4.36, 4.6], MAG_ON = [4.6, 4.7], PICK_T = 4.76, MAG_LIFT = [4.76, 4.96];
+const CARRY = [4.96, 5.24], LOWER = [5.24, 5.34], SLIP = [5.34, 5.44];
+const LAY = 5.44; // the fix sheet sits on the stack
+const MAG_INDEX = [4.98, 5.2]; // the magazine's spring feeds the next sheet up
+const ARM_HOME = [5.5, 5.78];
 const ARM_KEYS = [
   [2.3, ARM_REST[0], ARM_REST[1]],
   [2.55, READ_X, sheetMid(2)],
@@ -790,16 +843,19 @@ const ARM_KEYS = [
   [3.98, READ_X, sheetMid(1)],
   [4.16, FIX_X, sheetMid(1)],
   [4.36, FIX_X, sheetMid(1)],
-  [4.58, LAY_X, LAY_HOVER],
-  [EXTRUDE[1], LAY_X, LAY_HOVER],
+  [OPEN_JAW[1], PICK[0] + 26, PICK[1] - 24],
+  [MAG_ON[1], PICK[0], PICK[1]],
+  [PICK_T, PICK[0], PICK[1]],
+  [MAG_LIFT[1], PICK[0], LIFT_Y],
+  [CARRY[1], LAY_X, LAY_HOVER],
   [LOWER[1], LAY_X, LAY_Y],
-  [5.16, LAY_X, LAY_Y],
-  [5.46, ARM_REST[0], ARM_REST[1]],
+  [ARM_HOME[0], LAY_X, LAY_Y],
+  [ARM_HOME[1], ARM_REST[0], ARM_REST[1]],
 ];
-const RERUN = { in: 5.24, touch: 5.72, out: 5.95, gone: 6.27 };
-const FEED_PRESS = [6.27, 6.95];
-const PRESS_T = { down: 6.95, contact: 7.15, flat: 7.33, lift: 7.43, up: 7.73 };
-const SLIDE = [7.48, 7.92];
+const RERUN = { in: 5.6, touch: 6.06, out: 6.26, gone: 6.64 };
+const FEED_PRESS = [6.56, 7.06];
+const PRESS_T = { down: 7.06, contact: 7.23, flat: 7.38, lift: 7.46, up: 7.72 };
+const SLIDE = [7.5, 7.92]; // the payoff holds still from SLIDE[1] to SEAM
 const SEAM = 9.5;
 const RISE = 3 * SH + 14;
 const LAMP_REVIEW = 840, LAMP_PRESS = 1450, LAMP_TRAY = 1690;
@@ -833,8 +889,8 @@ function loopState(t) {
   } else if (t < SLIDE[1]) {
     s.flat = lerp(X_PRESS, X_TRAY, easeInOut(seg(t, SLIDE[0], SLIDE[1])));
   }
-  // the last result goes dim as the new one lands on it
-  if (s.newest) s.oldTop = 1 - easeInOut(seg(t, SLIDE[1], SLIDE[1] + 0.5));
+  // the last result goes dim while the new one slides over to it, so the hold stays still
+  s.oldTop = 1 - easeInOut(seg(t, SLIDE[0], SLIDE[1]));
   if (t >= SEAM) {
     s.trayOff = SQ * indexEase(seg(t, SEAM, SEAM + 0.18));
     s.incoming = { rise: easeOut(seg(t, SEAM, T)) };
@@ -842,7 +898,11 @@ function loopState(t) {
   s.lamp = LAMP_REVIEW + (LAMP_PRESS - LAMP_REVIEW) * easeInOut(seg(t, FEED_PRESS[0], FEED_PRESS[1]))
     + (LAMP_TRAY - LAMP_PRESS) * easeInOut(seg(t, SLIDE[0], SLIDE[1]))
     - (LAMP_TRAY - LAMP_REVIEW) * easeInOut(seg(t, SEAM, T));
-  s.pressLit = easeInOut(seg(t, 6.55, 6.95)) - easeInOut(seg(t, 7.75, 8.3));
+  // the bin's share of the lamp: some while the press works, full at the payoff, eased out over the
+  // whole seam (a smoothstep, so it never snaps)
+  const ss = (u) => u * u * (3 - 2 * u);
+  s.trayLight = 0.3 * ss(seg(t, FEED_PRESS[0], FEED_PRESS[1])) + 0.7 * ss(seg(t, SLIDE[0], SLIDE[1])) - ss(seg(t, SEAM, T));
+  s.pressLit = easeInOut(seg(t, FEED_PRESS[0] + 0.1, PRESS_T.down)) - easeInOut(seg(t, PRESS_T.up - 0.12, SLIDE[1]));
 
   // round 1: the gang head drops on a stiff spring, runs its tips out, ripples them across the
   // stack, runs them back in, then lifts out as one piece
@@ -888,12 +948,13 @@ function loopState(t) {
 
   // Claude's arm
   if (t >= ARM_KEYS[0][0] && t < ARM_KEYS[ARM_KEYS.length - 1][0]) s.arm.wrist = track(t, ARM_KEYS);
-  s.arm.active = easeInOut(seg(t, 2.1, 2.4)) - easeInOut(seg(t, 5.2, 5.6));
+  s.arm.active = easeInOut(seg(t, 2.1, 2.4)) - easeInOut(seg(t, ARM_HOME[0], ARM_HOME[1] + 0.12));
   // jaws open to the sheet's thickness for the fix sheet, the lower finger slips out from under it
   // on the stack, then the jaws close on the way home
+  const home = easeInOut(seg(t, ARM_HOME[0] + 0.04, ARM_HOME[1] - 0.04));
   s.arm.o = JAW_CLOSED + (JAW_SHEET - JAW_CLOSED) * easeInOut(seg(t, OPEN_JAW[0], OPEN_JAW[1]))
-    + 8 * easeOut(seg(t, SLIP[1], SLIP[1] + 0.08)) - (JAW_SHEET + 8 - JAW_CLOSED) * easeInOut(seg(t, 5.22, 5.42));
-  s.arm.slide = easeIn(seg(t, SLIP[0], SLIP[1])) - easeInOut(seg(t, 5.22, 5.42));
+    + 8 * easeOut(seg(t, SLIP[1], SLIP[1] + 0.06)) - (JAW_SHEET + 8 - JAW_CLOSED) * home;
+  s.arm.slide = easeIn(seg(t, SLIP[0], SLIP[1])) - home;
   for (const f of FINDINGS) {
     s.glows.push({ x: READ_X - JAW, y: sheetMid(f.sheet), u: (t - f.read) / 0.12, r: 18, color: P.bright });
     if (f.fix) {
@@ -901,16 +962,19 @@ function loopState(t) {
       s.dusts.push({ x: X_REVIEW + JIT[f.sheet] + SW / 2 + 4, y: sheetMid(f.sheet), tau: t - f.fix, seed: 0x3a0 + f.sheet, o: { ang: -0.25, spread: 1.6, n: 7, dur: 0.4 } });
     }
   }
-  if (t >= EXTRUDE[0] && t < LAY) {
-    // the sheet slides out of the wrist between the open jaws; on the stack it drops the finger's depth
-    s.carry = { reveal: easeInOut(seg(t, EXTRUDE[0], EXTRUDE[1])), drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
+  // the magazine: full until the pick, then the rest of the sheets rise one place on the spring
+  s.mag = t >= PICK_T && t < MAG_INDEX[1] ? -SH * indexEase(seg(t, MAG_INDEX[0], MAG_INDEX[1])) : null;
+  if (t >= PICK_T && t < LAY) {
+    // the picked sheet, held by its edge at full size; behind the rail post until it is lifted clear
+    s.carry = { behind: t < MAG_LIFT[1], drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
   }
   s.glows.push({ x: X_REVIEW + JIT[3] + SW / 2 - 8, y: LINE_Y - 3 * SH, u: (t - LAY) / 0.12, r: 30, color: P.bright });
   s.dusts.push({ x: X_REVIEW - SW / 2 + 6, y: LINE_Y - 3 * SH - 2, tau: t - LAY, seed: 0x5e1, o: { ang: Math.PI * 1.1, spread: 1.0, n: 8, dur: 0.45 } });
 
   // rerun: one fresh steel tip swings in, touches the new head, the rail stays empty
   if (t >= RERUN.in && t < RERUN.gone) {
-    s.theta = lerp(TH_STOW_R, TH_B, easeOut(seg(t, RERUN.in, RERUN.touch))) + (TH_STOW_R - TH_B) * easeIn(seg(t, RERUN.out, RERUN.gone));
+    // swings down out of the housing from flat behind it, and back up to stow
+    s.theta = lerp(TH_STOW_R, TH_B, easeInOut(seg(t, RERUN.in, RERUN.touch))) + (TH_STOW_R - TH_B) * easeInOut(seg(t, RERUN.out, RERUN.gone));
   }
   s.glows.push({ x: PB[0], y: PB[1], u: (t - RERUN.touch) / 0.12, r: 24, color: P.paper });
 
@@ -939,8 +1003,8 @@ function openerState(t) {
   const R = OP.review;
   let reviewPlate = 0;
   if (t >= R.in && t < R.gone) {
-    s.theta = lerp(TH_STOW_L, TH_A, easeOut(seg(t, R.in, R.touch))) + (TH_STOW_L - TH_A) * easeIn(seg(t, R.out, R.gone));
-    reviewPlate = easeOut(seg(t, R.in, R.in + 0.25)) * (1 - easeIn(seg(t, R.out, R.out + 0.2)));
+    s.theta = lerp(TH_STOW_L, TH_A, easeInOut(seg(t, R.in, R.touch))) + (TH_STOW_L - TH_A) * easeInOut(seg(t, R.out, R.gone));
+    reviewPlate = easeOut(seg(t, R.in + 0.15, R.in + 0.4)) * (1 - easeIn(seg(t, R.out, R.out + 0.2)));
   }
   s.glows.push({ x: PA[0], y: PA[1], u: (t - R.touch) / 0.12, r: 24, color: P.paper });
   // (b) the review layers, then the person's key
@@ -957,6 +1021,7 @@ function openerState(t) {
     sol: easeOut(seg(t, OP.gIn + 0.35, OP.gIn + 0.65)) * (1 - easeIn(seg(t, OP.gOut[0] + 0.05, OP.gOut[0] + 0.35))),
   };
   s.lamp = lerp(640, LAMP_REVIEW, easeInOut(seg(t, OP.gIn - 0.3, OP.gIn + 0.5)));
+  s.trayLight = 0;
   return s;
 }
 
@@ -984,6 +1049,7 @@ function warm(ctx) {
   frameParts(c, s);
   for (let n = 3; n <= 4; n++) stackSprite(c, n, X_REVIEW);
   oneSheet(c, X_REVIEW, LINE_Y);
+  magazine(c, -SH);
   warming = false;
   setLod(ctx);
 }
@@ -1008,8 +1074,7 @@ function frameParts(ctx, s) {
   sprite(ctx, 'merge-pile', [X_TRAY - SW / 2 - 4, LINE_Y - 36, X_TRAY + SW / 2 + D.x * SDEP + 6, LINE_Y + 7 * SQ + 4], (c) => {
     for (let k = 1; k <= 7; k++) sheet(c, X_TRAY, LINE_Y + k * SQ, SQ, { top: false, dim: 0.72 });
   }, 0, s.trayOff % SQ);
-  // proportional to the lamp's distance, so the bin dims and brightens over the lamp's whole move
-  const dark = 0.62 * clamp01((Math.abs(s.lamp - X_TRAY) - 60) / 500);
+  const dark = 0.62 * (1 - s.trayLight);
   if (dark > 0) {
     ctx.fillStyle = `rgba(4,6,5,${dark.toFixed(4)})`;
     ctx.fillRect(TRAY_X0, LINE_Y, TRAY_X1 - TRAY_X0, TRAY_BOT - LINE_Y);
@@ -1024,6 +1089,19 @@ function frameParts(ctx, s) {
     contactShadow(ctx, s.flat + 30, LINE_Y - 6, 150, 12, 0.35);
     flatSheet(ctx, s.flat, LINE_Y);
   }
+
+  // the session's magazine, the picked sheet while it is still behind the rail, then the rail
+  magazine(ctx, s.mag === undefined ? null : s.mag);
+  const w = s.arm.wrist;
+  if (s.carry && s.carry.behind) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, BEAM_Y1, W, MAG_HIDE - BEAM_Y1);
+    ctx.clip();
+    oneSheet(ctx, w[0] - SW / 2, w[1] + SH / 2);
+    ctx.restore();
+  }
+  sprite(ctx, 'merge-rail', RAIL_BOX, railFront);
 
   // tags hang behind the stack's end
   for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k), g.ang, g.alpha, 0, g.readU);
@@ -1071,25 +1149,18 @@ function frameParts(ctx, s) {
   sprite(ctx, 'merge-platen', PLATEN_BOX, (c) => platenDraw(c, PRESS_IDLE), 0, dP);
   sprite(ctx, 'merge-platen-lit', PLATEN_BOX, (c) => platenDraw(c, PRESS_LIT), 0, dP, s.pressLit);
 
-  // the fix sheet slides out of the wrist between the jaws, then is laid
-  const w = s.arm.wrist;
-  if (s.carry) {
-    const face = w[0] - 14;
-    const cx = face + 14 - SW / 2 + (1 - s.carry.reveal) * (SW - 14);
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, face, H);
-    ctx.clip();
-    oneSheet(ctx, cx, w[1] + SH / 2 + s.carry.drop);
-    ctx.restore();
-  }
+  // the fix sheet, carried by its edge, then laid
+  if (s.carry && !s.carry.behind) oneSheet(ctx, w[0] - SW / 2, w[1] + SH / 2 + s.carry.drop);
   const a = s.arm;
   if (a.active <= 0 && a.slide <= 0 && a.o === JAW_CLOSED && w === ARM_REST) {
     sprite(ctx, 'merge-arm-rest', ARM_BOX, (c) => armDraw(c, ARM_REST, 0, JAW_CLOSED, 0));
   } else armDraw(ctx, w, a.active, a.o, a.slide);
 
-  if (s.key.press >= 1 && s.key.latch > 1 - 1e-9) sprite(ctx, 'merge-key', KEY_BOX, (c) => keyDraw(c, 1, 1));
-  else keyDraw(ctx, s.key.press, s.key.latch);
+  // the cached key only at rest, so the latch's designed overshoot still plays
+  if (Math.abs(s.key.press - 1) < 1e-6 && Math.abs(s.key.latch - 1) < 1e-6) {
+    sprite(ctx, 'merge-key', KEY_BOX, (c) => keyDraw(c, 1, 1, false));
+    keyLegend(ctx, 1);
+  } else keyDraw(ctx, s.key.press, s.key.latch);
 
   lampFalloff(ctx, s.lamp, 600, 400, 1260, 0.58);
 

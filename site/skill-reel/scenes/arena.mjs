@@ -1,14 +1,15 @@
 // /arena at final fidelity (pitch A 3.8).
 // Sealed booths, a badge grinder and a blind pegboard. One brief is copied into three lit booths;
-// a fourth booth stands dim and empty, so the count reads as "some", not "three". Shutters close
-// and a fresh builder works in each booth; three pieces come out with their own edge profile and
-// angle mark. One after another they slide through the grinder's frame: behind its port a wheel
-// grinds the mark off and a die punches a neutral letter (A, B, C: the only drawn words). A screen
-// drops; a fresh judge behind it fills a pegboard with green pass and amber fail pegs and points to
-// B. The screen lifts. The session's hatched parent touches C, B and A, keeps B, and inlays one
-// small section from A and one from C into B's edge, each re-cut to B's hatching and set flush.
-// Hold. Seam, staggered: B leaves right, A and C drop to scratch, the shutters reopen one by one,
-// a new brief arrives.
+// a fourth booth stands dim and empty, so the count reads as "some", not "three". A fresh builder
+// drops into each booth, the shutters close, and three pieces come out with their own edge
+// profile and angle mark. One after another they slide through the grinder's frame: behind its
+// port a wheel grinds the mark off and a die punches a neutral letter (A, B, C: the only drawn
+// words). A screen drops; a fresh judge behind it fills a pegboard row by row with green pass and
+// amber fail pegs and points to B. The screen lifts. The graft: the session's hatched parent takes
+// B as the base and cuts a seat into its edge, then cuts a large section carrying A's edge idea
+// and one carrying C's, carries each across and seats it in B (hatch re-cut to B's). B stands
+// under the lamp as the base plus two inlays; A and C are left notched. Hold. Seam, staggered:
+// C and A drop to scratch, B leaves right, the shutters reopen together, a new brief arrives.
 // Pure function of t. No Math.random, no setTransform. Static geometry lives in cached layers;
 // rigid moving parts are drawn once into per-scale sprites and placed each frame.
 
@@ -16,7 +17,7 @@ import {
   W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
   mix, rgba, indexEase, setLod, lw, cached, grainOver, poly, prism, rect, hole,
   rodV, rodH, ball, contactShadow, contactGlow, softGlow, dust, centreLine,
-  benchFinal, lampFalloff, activeMat,
+  benchFinal, lampFalloff, activeMat, BACK_Y, BENCH_Y,
 } from '../kit.mjs';
 
 const T = 10.0;
@@ -79,7 +80,9 @@ const BOARD = { x: 1318, y: 296, w: 490, h: 262 };
 const ROWS = [366, 428, 490];
 const PIVOT = { x: SLOT[1], y: 536 };
 const STRIP = 30; // width of the hatched cut face along a piece's left edge
-const CH_H = 38;
+// The graft: sections GW wide and GH tall; B's seat takes two of them, stacked.
+const GW = 48, GH = 58, SEAT_H = 2 * GH;
+const CARRY_Y = 560; // gripper height while carrying a section over the tray
 const BOOM_Y = 540, HOV = 574, REST = { x: 1862, y: 574 };
 
 // The grinder: a frame the pieces slide through, a port on the mark, a wheel guard and motor on top.
@@ -92,33 +95,28 @@ const FX0 = 1099, FX1 = 1259, FY0 = P_TOP - 38;
 // Feed through the grinder per booth: [leave bench spot, enter port, leave port, reach tray].
 // The pieces overlap: the next one is on its way while the previous one is in the port.
 const FEEDT = [[3.0, 3.6, 4.05, 4.4], [2.45, 2.95, 3.4, 3.8], [1.95, 2.3, 2.75, 3.15]];
-const INLAYS = [
-  { from: 0, rel: 48, cut: 6.54, set: 6.82 },
-  { from: 2, rel: 96, cut: 7.1, set: 7.38 },
-];
-const SHUT_CLOSE = [0.5, 0.54, 0.58], SHUT_OPEN = [9.54, 9.57, 9.6];
-const JUDGE = { in: 4.42, out: 5.7, pegs: 4.92, point: 5.32 };
-const SEAM = { lift: 9.24, bOut: [9.4, 9.74], doors: [[9.36, 9.54], [9.26, 9.44]], brief: 9.68 }; // doors: [A, C]
+const G = { seat: 6.17, drop: 6.29, cutA: 6.49, setA: 6.89, cutC: 7.23, setC: 7.57, rest: 7.81 };
+const SHUT_CLOSE = 0.9, SHUT_OPEN = 9.6;
+const JUDGE = { in: 4.42, out: 5.75, pegs: 4.92, point: 5.45 };
+// doors: [A, C] as [open, close]; the piece drops between them
+const SEAM = { lift: 9.39, bOut: [9.58, 9.95], doors: [[9.5, 9.7], [9.4, 9.6]], brief: 9.7 };
+const WASTE_X = SLOT[1] - PW / 2 + GW / 2 - 46; // B's seat waste is pulled left over this slot
 
 // ---------------------------------------------------------------------------------------------
 // Pieces.
 
 function edge(i, s) {
-  if (i === 0) return s < 0.5 ? 0 : 16; // step
+  if (i === 0) return s > 0.14 && s < 0.36 ? 18 : 0; // a square step near the top
   if (i === 1) return 8 + 8 * Math.sin(s * Math.PI * 4); // wave
   const f = (s * 4) % 1;
   return 16 * Math.abs(f * 2 - 1); // zigzag
 }
-const band = (n) => [n.rel / PH, (n.rel + CH_H) / PH];
 
-// Left-edge offset of piece i at height fraction s, with notches cut and inlays set.
+// Left-edge offset of piece i at height fraction s: B's seat once cut, A's and C's taken sections.
 function edgeX(i, s, st) {
-  for (const n of INLAYS) {
-    const [a, b] = band(n);
-    if (s < a || s > b) continue;
-    if (i === n.from && st.cut[n.from]) return STRIP;
-    if (i === 1 && st.set[n.from]) return edge(n.from, s);
-  }
+  const r = s * PH;
+  if (i === 1 && st.seat && r < SEAT_H) return GW;
+  if (((i === 0 && st.cutA) || (i === 2 && st.cutC)) && r < GH) return GW;
   return edge(i, s);
 }
 
@@ -126,7 +124,7 @@ function piecePts(i, left, top, st) {
   const cut = 22;
   const ss = [];
   for (let k = 0; k <= 60; k++) ss.push(k / 60);
-  for (const n of INLAYS) { const [a, b] = band(n); ss.push(a - 1e-4, a + 1e-4, b - 1e-4, b + 1e-4); }
+  for (const r of [GH, SEAT_H, 0.14 * PH, 0.36 * PH]) ss.push(r / PH - 1e-4, r / PH + 1e-4);
   ss.sort((a, b) => b - a);
   const pts = [[left + PW - cut, top], [left + PW, top + cut], [left + PW, top + PH]];
   for (const s of ss) pts.push([left + edgeX(i, s, st), top + PH * s]);
@@ -210,12 +208,15 @@ function pieceVec(ctx, i, cx, top, st, withMark) {
     ctx.stroke();
     ctx.restore();
   }
+  if (i === 1 && st.setC) chunkVec(ctx, 2, left, top, 0, GH, HATCH[1], true);
+  if (i === 1 && st.setA) chunkVec(ctx, 0, left, top + GH, 0, GH, HATCH[1], true);
   hole(ctx, left + 60, top + 24, 8.5, P_DEP, MAT.ivory);
   if (withMark) mark(ctx, i, left + 64, top + 92);
 }
-const NO_ST = { cut: [false, false, false], set: [false, false, false] };
+const NO_ST = { seat: false, cutA: false, cutC: false, setA: false, setC: false };
 function pieceSprite(ctx, i, withMark, st) {
-  const k = 'ar-p' + i + (withMark ? 'm' : 'n') + (st.cut[i] ? 'c' : '') + (i === 1 ? (st.set[0] ? 'a' : '') + (st.set[2] ? 'b' : '') : '');
+  const f = i === 0 ? (st.cutA ? 'c' : '') : i === 2 ? (st.cutC ? 'c' : '') : (st.seat ? 's' : '') + (st.setA ? 'a' : '') + (st.setC ? 'c' : '');
+  const k = 'ar-p' + i + (withMark ? 'm' : 'n') + f;
   return sprite(ctx, k, [-PW / 2 - 8, P_TOP - 14, PW + 26, PH + 24], (c) => pieceVec(c, i, 0, P_TOP, st, withMark));
 }
 // o: { alpha, markA (0..1), letter (bool), st }
@@ -240,24 +241,39 @@ function piece(ctx, i, cx, top, o) {
   }
 }
 
-// The section carried between pieces: a short strip of the source's profile, hatch turning to B's.
-function chunk(ctx, n, x, y, u) {
-  const left = x - STRIP / 2, top = y - CH_H / 2;
-  const [a] = band(n);
-  const pts = [[left + STRIP, top], [left + STRIP, top + CH_H]];
-  for (let k = 12; k >= 0; k--) {
-    const s = a + (k / 12) * (CH_H / PH);
-    pts.push([left + edge(n.from, s), top + (k / 12) * CH_H]);
+// A section: rows r0..r1 of piece src's left edge, GW wide, drawn with its top-left at (left, top),
+// hatched at angle ang. inlaid: outlined as a seated inlay.
+function chunkVec(ctx, src, left, top, r0, r1, ang, inlaid = false) {
+  const h = r1 - r0;
+  const pts = [[left + GW, top], [left + GW, top + h]];
+  for (let k = 24; k >= 0; k--) {
+    const r = r0 + (k / 24) * h;
+    pts.push([left + edge(src, r / PH), top + (k / 24) * h]);
   }
   prism(ctx, pts, P_DEP, MAT.ivory, { sil: 2 });
   ctx.save();
   poly(ctx, pts);
   ctx.clip();
   ctx.fillStyle = 'rgba(150,154,142,0.28)';
-  ctx.fillRect(left, top, STRIP, CH_H);
-  hatchIn(ctx, left - 2, top, STRIP + 4, CH_H, lerp(HATCH[n.from], HATCH[1], easeInOut(u)), 'rgba(62,90,69,0.95)');
+  ctx.fillRect(left - 2, top, STRIP + 2, h);
+  hatchIn(ctx, left - 2, top, STRIP + 4, h, ang, 'rgba(62,90,69,0.95)');
   ctx.restore();
+  if (inlaid) {
+    // the seam round the inlay: a dark cut line
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#3f463b';
+    ctx.lineWidth = lw(3);
+    ctx.beginPath();
+    ctx.moveTo(left + edge(src, r0 / PH), top);
+    ctx.lineTo(left + GW, top);
+    ctx.lineTo(left + GW, top + h);
+    ctx.lineTo(left + edge(src, r1 / PH), top + h);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
+const hatchTurn = (src, u) => lerp(HATCH[src], HATCH[1], easeInOut(u));
 
 // ---------------------------------------------------------------------------------------------
 // Motion.
@@ -271,44 +287,58 @@ function pieceX(t, i) {
   return SLOT[i];
 }
 
-const shutter = (t, i) => easeInOut(seg(t, SHUT_CLOSE[i], SHUT_CLOSE[i] + 0.4)) - easeInOut(seg(t, SHUT_OPEN[i], SHUT_OPEN[i] + 0.4));
-const screenDown = (t) => easeInOut(seg(t, 4.3, 4.6)) - easeInOut(seg(t, 5.9, 6.3));
+const shutter = (t) => easeInOut(seg(t, SHUT_CLOSE, SHUT_CLOSE + 0.4)) - easeInOut(seg(t, SHUT_OPEN, SHUT_OPEN + 0.4));
+const screenDown = (t) => easeInOut(seg(t, 4.3, 4.6)) - easeInOut(seg(t, 5.95, 6.35));
 
-// Parent tip keyframes: [t, x, y]. Touch C, B and A, cut and carry two sections, set them in B.
-const cyOf = (n) => P_TOP + n.rel; // the gripper takes the section by its top edge
-const xA = SLOT[0] - PW / 2 + STRIP / 2, xB = SLOT[1] - PW / 2 + STRIP / 2, xC = SLOT[2] - PW / 2 + STRIP / 2;
-const yA = cyOf(INLAYS[0]), yC = cyOf(INLAYS[1]);
+// Parent tip keyframes: [t, x, y]. Take B and cut its seat, pull the waste clear, then cut a section
+// from A and one from C, carry each over the tray and seat it in B; rest on B.
+const B_HOLD = SLOT[1] + 24; // the gripper holds B clear of its inlays
+const xA = SLOT[0] - PW / 2 + GW / 2, xB = SLOT[1] - PW / 2 + GW / 2, xC = SLOT[2] - PW / 2 + GW / 2;
 const KEYS = [
-  [0, REST.x, REST.y], [5.86, REST.x, REST.y],
-  [5.98, SLOT[2], HOV], [6.03, SLOT[2], P_TOP], [6.07, SLOT[2], HOV],
-  [6.15, SLOT[1], HOV], [6.2, SLOT[1], P_TOP], [6.24, SLOT[1], HOV],
-  [6.32, SLOT[0], HOV], [6.37, SLOT[0], P_TOP], [6.41, SLOT[0], HOV],
-  [6.47, xA, HOV], [6.54, xA, yA], [6.57, xA, yA], [6.63, xA, HOV],
-  [6.75, xB, HOV], [6.82, xB, yA], [6.85, xB, yA], [6.91, xB, HOV],
-  [7.03, xC, HOV], [7.1, xC, yC], [7.13, xC, yC], [7.19, xC, HOV],
-  [7.31, xB, HOV], [7.38, xB, yC], [7.41, xB, yC], [7.47, xB, HOV],
-  [7.54, SLOT[1], HOV], [7.62, SLOT[1], P_TOP],
-  [SEAM.lift, SLOT[1], P_TOP], [SEAM.lift + 0.08, SLOT[1], HOV], [SEAM.lift + 0.28, REST.x, REST.y], [T, REST.x, REST.y],
+  [0, REST.x, REST.y], [5.95, REST.x, REST.y],
+  [6.11, xB, HOV], [G.seat, xB, P_TOP], [6.27, WASTE_X, P_TOP], [G.drop, WASTE_X, P_TOP],
+  [6.43, xA, HOV], [G.cutA, xA, P_TOP], [6.53, xA, P_TOP], [6.65, xA, CARRY_Y], [6.79, xB, CARRY_Y], [G.setA, xB, P_TOP + GH],
+  [6.93, xB, P_TOP + GH], [7.03, xB, CARRY_Y], [7.15, xC, CARRY_Y], [G.cutC, xC, P_TOP],
+  [7.27, xC, P_TOP], [7.37, xC, CARRY_Y], [7.49, xB, CARRY_Y], [G.setC, xB, P_TOP],
+  [7.61, xB, P_TOP], [7.69, xB, HOV], [7.75, B_HOLD, HOV], [G.rest, B_HOLD, P_TOP],
+  [SEAM.lift, B_HOLD, P_TOP], [SEAM.lift + 0.08, B_HOLD, HOV], [SEAM.lift + 0.26, REST.x, REST.y], [T, REST.x, REST.y],
 ];
 function parentTip(t) {
   for (let k = 0; k < KEYS.length - 1; k++) {
     const [t0, x0, y0] = KEYS[k], [t1, x1, y1] = KEYS[k + 1];
-    if (t >= t0 && t < t1) { const u = easeInOut((t - t0) / (t1 - t0)); return { x: lerp(x0, x1, u), y: lerp(y0, y1, u) }; }
+    if (t >= t0 && t < t1) { const u = sm((t - t0) / (t1 - t0)); return { x: lerp(x0, x1, u), y: lerp(y0, y1, u) }; }
   }
   return { ...REST };
 }
-const TOUCH = [[6.03, SLOT[2]], [6.2, SLOT[1]], [6.37, SLOT[0]], [7.62, SLOT[1]]];
-const parentActive = (t) => easeInOut(seg(t, 5.66, 5.86)) * (1 - easeInOut(seg(t, SEAM.lift + 0.08, SEAM.lift + 0.45)));
+const parentActive = (t) => easeInOut(seg(t, 5.75, 5.95)) * (1 - easeInOut(seg(t, SEAM.lift + 0.08, SEAM.lift + 0.45)));
 
-function inlayState(t) {
-  return {
-    cut: [t >= INLAYS[0].cut, false, t >= INLAYS[1].cut],
-    set: [t >= INLAYS[0].set, false, t >= INLAYS[1].set],
-  };
+function graftState(t) {
+  return { seat: t >= G.seat, cutA: t >= G.cutA, cutC: t >= G.cutC, setA: t >= G.setA, setC: t >= G.setC };
 }
 
-// The lamp follows the active station: booths, the grinder, the judging tray, back at the seam.
-const lampX = (t) => 700 + 480 * easeInOut(seg(t, 1.8, 2.5)) + 280 * easeInOut(seg(t, 4.2, 4.8)) - 760 * easeInOut(seg(t, 9.2, 10));
+// The lamp follows the active station: booths, the grinder, the judging tray and the graft on B,
+// back at the seam.
+const lampX = (t) => 700 + 480 * easeInOut(seg(t, 1.8, 2.5)) + 260 * easeInOut(seg(t, 4.2, 4.8)) + 100 * easeInOut(seg(t, 5.9, 6.3)) - 840 * easeInOut(seg(t, 9.3, 10));
+// The lamp's pool on the bench and wall, at the active station (the cached bench keeps a dim one).
+function lampPool(ctx, x) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, BACK_Y, W, BENCH_Y - BACK_Y);
+  ctx.clip();
+  ctx.translate(x, FLOOR - 6);
+  ctx.scale(1, 0.13);
+  let g = ctx.createRadialGradient(0, 0, 0, 0, 0, 460);
+  g.addColorStop(0, 'rgba(225,240,225,0.16)');
+  g.addColorStop(1, 'rgba(225,240,225,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-460, -460, 920, 920);
+  ctx.restore();
+  g = ctx.createRadialGradient(x, 520, 0, x, 520, 520);
+  g.addColorStop(0, 'rgba(150,215,170,0.07)');
+  g.addColorStop(1, 'rgba(150,215,170,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x - 520, 0, 1040, BACK_Y);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Booths.
@@ -356,8 +386,13 @@ function boothBody(ctx, i) {
     ctx.fillStyle = g;
     ctx.fillRect(x - r.half, r.bot - 60, r.half * 2, 60);
   }
-  // roll housing for the shutter
+  // roll housing for the shutter, and the port in the top the builder drops through
   prism(ctx, rect(x - r.half - 2, r.top - 2, r.half * 2 + 4, 10), 10, M, { sil: 2 });
+  if (!dim) {
+    ctx.fillStyle = '#050806';
+    poly(ctx, [[x - 30, B_TOP], [x + 30, B_TOP], [x + 30 + D.x * 40, B_TOP + D.y * 40], [x - 30 + D.x * 40, B_TOP + D.y * 40]]);
+    ctx.fill();
+  }
 }
 
 // Roller shutter: slats with narrow gaps, anchored to the moving bottom edge; the work shows
@@ -395,42 +430,40 @@ function shutterSlats(ctx, i, sh) {
   ctx.restore();
 }
 
-// Fresh builder inside a booth: clean green press head on a rod from the booth top; three strokes, then gone.
+// Fresh builder: a clean green press head on a long rod, dropped through the booth top from above
+// the frame (ease-out 0.5 s) before the shutters close, two strokes on the work, lifted out (0.4 s).
 function drawBuilderHead(ctx) {
   const hx = 0, tipY = 0;
-  prism(ctx, rect(hx - 18, tipY - 30, 36, 26), 14, MAT.fresh, { sil: 2.5 });
-  prism(ctx, [[hx - 8, tipY - 4], [hx + 8, tipY - 4], [hx + 3, tipY + 4], [hx - 3, tipY + 4]], 8, MAT.fresh, { sil: 2 });
+  prism(ctx, rect(hx - 27, tipY - 36, 54, 30), 16, MAT.fresh, { sil: 3 });
+  prism(ctx, rect(hx - 10, tipY - 6, 20, 6), 10, MAT.fresh, { sil: 2 });
+  ball(ctx, hx - 15, tipY - 21, 4, MAT.fresh);
+  ball(ctx, hx + 15, tipY - 21, 4, MAT.fresh);
 }
-const B_IN = 0.95, B_WORK = 1.1, B_OUT = 1.7, B_GONE = 1.82;
+const B_IN = 0.45, B_WORK = 1.3, B_OUT = 1.92, B_GONE = 2.32;
+const B_REST = IN_TOP - 26, B_HIGH = -60;
 function builder(ctx, t, i) {
   if (t < B_IN || t >= B_GONE) return;
   const x = BX[i];
-  let up = 0;
-  if (t < B_WORK) up = 1 - easeOut(seg(t, B_IN, B_WORK));
-  else if (t >= B_OUT) up = easeIn(seg(t, B_OUT, B_GONE));
-  let press = 0, off = 0;
-  if (t >= B_WORK && t < B_OUT) {
-    const k = Math.min(2, Math.floor((t - B_WORK) / 0.2));
-    const lt = t - B_WORK - k * 0.2;
-    press = Math.sin(Math.PI * clamp01(lt / 0.16));
-    off = [-24, 6, 28][(k + i) % 3];
+  let tipY = B_REST;
+  if (t < B_IN + 0.5) tipY = lerp(B_HIGH, B_REST, easeOut(seg(t, B_IN, B_IN + 0.5)));
+  else if (t >= B_OUT) tipY = lerp(B_REST, B_HIGH, easeIn(seg(t, B_OUT, B_GONE)));
+  let off = 0;
+  if (t >= B_WORK && t < B_WORK + 0.3) {
+    const k = Math.min(1, Math.floor((t - B_WORK) / 0.15));
+    const lt = t - B_WORK - k * 0.15;
+    tipY += 26 * Math.sin(Math.PI * clamp01(lt / 0.12));
+    off = [-20, 20][(k + i) % 2];
   }
-  const tipY = IN_TOP - 26 + 26 * press - 120 * up;
   const hx = x + off;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x - REC.half, REC.top + 8, REC.half * 2, REC.bot - REC.top - 8);
-  ctx.clip();
-  rodV(ctx, hx, REC.top, tipY - 30, 8, MAT.fresh);
-  blit(ctx, sprite(ctx, 'ar-builder', [-26, -36, 56, 46], drawBuilderHead), hx, tipY);
-  ctx.restore();
+  rodV(ctx, hx, -20, tipY - 34, 9, MAT.fresh);
+  blit(ctx, sprite(ctx, 'ar-builder', [-34, -46, 76, 54], drawBuilderHead), hx, tipY);
 }
 function builderContacts(ctx, t) {
   for (let i = 0; i < 3; i++) {
-    for (let k = 0; k < 3; k++) {
-      const s = B_WORK + k * 0.2 + 0.08;
-      const off = [-24, 6, 28][(k + i) % 3];
-      contactGlow(ctx, BX[i] + off, IN_TOP, (t - s + 0.03) / 0.12, 22);
+    for (let k = 0; k < 2; k++) {
+      const s = B_WORK + k * 0.15 + 0.06;
+      const off = [-20, 20][(k + i) % 2];
+      contactGlow(ctx, BX[i] + off, IN_TOP, (t - s) / 0.12, 22);
     }
   }
 }
@@ -716,7 +749,7 @@ function judge(ctx, t) {
   const pegS = [sprite(ctx, 'ar-peg-0', [-18, -18, 38, 40], (c) => drawPeg(c, 0)), sprite(ctx, 'ar-peg-1', [-18, -18, 38, 40], (c) => drawPeg(c, 1))];
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < 3; j++) {
-      const tp = JUDGE.pegs + 0.08 * j + 0.04 * i;
+      const tp = JUDGE.pegs + 0.2 * j; // one criterion row at a time
       if (t < tp) continue;
       const u = indexEase(seg(t, tp, tp + 0.14));
       blit(ctx, pegS[PEGS[i][j]], SLOT[i], ROWS[j] - 46 * (1 - u) + dy);
@@ -786,7 +819,7 @@ function parent(ctx, t, tip) {
 // Static layers.
 
 function backLayer(ctx) {
-  benchFinal(ctx, 1000, 560);
+  benchFinal(ctx, 1400, 560);
   for (let i = 0; i < 4; i++) contactShadow(ctx, BX[i] + 16, FLOOR - 6, 120, 14, i === 3 ? 0.35 : 0.5);
   contactShadow(ctx, CX + 10, FLOOR - 6, 120, 15, 0.6);
   contactShadow(ctx, 1560, FLOOR - 4, 260, 16, 0.45);
@@ -840,13 +873,13 @@ function brief(ctx, x, y, a = 1) {
 function briefs(ctx, t, inBooth) {
   // the brief slides to the booth row, then three copies rise into the lit booths (inside only)
   if (!inBooth) {
-    if (t < 0.3) {
-      const x = lerp(ENTRY, BX[1], easeInOut(seg(t, 0, 0.3)));
+    if (t < 0.25) {
+      const x = lerp(ENTRY, BX[1], easeInOut(seg(t, 0, 0.25)));
       contactShadow(ctx, x + 6, FLOOR - 4, 40, 6, 0.5);
       brief(ctx, x - 30, FLOOR - 90);
-    } else if (t < 0.55) {
-      const u = easeInOut(seg(t, 0.3, 0.55));
-      for (let i = 0; i < 3; i++) brief(ctx, lerp(BX[1], BX[i], u) - 30, lerp(FLOOR - 90, IN_TOP + 30, u), i === 1 ? 1 : seg(t, 0.3, 0.4));
+    } else if (t < 0.45) {
+      const u = easeInOut(seg(t, 0.25, 0.45));
+      for (let i = 0; i < 3; i++) brief(ctx, lerp(BX[1], BX[i], u) - 30, lerp(FLOOR - 90, IN_TOP + 30, u), i === 1 ? 1 : seg(t, 0.25, 0.33));
     }
     if (t >= SEAM.brief) {
       const x = lerp(-60, ENTRY, easeOut(seg(t, SEAM.brief, T)));
@@ -855,16 +888,16 @@ function briefs(ctx, t, inBooth) {
     }
     return;
   }
-  if (t >= 0.55 && t < 1.55) {
-    const a = 1 - seg(t, 1.1, 1.55);
+  if (t >= 0.45 && t < 1.55) {
+    const a = 1 - seg(t, 1.3, 1.55);
     for (let i = 0; i < 3; i++) brief(ctx, BX[i] - 30, IN_TOP + 30, a);
   }
 }
 
-const P_FORM = [1.1, 1.55], P_LOWER = [1.62, 1.95];
+const P_FORM = [1.3, 1.55], P_LOWER = [1.62, 1.92];
 function pieceDraw(ctx, t, inBooth) {
   if (t < P_FORM[0]) return;
-  const st = inlayState(t);
+  const st = graftState(t);
   for (let i = 0; i < 3; i++) {
     const b = FEEDT[i][1];
     const o = { markA: 1 - seg(t, b + 0.07, b + 0.19), letter: t >= b + 0.32, st };
@@ -908,19 +941,22 @@ export default {
     setLod(ctx);
     cached(ctx, 'arena-final-back', backLayer);
 
+    lampPool(ctx, lampX(t));
+
     // inside the booths: copies of the brief, the builders, the pieces forming; then shutters
     for (let i = 0; i < 3; i++) builder(ctx, t, i);
     briefs(ctx, t, true);
     pieceDraw(ctx, t, true);
-    for (let i = 0; i < 3; i++) shutterSlats(ctx, i, shutter(t, i));
+    const sh = shutter(t);
+    for (let i = 0; i < 3; i++) shutterSlats(ctx, i, sh);
 
-    // trap doors open under A and C at the seam, one after the other
-    for (const [k, x] of [[0, SLOT[0]], [1, SLOT[2]]]) {
-      const [d0, d1] = SEAM.doors[k];
+    // trap doors in the tray: B's seat waste early in the graft; C, then A at the seam
+    for (const [x, d0, d1] of [[WASTE_X, G.drop - 0.04, G.drop + 0.23], [SLOT[0], ...SEAM.doors[0]], [SLOT[2], ...SEAM.doors[1]]]) {
       const door = easeInOut(seg(t, d0, d0 + 0.06)) - easeInOut(seg(t, d1, d1 + 0.06));
       if (door <= 0) continue;
+      const hw = x === WASTE_X ? 28 : 56;
       ctx.fillStyle = '#030504';
-      poly(ctx, [[x - 56, FLOOR - 3], [x + 56, FLOOR - 3], [x + 56 + D.x * 60 * door, FLOOR - 3 + D.y * 60 * door], [x - 56 + D.x * 60 * door, FLOOR - 3 + D.y * 60 * door]]);
+      poly(ctx, [[x - hw, FLOOR - 3], [x + hw, FLOOR - 3], [x + hw + D.x * 60 * door, FLOOR - 3 + D.y * 60 * door], [x - hw + D.x * 60 * door, FLOOR - 3 + D.y * 60 * door]]);
       ctx.fill();
     }
 
@@ -930,17 +966,25 @@ export default {
     screen(ctx, t);
     const jd = judge(ctx, t);
 
-    // the parent and the section it carries
+    // the graft: B's seat waste, then the sections of A and C, carried under the parent's gripper
     const tip = parentTip(t);
-    for (const n of INLAYS) {
-      if (t >= n.cut && t < n.set) chunk(ctx, n, tip.x, tip.y + CH_H / 2, seg(t, n.cut + 0.06, n.set - 0.04));
+    if (t >= G.seat && t < G.drop) chunkVec(ctx, 1, tip.x - GW / 2, tip.y, 0, SEAT_H, HATCH[1]);
+    else if (t >= G.drop && t < G.drop + 0.26) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W, FLOOR);
+      ctx.clip();
+      chunkVec(ctx, 1, WASTE_X - GW / 2, P_TOP + 200 * easeIn(seg(t, G.drop + 0.02, G.drop + 0.24)), 0, SEAT_H, HATCH[1]);
+      ctx.restore();
     }
+    if (t >= G.cutA && t < G.setA) chunkVec(ctx, 0, tip.x - GW / 2, tip.y, 0, GH, hatchTurn(0, seg(t, G.cutA + 0.06, G.setA - 0.06)));
+    if (t >= G.cutC && t < G.setC) chunkVec(ctx, 2, tip.x - GW / 2, tip.y, 0, GH, hatchTurn(2, seg(t, G.cutC + 0.06, G.setC - 0.06)));
     parent(ctx, t, tip);
 
     cached(ctx, 'arena-final-front', frontLayer);
     lampFalloff(ctx, lampX(t), 560, 520, 1350, 0.56);
 
-    // light: builder strokes, the grinder's sparks and strike, the pointer, the parent's contacts
+    // light: builder strokes, the grinder's sparks and strike, the pointer, the graft's cuts and seats
     builderContacts(ctx, t);
     for (let i = 0; i < 3; i++) {
       const b = FEEDT[i][1];
@@ -948,13 +992,14 @@ export default {
       contactGlow(ctx, CX, CY + 4, (t - b - 0.32) / 0.12, 30);
     }
     if (jd) contactGlow(ctx, jd.tip[0], jd.tip[1], (t - JUDGE.point - 0.16) / 0.12, 30);
-    for (const [tk, x] of TOUCH) contactGlow(ctx, x, P_TOP, (t - tk) / 0.12, 30);
-    for (const n of INLAYS) {
-      const cy = cyOf(n) + CH_H / 2;
-      contactGlow(ctx, SLOT[n.from] - PW / 2 + STRIP, cy, (t - n.cut) / 0.12, 30);
-      contactGlow(ctx, SLOT[1] - PW / 2 + STRIP, cy, (t - n.set) / 0.12, 34);
-      dust(ctx, SLOT[1] - PW / 2 + 4, cy, t - n.set, 0xa0 + n.from, { ang: Math.PI * 0.9, spread: 1.2, n: 7, dur: 0.4 });
-    }
+    const seamX = (k) => SLOT[k] - PW / 2 + GW;
+    contactGlow(ctx, seamX(1), P_TOP + SEAT_H / 2, (t - G.seat) / 0.12, 30);
+    dust(ctx, seamX(1) - 4, P_TOP + SEAT_H / 2, t - G.seat, 0xa1, { ang: Math.PI * 0.9, spread: 1.2, n: 7, dur: 0.4 });
+    contactGlow(ctx, seamX(0), P_TOP + GH / 2, (t - G.cutA) / 0.12, 30);
+    contactGlow(ctx, seamX(2), P_TOP + GH / 2, (t - G.cutC) / 0.12, 30);
+    contactGlow(ctx, seamX(1), P_TOP + GH * 1.5, (t - G.setA) / 0.12, 40);
+    contactGlow(ctx, seamX(1), P_TOP + GH / 2, (t - G.setC) / 0.12, 40);
+    contactGlow(ctx, B_HOLD, P_TOP, (t - G.rest) / 0.12, 30);
 
     grainOver(ctx, 0.3, 'soft-light');
   },
