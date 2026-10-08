@@ -440,7 +440,7 @@ function drawBuilderHead(ctx) {
   ball(ctx, hx + 15, tipY - 21, 4, MAT.fresh);
 }
 const B_IN = 0.45, B_WORK = 1.3, B_OUT = 1.92, B_GONE = 2.32;
-const RAIL_Y = 226, RAIL_B = 241; // the builders' roof rail (static); builders are clipped below it
+const RAIL_Y = 232, RAIL_B = 241; // the builders' roof rail (static); builders are clipped below it
 const B_REST = IN_TOP - 26, B_HIGH = RAIL_B - 6;
 function builder(ctx, t, i) {
   if (t < B_IN || t >= B_GONE) return;
@@ -448,14 +448,13 @@ function builder(ctx, t, i) {
   let tipY = B_REST;
   if (t < B_IN + 0.5) tipY = lerp(B_HIGH, B_REST, easeOut(seg(t, B_IN, B_IN + 0.5)));
   else if (t >= B_OUT) tipY = lerp(B_REST, B_HIGH, easeIn(seg(t, B_OUT, B_GONE)));
-  let off = 0;
+  // two strokes straight down under the trolley: the head never moves sideways
   if (t >= B_WORK && t < B_WORK + 0.3) {
     const k = Math.min(1, Math.floor((t - B_WORK) / 0.15));
     const lt = t - B_WORK - k * 0.15;
     tipY += 26 * Math.sin(Math.PI * clamp01(lt / 0.12));
-    off = [-20, 20][(k + i) % 2];
   }
-  const hx = x + off;
+  const hx = x;
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, RAIL_B, W, H);
@@ -468,8 +467,7 @@ function builderContacts(ctx, t) {
   for (let i = 0; i < 3; i++) {
     for (let k = 0; k < 2; k++) {
       const s = B_WORK + k * 0.15 + 0.06;
-      const off = [-20, 20][(k + i) % 2];
-      contactGlow(ctx, BX[i] + off, IN_TOP, (t - s) / 0.12, 22);
+      contactGlow(ctx, BX[i], IN_TOP, (t - s) / 0.12, 22);
     }
   }
 }

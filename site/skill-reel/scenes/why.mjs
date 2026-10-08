@@ -120,18 +120,22 @@ function engage(t, t0, a, dwell = 0.2) {
 
 // Loop timeline.
 // The bracket is wholly off frame (slip included) once it is RUN_VIS right of the vice.
-const RUN_VIS = 1196, RUN_V = 1600;
-const ENTRY_VIS = 0.4, ENTRY_B = 1.36, LOWER_A = 1.31, LOWER_B = 1.51; // the arm brings the bracket in and sets it
-const RETRACT_A = 1.58, RETRACT_B = 2.08; // the arm lets go and parks in the right bay
-const HOOD_DOWN = [1.6, 2.15], HOOD_UP = [4.2, 4.7];
-const RING_IN = 2.12, P0 = 2.55, PRESS_S = [0, 0.48, 0.96], PRESS_LEN = [0.48, 0.48, 0.62];
+// The carriage crosses the frame edge at RUN_V both ways (about 1,200 px/s), and the edge stays
+// empty for over 0.4 s between the finished bracket leaving and the next one arriving.
+const RUN_VIS = 1196, RUN_V = 1200, RUN_ACC = 0.15, ENTRY_DEC = 0.3;
+const ENTRY_VIS = 0.4, ENTRY_B = ENTRY_VIS + (RUN_VIS / (1 - ENTRY_DEC / 2)) / RUN_V;
+const LOWER_A = ENTRY_B - 0.05, LOWER_B = ENTRY_B + 0.15; // the arm brings the bracket in and sets it
+const JAW_CLOSE = [LOWER_B - 0.05, LOWER_B + 0.07];
+const RETRACT_A = LOWER_B, RETRACT_B = LOWER_B + 0.5; // the arm lets go and parks in the right bay
+const HOOD_DOWN = [LOWER_B + 0.02, LOWER_B + 0.57];
+const RING_IN = LOWER_B + 0.37, P0 = RING_IN + 0.35, PRESS_S = [0, 0.51, 1.02], PRESS_LEN = [0.51, 0.51, 0.66];
 const P_END = P0 + PRESS_S[2] + PRESS_LEN[2], RING_OUT = [P_END, P_END + 0.35];
-const FIT_A = 4.35, FIT_B = 4.88; // the arm carries the gusset in and seats it
+const HOOD_UP = [P_END + 0.07, P_END + 0.57];
+const FIT_A = P_END + 0.22, FIT_B = FIT_A + 0.5; // the arm carries the gusset in and seats it
 const SETTLE_K = [0.75, 30]; // the straightening spring: one small overshoot, still within 0.3 s
-const REGRIP = [6.84, 6.99], JAW_OPEN = [6.86, 6.98], LIFT_T = [6.94, 7.24];
-const RUN_A = 7.07, RUN_GONE = RUN_A + (RUN_VIS * 1.176) / RUN_V; // off frame at RUN_GONE, still moving
-const ENTRY_V = (RUN_VIS * 1.29) / (ENTRY_B - ENTRY_VIS);
-const JAW_CLOSE = [1.46, 1.58];
+const REGRIP = [6.66, 6.78], JAW_OPEN = [6.68, 6.8], LIFT_T = [6.74, 7.04];
+const RUN_A = 6.9, RUN_GONE = RUN_A + (RUN_VIS / (1 - RUN_ACC / 2)) / RUN_V; // off frame at RUN_GONE, still moving
+const ENTRY_V = RUN_V;
 
 // The three presses: ring x, ring travel below hover, needle target, bracket bow, contacts.
 function presses(t) {
@@ -779,7 +783,7 @@ function armPose(t) {
   if (t < LOWER_B) {
     // the carriage brings the bracket in from beyond the right edge, lifted, and sets it in the jaws;
     // until ENTRY_VIS it is still off frame, then it comes on at a steady feed and eases to a stop
-    const dx = t < ENTRY_VIS ? RUN_VIS + ENTRY_V * (ENTRY_VIS - t) : RUN_VIS * (1 - trap(seg(t, ENTRY_VIS, ENTRY_B), 0, 0.45));
+    const dx = t < ENTRY_VIS ? RUN_VIS + ENTRY_V * (ENTRY_VIS - t) : RUN_VIS * (1 - trap(seg(t, ENTRY_VIS, ENTRY_B), 0, ENTRY_DEC));
     const dy = -LIFT * (1 - smooth(seg(t, LOWER_A, LOWER_B)));
     return { gx: CARRY[0] + dx, hy: CARRY[1] + dy, dx, dy, carrying: true };
   }
@@ -795,7 +799,7 @@ function armPose(t) {
   }
   // re-grip under the arm, lift clear of the jaws, carry out past the right edge
   const r = smooth(seg(t, REGRIP[0], REGRIP[1]));
-  const dx = t < RUN_GONE ? RUN_VIS * trap(seg(t, RUN_A, RUN_GONE), 0.3, 0) : RUN_VIS + RUN_V * (t - RUN_GONE);
+  const dx = t < RUN_GONE ? RUN_VIS * trap(seg(t, RUN_A, RUN_GONE), RUN_ACC, 0) : RUN_VIS + RUN_V * (t - RUN_GONE);
   const dy = -LIFT * smooth(seg(t, LIFT_T[0], LIFT_T[1]));
   return { gx: lerp(FIT[0], CARRY[0], r) + dx, hy: lerp(FIT[1], CARRY[1], r) + dy, dx, dy, carrying: t >= REGRIP[1] };
 }
@@ -957,6 +961,8 @@ export default {
     // The session's arm seats the gusset; on contact the bracket springs straight (one small overshoot).
     const seated = t >= FIT_B;
     if (seated) bow = BOW * (1 - springStep(t - FIT_B, SETTLE_K[0], SETTLE_K[1]));
+    // the spring's last tenth of a pixel is snapped to rest, so the hold is exactly still
+    if (t >= FIT_B + 0.28) bow = 0;
     const arm = armPose(t);
 
     // Vice jaw and handle: open at the start (the arm sets the bracket in), closed for the review and
@@ -1000,7 +1006,8 @@ export default {
     // parked, the head sits on its rest stand: a contact shadow on the stand's top face
     contactShadow(ctx, gx + 84 + D.x * 24, STAND_TOP + D.y * 24, 50, 8, 0.65 * parked);
     // the arm brightens a little while it works (to its own dim session green, never the ring's)
-    const active = ARM_ACT * (1 - parked);
+    const rest = smooth(seg(t, FIT_B + 0.02, FIT_B + 0.27)) - smooth(seg(t, REGRIP[0], REGRIP[1]));
+    const active = ARM_ACT * (1 - parked) * (1 - rest);
     hand(ctx, gx, hy, gus, active, arm.dx || 0);
 
     if (ringOn) {
@@ -1047,8 +1054,8 @@ export default {
     contactGlow(ctx, LEG_X + LEG_W + 4, ARM_TOP + ARM_T + 4, (t - FIT_B) / 0.12, 40);
     if (seated) {
       const tau = t - FIT_B;
-      dust(ctx, LEG_X + LEG_W + 2, ARM_TOP + ARM_T + 70, tau, 0x9a1, { ang: Math.PI * 0.75, spread: 1.4, n: 9, dur: 0.3 });
-      dust(ctx, LEG_X + LEG_W + 60, ARM_TOP + ARM_T + 2, tau, 0x9b2, { ang: -Math.PI * 0.35, spread: 1.2, n: 7, dur: 0.28 });
+      dust(ctx, LEG_X + LEG_W + 2, ARM_TOP + ARM_T + 70, tau, 0x9a1, { ang: Math.PI * 0.75, spread: 1.4, n: 9, dur: 0.24 });
+      dust(ctx, LEG_X + LEG_W + 60, ARM_TOP + ARM_T + 2, tau, 0x9b2, { ang: -Math.PI * 0.35, spread: 1.2, n: 7, dur: 0.22 });
     }
 
     grainOver(ctx, 0.3, 'soft-light');

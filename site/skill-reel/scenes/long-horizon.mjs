@@ -3,16 +3,17 @@
 // rides it. The work is a chain of blanks, one per step. Each round: a fresh go/no-go plug gauge
 // comes down out of the beam on a cable and a lead seal is crimped onto it before anything else;
 // it waits to one side. Then a fresh cutting bit drops into the tool post, rules one slot into the
-// blank under the carriage, and is lobbed over the screw's end bearing into the discard bin. Only
+// blank under the carriage, and is tossed off the front of the bench into a dull scrap tray below the
+// bench line, where it lands loose on the heap of earlier spent bits. Only
 // once the bit is gone does the sealed gauge run along the beam to the work: its GO pin slides into
 // the slot, it lifts and turns end for end, and its NO-GO pin stops on the slot's mouth. Then the
 // pawl lifts, the carriage indexes one pitch and the pawl drops into the next gap; the gauge reels
 // back up into the beam. The ruled trail behind the station is verified progress. Seam: carriage,
-// chain and screw thread shift left one pitch together; the bin's magazine sinks by one bit.
+// chain and screw thread shift left one pitch together; the spent bit slides down into the heap.
 // Pure function of t. No Math.random, no setTransform; static layers cached per device scale.
 
 import {
-  W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
+  W, H, P, D, MAT, FLOOR, BENCH_Y, LOD, mix, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
   rgba, springStep, indexEase, setLod, lw, cached, grainOver, poly, prism, rect, hole,
   rodV, rodH, ball, contactShadow, contactGlow, softGlow, dust, centreLine, dimension,
   benchFinal, lampFalloff, activeMat,
@@ -48,23 +49,27 @@ const YB_GO = B_TOP - G_R; // GO all the way in: the bar sits on the blank tops
 const YB_LIFT = 490; // GO clear of the slot
 const YB_NOGO = B_TOP - NOGO_L - G_R; // NO-GO stopped on the slot's mouth
 
-// Discard bin with a sinking magazine floor.
-const BIN = { x0: 1648, x1: 1840, y0: 448, y1: 568, d: 64 };
-const BIN_LAYER = 24, BIN_N = 4;
-const binLayerY = (j) => BIN.y1 - 14 - j * BIN_LAYER;
-const BIN_TIP_X = (BIN.x0 + BIN.x1) / 2 + 46; // a spent bit lies with its point here
-const BIN_WIN = { x0: 1656, x1: 1832, y0: 368, y1: 560 }; // the magazine's visible window
+// Scrap tray: an open, dull steel tray hung under the bench's front edge, below the bench line and
+// well away from the chain. Spent bits lie in it loose; nothing in it is lit or green.
+const TRAY = { x0: 1060, x1: 1320, y0: 838, y1: 902, d: 72, taper: 16 };
+const TRAY_MAT = { front: ['#1b1d1b', '#101210'], top: '#272a27', side: '#0b0c0b', sil: '#2f332f', hi: '#3b403b', line: '#0b0c0b' };
+const SCRAP = { front: ['#4a4d48', '#2e312d'], top: '#5b5f59', side: '#1d1f1c', sil: '#555a53', hi: '#646961', line: '#2a2c29' };
+// the heap of earlier spent bits: [tip x, tip y, angle] (angle 0 = point down, -PI/2 = point right)
+const HEAP = [[1176, 836, -1.62], [1300, 834, -1.78], [1236, 822, -1.3], [1170, 828, -1.12], [1296, 818, -2.05]];
+const LAND_X = 1268, LAND_Y = 826, A_LAND = -1.45;
+const SPENT_SINK = [8.2, 8.62];
+const BENCH_EDGE = BENCH_Y; // in the seam the newest bit slides down into the heap, behind the lip
 
 // ---------------------------------------------------------------------------------------------
 // Timing.
 
 const GAUGE_IN = 0.0, SEAL = [0.62, 0.82], G_STOW = [0.95, 1.3]; // sealed, then reeled up out of the way
 const BIT_IN = [1.0, 1.5], DESCEND = [1.5, 1.75], RULE = [1.75, 2.75], RETRACT = [2.78, 3.0];
-const TOSS = [3.0, 3.74], LIFT_OUT = 3.12, LAND = 3.62; // pluck, fly, land nose first and topple
+const TOSS = [3.0, 3.74], LIFT_OUT = 3.12, LAND = 3.62; // pluck, fly, land loose on the heap and settle
 const G_DROP = 3.66, G_RUN = [4.02, 4.28], G_GO = [4.28, 4.56], G_LIFT = [4.6, 4.72], G_SPIN = [4.72, 5.0], G_NOGO = [5.0, 5.12];
 const PAWL_UP = [5.28, 5.4], INDEX = [5.4, 5.78], PAWL_DOWN = [5.74, 5.86];
-const G_OUT = [7.4, 7.8];
-const SEAM = [8.2, 9.0], SINK = [8.2, 8.36];
+const G_OUT = [7.5, 7.9];
+const SEAM = [8.2, 9.0];
 
 const seamOff = (t) => -PITCH * easeInOut(seg(t, SEAM[0], SEAM[1]));
 const carriageX = (t) => CX0 + PITCH * indexEase(seg(t, INDEX[0], INDEX[1])) + seamOff(t);
@@ -273,8 +278,8 @@ function bit(ctx, x, y, ang, mat = MAT.fresh) {
   if (ang) ctx.rotate(ang);
   const w = BIT_W, L = BIT_L;
   prism(ctx, [[-w / 2, -L], [w / 2, -L], [w / 2, -26], [0, 0], [-w / 2, -26]], 10, mat, { sil: 2.6 });
-  if (!LOD.card) {
-    ctx.strokeStyle = rgba(P.glow, 0.5 * (mat === MAT.fresh ? 1 : 0.35));
+  if (!LOD.card && mat === MAT.fresh) {
+    ctx.strokeStyle = rgba(P.glow, 0.5);
     ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.moveTo(-w / 2 + 4, -L + 6);
@@ -293,25 +298,37 @@ function postDrop(t) {
   return (MARK_TOP - SEAT_TIP) * (1 - easeIn(seg(t, RETRACT[0], RETRACT[1])));
 }
 
-// Bit pose: [x, tipY, angle] or null. After ruling it is plucked out of the post, tipping as it
-// rises, then thrown: one ballistic arc (constant run, gravity on the rise) high over the end
-// bearing and down into the bin's opening point first; it lands on the stack and topples flat.
-// Angle 0 = point down; in flight the point turns to lead along the path.
-const Y_PLUCK = SEAT_TIP - 45, A_PLUCK = -0.6, LOB_H = 160;
-const LAND_Y = binLayerY(BIN_N) + 10;
-const flightY = (u) => lerp(Y_PLUCK, LAND_Y, u) - 4 * LOB_H * u * (1 - u);
-const flightA = (u) => { const vy = (LAND_Y - Y_PLUCK) - 4 * LOB_H * (1 - 2 * u), vx = BIN_TIP_X - CX0; return Math.atan2(-vx, vy); };
+// Bit pose: [x, tipY, angle] or null while it is up at the work or in the air. After ruling it is
+// plucked out of the post, tipping as it rises, then tossed: one ballistic arc (constant run,
+// gravity on the rise and fall), tumbling at a constant rate, off the front of the bench and down
+// into the scrap tray. Angle 0 = point down.
+const Y_PLUCK = SEAT_TIP - 45, A_PLUCK = -0.6, LOB_H = 140;
+const TUMBLE = A_LAND - 2 * Math.PI; // one full turn on the way down
 function bitPose(t, cx) {
-  if (t < BIT_IN[0] || t >= TOSS[1]) return null;
+  if (t < BIT_IN[0] || t >= LAND) return null;
   if (t < BIT_IN[1]) return [cx, SEAT_TIP - 560 * (1 - springStep(t - BIT_IN[0], 0.86, 12.5)), 0];
   if (t < TOSS[0]) return [cx, SEAT_TIP + postDrop(t), 0];
   if (t < LIFT_OUT) { const u = easeOut(seg(t, TOSS[0], LIFT_OUT)); return [cx, lerp(SEAT_TIP, Y_PLUCK, u), A_PLUCK * u]; }
-  if (t < LAND) {
-    const u = seg(t, LIFT_OUT, LAND);
-    return [lerp(cx, BIN_TIP_X, u), flightY(u), lerp(A_PLUCK, flightA(u), smooth(Math.min(1, u / 0.35)))];
-  }
-  // toppling flat about its point
-  return [BIN_TIP_X, LAND_Y, lerp(flightA(1), -Math.PI / 2, easeIn(seg(t, LAND, TOSS[1])))];
+  const u = seg(t, LIFT_OUT, LAND);
+  return [lerp(cx, LAND_X, u), lerp(Y_PLUCK, LAND_Y, u) - 4 * LOB_H * u * (1 - u), lerp(A_PLUCK, TUMBLE, u)];
+}
+
+// Once it has done its one job the bit dulls from fresh green to scrap grey on the way down.
+function spentMat(t) {
+  const k = smooth(seg(t, LIFT_OUT, LAND - 0.1));
+  if (k <= 0) return MAT.fresh;
+  if (k >= 1) return SCRAP;
+  const m = (key) => mix(MAT.fresh[key], SCRAP[key], k);
+  return { front: [mix(MAT.fresh.front[0], SCRAP.front[0], k), mix(MAT.fresh.front[1], SCRAP.front[1], k)], top: m('top'), side: m('side'), sil: m('sil'), hi: m('hi'), line: m('line') };
+}
+
+// The spent bit in the tray: a small bounce and rock on the heap, then still; in the seam it slides
+// down into the heap behind the tray's lip. Null when it is not in the tray.
+function spentPose(t) {
+  if (t < LAND || t >= SPENT_SINK[1]) return null;
+  const tau = t - LAND, k = Math.exp(-14 * tau);
+  const sink = easeIn(seg(t, SPENT_SINK[0], SPENT_SINK[1]));
+  return [LAND_X + 26 * sink, LAND_Y - 7 * k * Math.abs(Math.sin(18 * tau)) + 58 * sink, A_LAND + 0.16 * k * Math.sin(16 * tau) + 0.35 * sink];
 }
 
 function postAndClamp(ctx, cx, drop, active) {
@@ -448,22 +465,34 @@ function gauge(ctx, g, sealU) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The bin: spent bits stacked on a magazine floor that sinks one bit per round.
+// The scrap tray. Back and inside, then the heap, then the newest spent bit, then the front.
 
-const SPENT = { ...MAT.fresh, front: ['#1b3325', '#10201a'], top: '#2a5038', sil: '#3a7a50', hi: '#4f8a62', line: '#24412f' };
-
-function magazine(ctx) {
-  for (let j = 0; j < BIN_N; j++) bit(ctx, BIN_TIP_X, binLayerY(j) + 10, -Math.PI / 2, SPENT);
+const TRAYL = { x0: 1040, y0: 784, w: 336, h: 136 };
+function trayBack(ctx) {
+  const { x0, x1, y0, d } = TRAY;
+  const dx = D.x * d, dy = D.y * d;
+  // two straps from the bench edge
+  ctx.fillStyle = '#121412';
+  for (const x of [x0 + 34, x1 - 46]) ctx.fillRect(x + dx * 0.5, BENCH_EDGE, 10, y0 + dy * 0.5 - BENCH_EDGE + 4);
+  // the inside: the far wall and the floor in shadow
+  ctx.fillStyle = '#070807';
+  poly(ctx, [[x0, y0], [x1, y0], [x1 + dx, y0 + dy], [x0 + dx, y0 + dy]]);
+  ctx.fill();
+  ctx.strokeStyle = TRAY_MAT.sil;
+  ctx.lineWidth = lw(2);
+  ctx.beginPath();
+  ctx.moveTo(x0 + dx, y0 + dy);
+  ctx.lineTo(x1 + dx, y0 + dy);
+  ctx.lineTo(x1, y0);
+  ctx.stroke();
+  for (const [x, y, a] of HEAP) bit(ctx, x, y, a, SCRAP);
 }
-
-function binContents(ctx, t) {
-  const L = band(ctx, 'long-horizon-magazine', BIN_WIN.x0, BIN_WIN.y0 - BIN_LAYER, BIN_WIN.x1 - BIN_WIN.x0, BIN_WIN.y1 - BIN_WIN.y0 + BIN_LAYER, magazine);
-  // after the sink the stack looks exactly as it did at the start of the round
-  const sinking = t >= TOSS[1] && t < SINK[1];
-  const sink = sinking ? BIN_LAYER * indexEase(seg(t, SINK[0], SINK[1])) : 0;
-  const w = BIN_WIN.x1 - BIN_WIN.x0, h = BIN_WIN.y1 - BIN_WIN.y0;
-  blit(ctx, L, BIN_WIN.x0, BIN_WIN.y0 - sink, w, h, BIN_WIN.x0, BIN_WIN.y0);
-  if (sinking) bit(ctx, BIN_TIP_X, binLayerY(BIN_N) + 10 + sink, -Math.PI / 2, SPENT);
+function trayFront(ctx) {
+  const { x0, x1, y0, y1, d, taper } = TRAY;
+  prism(ctx, [[x0, y0], [x1, y0], [x1 - taper, y1], [x0 + taper, y1]], d, TRAY_MAT, { sil: 2 });
+  // rolled lip
+  ctx.fillStyle = '#2b2f2b';
+  ctx.fillRect(x0 - 2, y0 - 1, x1 - x0 + 4, 4);
 }
 
 // Fresh tools come out of the beam: nothing of theirs shows above it (the caption band stays empty).
@@ -481,16 +510,6 @@ function belowBeam(ctx, fn) {
 
 function backLayer(ctx) {
   benchFinal(ctx, 700, 600);
-  // bin on its bracket, behind the chain
-  const bcx = (BIN.x0 + BIN.x1) / 2;
-  prism(ctx, rect(bcx - 14, BIN.y1, 20, FLOOR - 20 - BIN.y1), 30, MAT.metal, { sil: 2.5 });
-  const dx = D.x * BIN.d, dy = D.y * BIN.d;
-  ctx.fillStyle = '#0a0e0b';
-  poly(ctx, [[BIN.x0, BIN.y0], [BIN.x1, BIN.y0], [BIN.x1 + dx, BIN.y0 + dy], [BIN.x0 + dx, BIN.y0 + dy]]);
-  ctx.fill();
-  prism(ctx, rect(BIN.x0 + dx, BIN.y0 + dy, BIN.x1 - BIN.x0, BIN.y1 - BIN.y0), 4, MAT.metal, { sil: 2.5 });
-  ctx.fillStyle = '#0d120f';
-  ctx.fillRect(BIN.x0 + 4, BIN.y0, BIN.x1 - BIN.x0 - 8, BIN.y1 - BIN.y0);
   // the bed the chain slides on
   contactShadow(ctx, W / 2, FLOOR - 8, W * 0.6, 18, 0.55);
   prism(ctx, rect(-20, BED_TOP, W + 40, FLOOR - BED_TOP), 80, MAT.metal, { sil: 3 });
@@ -510,21 +529,6 @@ function backLayer(ctx) {
   prism(ctx, rect(SCREW_END - 14, SCREW_Y - 32, 52, 64), 50, MAT.lit, { sil: 3 });
   hole(ctx, SCREW_END + 12, SCREW_Y, 10, 50, MAT.lit);
   for (const y of [SCREW_Y - 22, SCREW_Y + 22]) ball(ctx, SCREW_END + 30, y, 3.5, MAT.lit);
-}
-
-const BINF = { x0: 1640, y0: 424, w: 272, h: 152 };
-function binFront(ctx) {
-  // wire front so the spent bits show through
-  const x0 = BIN.x0, x1 = BIN.x1, y0 = BIN.y0, y1 = BIN.y1;
-  ctx.strokeStyle = '#2c3d31';
-  ctx.lineWidth = lw(3);
-  ctx.beginPath();
-  for (let x = x0 + 20; x < x1 - 8; x += 22) { ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y1 - 4); }
-  ctx.stroke();
-  prism(ctx, rect(x0, y1 - 14, x1 - x0, 14), BIN.d, MAT.metal, { sil: 2.5 });
-  prism(ctx, rect(x0, y0, 10, y1 - y0), BIN.d, MAT.metal, { sil: 2.5 });
-  prism(ctx, rect(x1 - 10, y0, 10, y1 - y0), BIN.d, MAT.metal, { sil: 2.5 });
-  prism(ctx, rect(x0, y0, x1 - x0, 8), BIN.d, MAT.metal, { sil: 2.5 });
 }
 
 function frontLayer(ctx) {
@@ -565,12 +569,15 @@ export default {
     if (!second && len > 0.5) slot(ctx, CX0 + off, MARK_BOT - len, MARK_BOT);
     put(ctx, band(ctx, 'long-horizon-shade', 0, B_TOP - 10, W, BED_TOP - B_TOP + 18, shade));
 
-    // bin: contents, then the falling bit once it is over the bin, then the wire front
-    binContents(ctx, t);
+    // scrap tray under the bench edge: heap, the newest spent bit (or the falling one once it is
+    // below the bench line), then the tray's front
+    put(ctx, band(ctx, 'long-horizon-trayback', TRAYL.x0, TRAYL.y0, TRAYL.w, TRAYL.h, trayBack));
     const bp = bitPose(t, CX0);
-    const overBin = bp && bp[0] > BIN.x0 - 40;
-    if (overBin) bit(ctx, bp[0], bp[1], bp[2]);
-    put(ctx, band(ctx, 'long-horizon-binfront', BINF.x0, BINF.y0, BINF.w, BINF.h, binFront));
+    const low = bp && bp[1] > BENCH_EDGE;
+    if (low) bit(ctx, bp[0], bp[1], bp[2], spentMat(t));
+    const sp = spentPose(t);
+    if (sp) bit(ctx, sp[0], sp[1], sp[2], SCRAP);
+    put(ctx, band(ctx, 'long-horizon-trayfront', TRAYL.x0, TRAYL.y0, TRAYL.w, TRAYL.h, trayFront));
 
     // carriage: lit while the round works, dims through the hold
     const active = easeInOut(seg(t, 0.9, 1.2)) - easeInOut(seg(t, 5.9, 6.5));
@@ -578,7 +585,7 @@ export default {
     contactShadow(ctx, cx + 20, B_TOP - 4, 90, 7, 0.35);
     const nose = pawl(ctx, cx, clamp01(pl));
     carriage(ctx, cx, active);
-    if (bp && !overBin) belowBeam(ctx, () => bit(ctx, bp[0], bp[1], bp[2]));
+    if (bp && !low) belowBeam(ctx, () => bit(ctx, bp[0], bp[1], bp[2], spentMat(t)));
     postAndClamp(ctx, cx, postDrop(t), active);
 
     // the sealed gauge
@@ -605,7 +612,6 @@ export default {
     contactGlow(ctx, CX0, B_TOP, (t - T_GO_IN) / 0.12, 26);
     contactGlow(ctx, CX0, B_TOP - 2, (t - G_NOGO[1]) / 0.14, 36);
     contactGlow(ctx, nose[0], nose[1] - 4, (t - PAWL_DOWN[1] + 0.04) / 0.12, 22);
-    dust(ctx, BIN_TIP_X - 20, binLayerY(BIN_N) + 4, t - TOSS[1], 0x2b1, { ang: -Math.PI / 2, spread: 2.2, n: 6, dur: 0.45 });
 
     grainOver(ctx, 0.3, 'soft-light');
   },

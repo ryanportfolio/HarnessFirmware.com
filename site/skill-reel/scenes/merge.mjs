@@ -37,7 +37,9 @@ const SW = 230, SDEP = 110, CLIP = 26; // sheet width, depth, clipped corner
 const SH = 44; // one commit sheet
 const SQ = 60; // the squashed sheet
 const JIT = [0, 5, -4, 3]; // sheets in a stack sit a little off each other: separate commits
-const X_ENTRY = 470, X_REVIEW = 760, X_PRESS = 1470, X_TRAY = 1780;
+const X_ENTRY = 470, X_REVIEW = 760, X_TRAY = 1735;
+const PRESS_DX = -30; // the press sits 30 left of its first layout so the bin fits the frame
+const X_PRESS = 1470 + PRESS_DX;
 const KEY_X = 165;
 const BEAM_Y0 = 228, BEAM_Y1 = 258;
 const HOUSE = { x0: 510, x1: 970, y0: BEAM_Y1, y1: 312 };
@@ -92,12 +94,14 @@ const GANG_LIFT = 560; // guide rod length in the sprite
 const GANG_HIDE = 240; // raised this far, the bar and carriers are inside the housing
 const TIP_STOW = 60; // a tip run fully back sits inside its carrier
 
-// Tag rail: a post on the bench edge, a peg at every sheet height. It rises for the findings and sinks before the feed.
-const RAIL_DZ = -40; // in front of the line, on the bench edge: the work passes behind it
-// The post stands just right of the review stack; the pegs point right, so the arm reads each tag from
-// its right without reaching across the post.
-const POST_X = 961 + D.x * RAIL_DZ, PEG_X = POST_X + 38;
+// Tag rail: a post behind the line, a peg at every sheet height.
+const RAIL_DZ = SDEP + 20; // behind the work, on the bench behind the bed: everything passes in front of it
+// The post stands right of the fixing wrist; the pegs point right, so the tags hang clear of the
+// wrist while it fixes and the arm reads each one from its right.
+const POST_X = 902 + D.x * RAIL_DZ, PEG_X = POST_X + 38;
+const RAIL_HIDE = LINE_Y + D.y * BED_DEP; // the bed hides the rail below its back edge
 const pegY = (k) => sheetMid(k) - 16 + D.y * RAIL_DZ;
+const tagMid = (k) => pegY(k) + 24; // where the arm's jaw meets a hanging tag
 
 // Claude's arm (the session): column behind the line, two links, jaws pointing left.
 const SHOULDER = [1240, 440];
@@ -123,19 +127,19 @@ const LIFT_Y = 500; // lifted clear of the line before it is carried
 const FS_HOVER = FS_YM - 91; // the wrist waits above the rising sheet's end, finger drawn back
 
 // Press: two guide columns, a crown under the beam, a hydraulic cylinder in section, ram and platen.
-const CROWN = { x0: 1296, x1: 1644, y0: BEAM_Y1, y1: 312, dep: 130 };
+const CROWN = { x0: 1296 + PRESS_DX, x1: 1644 + PRESS_DX, y0: BEAM_Y1, y1: 312, dep: 130 };
 const COL_Z = 60, COL_W = 26;
-const COL_L = 1325 + D.x * COL_Z, COL_R = 1615 + D.x * COL_Z;
+const COL_L = 1325 + PRESS_DX + D.x * COL_Z, COL_R = 1615 + PRESS_DX + D.x * COL_Z;
 const COL_FOOT = LINE_Y + D.y * COL_Z; // where a column meets the bed top
 const CYL_Z = 55, CYL_X = X_PRESS + D.x * CYL_Z;
 const CYL_BOT = 470, GLAND_H = 16, BORE = 30, CWALL = 12;
 const PIST_Y = 314, PIST_H = 12, RAM_W = 30;
 const PLATEN_REST = 540, PLATEN_H = 36, PAD_H = 10;
-const PL_X0 = 1305, PL_X1 = 1635, PL_DEP = 120;
+const PL_X0 = 1305 + PRESS_DX, PL_X1 = 1635 + PRESS_DX, PL_DEP = 120;
 const RAM_BOT = PLATEN_REST - PLATEN_H + D.y * CYL_Z + 2;
 
 // Main tray: a bin sunk into the bench, shown in section.
-const TRAY_X0 = X_TRAY - SW / 2 - 20, TRAY_X1 = X_TRAY + SW / 2 + 20, TRAY_WALL = 14, TRAY_BOT = 1046;
+const TRAY_X0 = X_TRAY - SW / 2 - 16, TRAY_X1 = X_TRAY + SW / 2 + 20, TRAY_WALL = 14, TRAY_BOT = 1046;
 
 // ---------------------------------------------------------------------------------------------
 // Materials local to this scene. Steel = Codex (merge only). Amber = a finding; a refuted finding
@@ -640,7 +644,7 @@ function pressFrame(ctx, M, hatch, part) {
   }
   if (part !== 'upper') {
     for (const cx of [COL_L, COL_R]) {
-      poly(ctx, discPts(cx, COL_FOOT, 24, 22));
+      poly(ctx, discPts(cx, COL_FOOT, 18, 22));
       ctx.fillStyle = M.front[0];
       ctx.fill();
       ctx.strokeStyle = M.sil;
@@ -650,7 +654,7 @@ function pressFrame(ctx, M, hatch, part) {
     }
   }
 }
-const PRESS_BOX = [1270, BEAM_Y1 - 40, 1720, COL_FOOT + 12];
+const PRESS_BOX = [1270 + PRESS_DX, BEAM_Y1 - 40, 1720 + PRESS_DX, COL_FOOT + 12];
 
 // Ram and piston (moving with the platen). The piston is cut too.
 function ramDraw(ctx, M, hatch) {
@@ -707,6 +711,7 @@ function backLayer(ctx) {
   prism(ctx, rect(SHOULDER[0] - 50, FLOOR - 14, 100, 14), 60, idle, { sil: 3 });
   prism(ctx, rect(SHOULDER[0] - 22, SHOULDER[1] + 20, 44, FLOOR - 14 - SHOULDER[1] - 20), 36, idle, { hatch: true, sil: 3.2 });
   prism(ctx, rect(SHOULDER[0] - 46, SHOULDER[1] - 28, 92, 56), 48, idle, { hatch: true, sil: 3.2 });
+  rail(ctx);
   // conveyor bed
   prism(ctx, rect(330, LINE_Y, TRAY_X0 - 330, FLOOR - LINE_Y), BED_DEP, MAT.metal, { sil: 3 });
   if (!LOD.card) {
@@ -746,13 +751,6 @@ function backLayer(ctx) {
   ctx.lineWidth = lw(1.6);
   ctx.stroke();
   pressFrame(ctx, PRESS_IDLE, P.dim, 'feet');
-  // the tag rail's slot in the bench edge
-  poly(ctx, [[POST_X - 13, RAIL_FOOT], [POST_X + 13, RAIL_FOOT], [POST_X + 13 + D.x * 22, RAIL_FOOT + D.y * 22], [POST_X - 13 + D.x * 22, RAIL_FOOT + D.y * 22]]);
-  ctx.fillStyle = '#070a08';
-  ctx.fill();
-  ctx.strokeStyle = MAT.lit.sil;
-  ctx.lineWidth = lw(1.4);
-  ctx.stroke();
   // key base and the pawl's post
   contactShadow(ctx, KEY_X + 50, FLOOR - 8, 160, 16, 0.5);
   prism(ctx, rect(KEY_X - 92, FLOOR - 40, 250, 40), 80, MAT.metal, { sil: 3 });
@@ -770,19 +768,15 @@ function backLayer(ctx) {
 }
 
 
-// The tag rail, on the bench edge in front of the line: post, foot and a peg at every sheet height.
-const RAIL_FOOT = FLOOR - D.y * RAIL_DZ;
-function railFront(ctx) {
-  contactShadow(ctx, POST_X + 8, RAIL_FOOT - 4, 44, 7, 0.45);
-  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, RAIL_FOOT - 10 - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
-  prism(ctx, rect(POST_X - 24, RAIL_FOOT - 10, 48, 10), 26, MAT.lit, { sil: 2.4 });
+
+// The tag rail, behind the line: post and a peg at every sheet height (the bed hides its foot).
+function rail(ctx) {
+  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, RAIL_HIDE + 10 - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
   for (let k = 0; k < 4; k++) {
     rodH(ctx, POST_X + 6, PEG_X, pegY(k), 6, MAT.lit);
     ball(ctx, PEG_X, pegY(k), 4.4, MAT.lit);
   }
 }
-const RAIL_BOX = [POST_X - 34, pegY(3) - 48, PEG_X + 14, RAIL_FOOT + 10];
-const RAIL_SINK = RAIL_FOOT - (pegY(3) - 40); // sunk this far, the rail is all below the bench top
 
 // The fix sheet on its lift (u: 0 down in the slot, 1 risen), and the pad under it.
 function fixLift(ctx, u, sheetOn, padU) {
@@ -864,7 +858,6 @@ const FINDINGS = [
 // finger drawn back; the arm slides onto its overhanging edge, the finger closes under it, the arm
 // lifts it off the pad (the pad sinks back), carries it to the stack, lowers it, slips the finger
 // out, and it sits on the stack
-const RAIL_UP = [0.7, 1.15], RAIL_DOWN = [4.3, 4.56]; // the tag rail rises for the findings, then sinks
 const FS_RISE = [4.5, 4.72], OPEN_JAW = [4.36, 4.6], SLIDE_ON = [4.72, 4.8], FINGER_IN = [4.78, 4.86];
 const PICK_T = 4.88, LIFT_OFF = [4.88, 5.08], PAD_DOWN = [4.98, 5.2];
 const CARRY = [5.08, 5.32], LOWER = [5.32, 5.42], SLIP = [5.42, 5.52];
@@ -872,14 +865,14 @@ const LAY = 5.52; // the fix sheet sits on the stack
 const ARM_HOME = [5.58, 5.86];
 const ARM_KEYS = [
   [2.3, ARM_REST[0], ARM_REST[1]],
-  [2.55, READ_X, sheetMid(2)],
-  [2.78, READ_X, sheetMid(2)],
-  [3.0, READ_X, sheetMid(0)],
-  [3.2, READ_X, sheetMid(0)],
+  [2.55, READ_X, tagMid(2)],
+  [2.78, READ_X, tagMid(2)],
+  [3.0, READ_X, tagMid(0)],
+  [3.2, READ_X, tagMid(0)],
   [3.38, FIX_X, sheetMid(0)],
   [3.58, FIX_X, sheetMid(0)],
-  [3.78, READ_X, sheetMid(1)],
-  [3.98, READ_X, sheetMid(1)],
+  [3.78, READ_X, tagMid(1)],
+  [3.98, READ_X, tagMid(1)],
   [4.16, FIX_X, sheetMid(1)],
   [4.36, FIX_X, sheetMid(1)],
   [OPEN_JAW[1], FS_R, FS_HOVER],
@@ -898,7 +891,7 @@ const PRESS_T = { down: 7.14, contact: 7.3, flat: 7.43, lift: 7.5, up: 7.74 };
 const SLIDE = [7.54, 7.92]; // the payoff holds still from SLIDE[1] to SEAM
 const SEAM = 9.5;
 const RISE = 3 * SH + HATCH_DEEP; // fully down: the PR's top deep in the hatch, unseen
-const LAMP_REVIEW = 840, LAMP_PRESS = 1450, LAMP_TRAY = 1690;
+const LAMP_REVIEW = 840, LAMP_PRESS = 1450 + PRESS_DX, LAMP_TRAY = X_TRAY - 90;
 
 function platenBottom(t) {
   const top4 = LINE_Y - 4 * SH;
@@ -970,10 +963,12 @@ function loopState(t) {
       const v = t - f.drop;
       deadU = clamp01(v / 0.12);
       // lifts off the peg, then falls clear of the rail to the bench (refuted: nothing to fix)
-      dy = v < 0.1 ? -10 * Math.sin((v / 0.1) * Math.PI) : Math.min(0.5 * 3600 * (v - 0.1) * (v - 0.1), FLOOR - 40 - pegY(f.sheet));
+      dy = v < 0.1 ? -10 * Math.sin((v / 0.1) * Math.PI) : Math.min(0.5 * 3600 * (v - 0.1) * (v - 0.1), RAIL_HIDE + 60 - pegY(f.sheet));
       ang += 2.4 * Math.max(0, v - 0.08);
-      // it swings forward off the peg, clear of the tags still hanging below it
-      dx = -46 * easeOut(seg(v, 0.04, 0.3));
+      // it swings backward off the peg (deeper, so up and right on screen), behind the tags below it
+      const back = 60 * easeOut(seg(v, 0.04, 0.3));
+      dx = D.x * back;
+      dy += D.y * back;
       alpha *= 1 - clamp01((v - 0.32) / 0.2);
     }
     if (f.clear !== undefined && t >= f.clear) {
@@ -996,13 +991,12 @@ function loopState(t) {
   s.arm.slide = ss(seg(t, OPEN_JAW[0] + 0.04, OPEN_JAW[1] - 0.02)) - ss(seg(t, FINGER_IN[0], FINGER_IN[1]))
     + easeIn(seg(t, SLIP[0], SLIP[1])) - home;
   for (const f of FINDINGS) {
-    s.glows.push({ x: READ_X - JAW, y: sheetMid(f.sheet), u: (t - f.read) / 0.12, r: 18, color: P.bright });
+    s.glows.push({ x: READ_X - JAW, y: tagMid(f.sheet), u: (t - f.read) / 0.12, r: 18, color: P.bright });
     if (f.fix) {
       s.glows.push({ x: X_REVIEW + JIT[f.sheet] + SW / 2 + 2, y: sheetMid(f.sheet), u: (t - f.fix) / 0.12, r: 34, color: P.bright });
       s.dusts.push({ x: X_REVIEW + JIT[f.sheet] + SW / 2 + 4, y: sheetMid(f.sheet), tau: t - f.fix, seed: 0x3a0 + f.sheet, o: { ang: -0.25, spread: 1.6, n: 7, dur: 0.4 } });
     }
   }
-  s.rail = ss(seg(t, RAIL_UP[0], RAIL_UP[1])) - ss(seg(t, RAIL_DOWN[0], RAIL_DOWN[1]));
   // the fix sheet on its lift, then in the arm
   s.fix = { rise: ss(seg(t, FS_RISE[0], FS_RISE[1])), pad: ss(seg(t, FS_RISE[0], FS_RISE[1])) - ss(seg(t, PAD_DOWN[0], PAD_DOWN[1])), on: t < PICK_T };
   if (t >= PICK_T && t < LAY) s.carry = { drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
@@ -1104,6 +1098,15 @@ function frameParts(ctx, s) {
   sprite(ctx, 'merge-press-lit', PRESS_BOX, (c) => pressFrame(c, PRESS_LIT, '#4f6f57'), 0, 0, s.pressLit);
   lamp(ctx, s.lamp);
 
+  // the tags hang on the rail behind the work; a refuted one drops off backward, behind the others
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, RAIL_HIDE);
+  ctx.clip();
+  for (const g of s.tags) if (g.deadU) tagShape(ctx, PEG_X + g.dx, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
+  for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k), g.ang, g.alpha, 0, g.readU);
+  ctx.restore();
+
   // tray: dim pile, the last result on top, then the whole bin dims with distance from the lamp
   ctx.save();
   // the well clips the pile; above the well the arriving sheet is not cut
@@ -1153,19 +1156,6 @@ function frameParts(ctx, s) {
   let tipPos = null;
   if (s.theta !== null) tipPos = swingArm(ctx, s.theta);
   cached(ctx, 'merge-front', frontLayer);
-
-  // the tag rail stands in front of the line; the tags hang on it
-  if (s.rail > 0) {
-    const rd = (1 - s.rail) * RAIL_SINK;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, W, RAIL_FOOT);
-    ctx.clip();
-    sprite(ctx, 'merge-rail', RAIL_BOX, railFront, 0, rd);
-    for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k) + rd, g.ang, g.alpha, 0, g.readU);
-    ctx.restore();
-  }
-  for (const g of s.tags) if (g.deadU) tagShape(ctx, PEG_X + g.dx, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
 
   // press: ram, then the platen; the platen's shadow falls on the work as it closes
   const dP = s.pb - PLATEN_REST;

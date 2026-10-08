@@ -127,6 +127,10 @@ async function main() {
       if (encError) throw encError;
       const url = await page.evaluate((t) => window.grabFrame(t), f / o.fps);
       const png = Buffer.from(url.slice(url.indexOf(',') + 1), 'base64');
+      // Every frame must be exactly 1920 x 1080 (?export=1 fixes the canvas at that size whatever
+      // the viewport); the PNG header holds width and height at bytes 16 and 20. Abort otherwise.
+      const pw = png.length > 24 ? png.readUInt32BE(16) : 0, ph = png.length > 24 ? png.readUInt32BE(20) : 0;
+      if (pw !== 1920 || ph !== 1080) throw new Error(`frame ${f} is ${pw}x${ph}, not 1920x1080: export aborted, ${out} is incomplete`);
       if (f === f0) firstPng = png;
       if (!enc.stdin.write(png)) await new Promise((r) => { enc.stdin.once('drain', r); enc.once('exit', r); });
       const n = f - f0 + 1;

@@ -398,12 +398,15 @@ function drawIntro(ctx, base, t, I, scenes) {
     const r2 = easeOut(seg(t, 0.2, 0.6));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    if (r0 * (1 - out) > 0) {
-      ctx.globalAlpha = r0 * (1 - out);
+    // the eyebrow sits over the lamp housing, which brightens as the lamp comes up: it leaves
+    // before the light does, so it never reads light on light
+    const outEyebrow = easeIn(seg(t, I - 1.25, I - 0.85));
+    if (r0 * (1 - outEyebrow) > 0) {
+      ctx.globalAlpha = r0 * (1 - outEyebrow);
       ctx.fillStyle = SUB;
       ctx.font = FONT.introSub;
       setTracking(ctx, 6);
-      ctx.fillText('HARNESS FIRMWARE', W / 2 + 3, 300 + (1 - r0) * 10 + lift);
+      ctx.fillText('HARNESS FIRMWARE', W / 2 + 3, 300 + (1 - r0) * 10 - outEyebrow * 24);
       setTracking(ctx, 0);
     }
     if (r1 * (1 - out) > 0) {
