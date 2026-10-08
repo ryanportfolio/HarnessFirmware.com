@@ -4,18 +4,21 @@
 // 600 CSS px and 1.5 otherwise. A card plays only while at least half of it is on screen and the
 // tab is visible; its clock is real time and draws scene.draw(ctx, t mod period). Up to three
 // playing cards redraw every frame; with more, each redraws at 30 Hz, with phases spread evenly so
-// the same share of them paints on every frame. Scene modules load lazily when their card nears
-// the viewport and paint their t = 0 frame once, one card per animation frame. The first paint
-// waits for the site faces, so no frame is ever set in a fallback face that a late font replaces.
+// the same share of them paints on every frame. Scene modules load after the page has loaded (at
+// once for cards near the viewport) and prime one at a time (see prime() below): t = 0 painted,
+// cold GPU work finished before the section scrolls in. The first paint waits for the site faces,
+// so no frame is ever set in a fallback face that a late font replaces.
 // A missing or throwing scene hides its canvas box; the card text is real HTML either way.
 // No reduced-motion variant (owner decision, same as the homepage explainer).
 
 const STAGE_W = 1920, STAGE_H = 1080;
 const DPR_CAP = 1.5, DPR_CAP_SMALL = 2, SMALL_W = 600; // CSS px
 const DT_CAP = 0.064; // seconds; a long frame (tab switch, GC) never jumps a loop forward
+const RESIZE_SETTLE = 150; // ms the card size must hold before cards rebuild at the new size
 const FULL_RATE_MAX = 3; // playing cards that still redraw every frame
 const SLOW_MS = 1000 / 30; // redraw interval once more than FULL_RATE_MAX cards play
-const NEAR = '600px 0px'; // start loading a scene this far before its card scrolls in
+const NEAR = '1500px 0px'; // a card this far from the viewport primes at once, not in idle time
+const PRIME_AT = [0.37, 0.71]; // extra loop points drawn offscreen when a scene primes (fractions of its period)
 const FACES = ['781 72px "Lineal"', '500 34px "Harness Text"', '400 26px "Departure Mono"', 'italic 600 34px "Fraunces"'];
 
 const fontsReady = Promise.all(FACES.map((f) => document.fonts.load(f).catch(() => null)));
@@ -57,7 +60,7 @@ function mount(root) {
     const box = el.querySelector('.sr-media') || el;
     const cv = document.createElement('canvas');
     box.appendChild(cv);
-    return { el, box, cv, ctx: cv.getContext('2d'), id: el.dataset.reelScene, scene: null, t: 0, visible: false, sized: false, painted: false, due: 0 };
+    return { el, box, cv, ctx: cv.getContext('2d'), id: el.dataset.reelScene, scene: null, t: 0, visible: false, sized: false, painted: false, due: 0, near: false, loading: false, stale: false, fresh: false };
   });
   if (!cards.length) return;
   const byEl = new Map(cards.map((c) => [c.box, c]));
@@ -110,6 +113,75 @@ function mount(root) {
 
   const running = () => !document.hidden && cards.some((c) => c.visible && c.scene);
 
+  // Priming: a scene's first draws build its cached layers and sprites and make the GPU compile
+  // the programs its drawing needs, work that landed as one 200+ ms frame when nine cards first
+  // drew together. Each loaded scene primes on its own: its card paints the t = 0 frame, the scene
+  // also draws a few other loop points into a scratch canvas of the card's size (paths that only
+  // appear mid-loop: alpha, glows, sprites), and a 1 x 1 readback makes the GPU finish all of it
+  // now. One scene per idle slice after load, or per animation frame when its card is on screen
+  // or within NEAR, so the cold work is done before the section scrolls in.
+  let scratch = null;
+  const prime = (c, scene) => {
+    c.scene = scene;
+    size(c);
+    c.stale = false;
+    paint(c);
+    if (!c.scene) return null; // the scene threw
+    if (!scratch || scratch.width !== c.cv.width || scratch.height !== c.cv.height) scratch = new OffscreenCanvas(c.cv.width, c.cv.height);
+    const x = scratch.getContext('2d');
+    for (const p of PRIME_AT) {
+      unwind(x);
+      x.setTransform(scratch.width / STAGE_W, 0, 0, scratch.height / STAGE_H, 0, 0);
+      try {
+        scene.draw(x, Math.round(p * scene.period * 1e6) / 1e6);
+      } catch { /* the card's own paint reports a throwing scene */ }
+      unwind(x);
+    }
+    c.fresh = true;
+    wake();
+    // An async readback of both canvases: the GPU finishes the work without blocking the page.
+    return Promise.all([createImageBitmap(c.cv), createImageBitmap(scratch)]).then((bs) => bs.forEach((b) => b.close()), () => {});
+  };
+  const loaded = []; // { c, scene } waiting to prime
+  let pumpRaf = 0, pumpIdle = 0;
+  const idle = (fn) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 200 }) : setTimeout(fn, 50));
+  const cancelIdle = (id) => ('cancelIdleCallback' in window ? cancelIdleCallback(id) : clearTimeout(id));
+  let priming = false;
+  const schedule = () => {
+    if (!loaded.length || pumpRaf || priming) return;
+    if (loaded.some((q) => q.c.visible || q.c.near)) {
+      if (pumpIdle) cancelIdle(pumpIdle);
+      pumpIdle = 0;
+      pumpRaf = requestAnimationFrame(pump);
+    } else if (!pumpIdle) pumpIdle = idle(pump);
+  };
+  const pump = () => {
+    pumpRaf = 0;
+    pumpIdle = 0;
+    if (!loaded.length) return;
+    let i = loaded.findIndex((q) => q.c.visible);
+    if (i < 0) i = loaded.findIndex((q) => q.c.near);
+    if (i < 0) i = 0;
+    const [{ c, scene }] = loaded.splice(i, 1);
+    priming = true;
+    Promise.resolve(prime(c, scene)).then(() => {
+      priming = false;
+      schedule();
+    });
+  };
+  const load = (c) => {
+    if (c.loading) return;
+    c.loading = true;
+    Promise.all([loadScene(c.id), fontsReady]).then(([scene]) => {
+      if (!scene) {
+        c.el.classList.add('is-unavailable');
+        return;
+      }
+      loaded.push({ c, scene });
+      schedule();
+    });
+  };
+
   let playingKey = '';
   const frame = (now) => {
     raf = 0;
@@ -122,6 +194,16 @@ function mount(root) {
     const key = playing.map((c) => c.id).join();
     if (slow && key !== playingKey) playing.forEach((c, k) => { c.due = now + (k / playing.length) * SLOW_MS; });
     playingKey = slow ? key : '';
+    // After a resize has settled, one card in view rebuilds at its new size per frame.
+    if (settled) {
+      const st = playing.find((c) => c.stale);
+      if (st) {
+        st.stale = false;
+        size(st);
+        paint(st);
+        st.fresh = true;
+      }
+    }
     for (const c of playing) {
       c.t = (c.t + dt) % c.scene.period;
       // a card whose first frame was painted this frame starts playing on the next one
@@ -150,40 +232,21 @@ function mount(root) {
     }
   };
 
-  // First frames: a scene's first paint builds its cached layers (several ms each), so loaded
-  // scenes queue here and paint their t = 0 frame one per animation frame, never all in one task.
-  const firstQueue = [];
-  let firstRaf = 0;
-  const drainFirst = () => {
-    firstRaf = 0;
-    // on-screen cards first, then the ones loaded ahead of the viewport
-    let i = firstQueue.findIndex((q) => q.c.visible);
-    if (i < 0) i = 0;
-    const [{ c, scene }] = firstQueue.splice(i, 1);
-    c.scene = scene;
-    paint(c);
-    c.fresh = true;
-    wake();
-    if (firstQueue.length) firstRaf = requestAnimationFrame(drainFirst);
-  };
-
-  // Load a scene when its card comes within NEAR of the viewport, then paint its t = 0 frame once
-  // so the card is already drawn when it scrolls in.
+  // A card within NEAR of the viewport loads now and primes on the next animation frame.
   const near = new IntersectionObserver((entries) => {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
       const c = byEl.get(e.target);
       near.unobserve(e.target);
-      Promise.all([loadScene(c.id), fontsReady]).then(([scene]) => {
-        if (!scene) {
-          c.el.classList.add('is-unavailable');
-          return;
-        }
-        firstQueue.push({ c, scene });
-        if (!firstRaf) firstRaf = requestAnimationFrame(drainFirst);
-      });
+      c.near = true;
+      load(c);
+      schedule();
     }
   }, { rootMargin: NEAR });
+  // Every other card loads and primes in idle time once the page has loaded.
+  const loadRest = () => fontsReady.then(() => cards.forEach(load));
+  if (document.readyState === 'complete') loadRest();
+  else addEventListener('load', loadRest, { once: true });
 
   // Play only while at least half the card is on screen; a card below that holds its last frame.
   const seen = new IntersectionObserver((entries) => {
@@ -195,12 +258,22 @@ function mount(root) {
     wake();
   }, { threshold: [0, 0.5] });
 
+  // A resize only marks cards stale: CSS keeps scaling the old bitmap until the size has held for
+  // RESIZE_SETTLE ms, then cards in view rebuild one per frame and the rest when they come into view.
+  let settled = true, resizeTimer = 0;
   const resize = new ResizeObserver((entries) => {
+    let any = false;
     for (const e of entries) {
       const c = byEl.get(e.target);
-      size(c);
-      if (c.scene) paint(c);
+      if (c.sized) c.stale = any = true;
     }
+    if (!any) return;
+    settled = false;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      settled = true;
+      wake();
+    }, RESIZE_SETTLE);
   });
 
   for (const c of cards) {

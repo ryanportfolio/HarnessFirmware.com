@@ -96,10 +96,10 @@ const FX0 = 1099, FX1 = 1259, FY0 = P_TOP - 38;
 // The pieces overlap: the next one is on its way while the previous one is in the port.
 const FEEDT = [[3.0, 3.6, 4.05, 4.4], [2.45, 2.95, 3.4, 3.8], [1.95, 2.3, 2.75, 3.15]];
 const G = { seat: 6.17, drop: 6.29, cutA: 6.49, setA: 6.89, cutC: 7.23, setC: 7.57, rest: 7.81 };
-const SHUT_CLOSE = 0.9, SHUT_OPEN = 9.6;
+const SHUT_CLOSE = 0.9, SHUT_OPEN = 9.8, SHUT_OPEN_D = 0.2; // the seam reopens them as one quick index
 const JUDGE = { in: 4.42, out: 5.75, pegs: 4.92, point: 5.45 };
 // doors: [A, C] as [open, close]; the piece drops between them
-const SEAM = { lift: 9.39, bOut: [9.58, 9.95], doors: [[9.5, 9.7], [9.4, 9.6]], brief: 9.7 };
+const SEAM = { lift: 9.45, bOut: [9.6, 9.88], doors: [[9.62, 9.78], [9.46, 9.62]], brief: 9.75 };
 const WASTE_X = SLOT[1] - PW / 2 + GW / 2 - 46; // B's seat waste is pulled left over this slot
 
 // ---------------------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ function pieceX(t, i) {
   return SLOT[i];
 }
 
-const shutter = (t) => easeInOut(seg(t, SHUT_CLOSE, SHUT_CLOSE + 0.4)) - easeInOut(seg(t, SHUT_OPEN, SHUT_OPEN + 0.4));
+const shutter = (t) => easeInOut(seg(t, SHUT_CLOSE, SHUT_CLOSE + 0.4)) - easeInOut(seg(t, SHUT_OPEN, SHUT_OPEN + SHUT_OPEN_D));
 const screenDown = (t) => easeInOut(seg(t, 4.3, 4.6)) - easeInOut(seg(t, 5.95, 6.35));
 
 // Parent tip keyframes: [t, x, y]. Take B and cut its seat, pull the waste clear, then cut a section
@@ -440,7 +440,8 @@ function drawBuilderHead(ctx) {
   ball(ctx, hx + 15, tipY - 21, 4, MAT.fresh);
 }
 const B_IN = 0.45, B_WORK = 1.3, B_OUT = 1.92, B_GONE = 2.32;
-const B_REST = IN_TOP - 26, B_HIGH = -60;
+const RAIL_Y = 226, RAIL_B = 241; // the builders' roof rail (static); builders are clipped below it
+const B_REST = IN_TOP - 26, B_HIGH = RAIL_B - 6;
 function builder(ctx, t, i) {
   if (t < B_IN || t >= B_GONE) return;
   const x = BX[i];
@@ -455,8 +456,13 @@ function builder(ctx, t, i) {
     off = [-20, 20][(k + i) % 2];
   }
   const hx = x + off;
-  rodV(ctx, hx, -20, tipY - 34, 9, MAT.fresh);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, RAIL_B, W, H);
+  ctx.clip();
+  if (tipY - 34 > RAIL_B) rodV(ctx, hx, RAIL_B - 2, tipY - 34, 9, MAT.fresh);
   blit(ctx, sprite(ctx, 'ar-builder', [-34, -46, 76, 54], drawBuilderHead), hx, tipY);
+  ctx.restore();
 }
 function builderContacts(ctx, t) {
   for (let i = 0; i < 3; i++) {
@@ -835,6 +841,12 @@ function backLayer(ctx) {
     ctx.stroke();
   }
   for (let i = 0; i < 4; i++) boothBody(ctx, i);
+  // the builders' roof rail over the three working booths, with a carriage over each port
+  prism(ctx, rect(BX[0] - B_HALF - 12, RAIL_Y, BX[2] - BX[0] + 2 * B_HALF + 24, RAIL_B - RAIL_Y), 26, MAT.metal, { sil: 2.5 });
+  for (let i = 0; i < 3; i++) {
+    prism(ctx, rect(BX[i] - 22, RAIL_B - 4, 44, 8), 22, MAT.lit, { sil: 1.5 });
+    rodV(ctx, BX[i] - 70, RAIL_B, B_TOP, 6, MAT.metal);
+  }
   grinderBack(ctx);
   // drafting texture: a centre line down each judging column, peg row to tray place
   for (const x of SLOT) centreLine(ctx, x, BEAM.y + BEAM.h + 30, x, P_TOP - 10, 0.3);
@@ -908,12 +920,12 @@ function pieceDraw(ctx, t, inBooth) {
     else if (t < P_LOWER[1]) { x = BX[i]; top = lerp(IN_TOP, P_TOP, easeInOut(seg(t, P_LOWER[0], P_LOWER[1]))); }
     else { x = pieceX(t, i); top = P_TOP; }
     let clipped = false;
-    if (t >= SEAM.bOut[0]) {
-      if (i === 1) {
-        const u = seg(t, SEAM.bOut[0], SEAM.bOut[1]);
-        x = SLOT[1] + 450 * u * u;
-      } else {
-        const [d0, d1] = SEAM.doors[i === 0 ? 0 : 1];
+    if (i === 1 && t >= SEAM.bOut[0]) {
+      const u = seg(t, SEAM.bOut[0], SEAM.bOut[1]);
+      x = SLOT[1] + 450 * u * u;
+    } else if (i !== 1) {
+      const [d0, d1] = SEAM.doors[i === 0 ? 0 : 1];
+      if (t >= d0) {
         top += 180 * easeIn(seg(t, d0 + 0.02, d1));
         clipped = true;
       }

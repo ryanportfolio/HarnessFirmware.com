@@ -119,27 +119,33 @@ function engage(t, t0, a, dwell = 0.2) {
 }
 
 // Loop timeline.
-const ENTRY_B = 1.05, LOWER_A = 1.0, LOWER_B = 1.25; // the arm brings the bracket in and sets it
-const RETRACT_A = 1.3, RETRACT_B = 1.9; // the arm lets go and parks in the right bay
-const HOOD_DOWN = [1.35, 1.95], HOOD_UP = [4.3, 4.85];
-const RING_IN = 1.9, P0 = 2.4, PP = 0.6, P_END = P0 + 3 * PP, RING_OUT = [P_END, P_END + 0.4];
-const FIT_A = 4.45, FIT_B = 5.0; // the arm carries the gusset in and seats it
-const REGRIP = [6.8, 6.95], JAW_OPEN = [6.82, 6.94], LIFT_T = [6.9, 7.2], RUN_T = [7.08, T];
-const JAW_CLOSE = [1.18, 1.33];
+// The bracket is wholly off frame (slip included) once it is RUN_VIS right of the vice.
+const RUN_VIS = 1196, RUN_V = 1600;
+const ENTRY_VIS = 0.4, ENTRY_B = 1.36, LOWER_A = 1.31, LOWER_B = 1.51; // the arm brings the bracket in and sets it
+const RETRACT_A = 1.58, RETRACT_B = 2.08; // the arm lets go and parks in the right bay
+const HOOD_DOWN = [1.6, 2.15], HOOD_UP = [4.2, 4.7];
+const RING_IN = 2.12, P0 = 2.55, PRESS_S = [0, 0.48, 0.96], PRESS_LEN = [0.48, 0.48, 0.62];
+const P_END = P0 + PRESS_S[2] + PRESS_LEN[2], RING_OUT = [P_END, P_END + 0.35];
+const FIT_A = 4.35, FIT_B = 4.88; // the arm carries the gusset in and seats it
+const SETTLE_K = [0.75, 30]; // the straightening spring: one small overshoot, still within 0.3 s
+const REGRIP = [6.84, 6.99], JAW_OPEN = [6.86, 6.98], LIFT_T = [6.94, 7.24];
+const RUN_A = 7.07, RUN_GONE = RUN_A + (RUN_VIS * 1.176) / RUN_V; // off frame at RUN_GONE, still moving
+const ENTRY_V = (RUN_VIS * 1.29) / (ENTRY_B - ENTRY_VIS);
+const JAW_CLOSE = [1.46, 1.58];
 
 // The three presses: ring x, ring travel below hover, needle target, bracket bow, contacts.
 function presses(t) {
   let rx = PX[0], travel = 0, needle = 0, bow = 0;
   const flashes = [];
   for (let i = 0; i < 3; i++) {
-    const s = P0 + PP * i;
-    if (t >= s && i > 0) rx = lerp(PX[i - 1], PX[i], indexEase(seg(t, s, s + 0.26)));
+    const s = P0 + PRESS_S[i], len = PRESS_LEN[i];
+    if (t >= s && i > 0) rx = lerp(PX[i - 1], PX[i], indexEase(seg(t, s, s + 0.2)));
     const dwell = i === 2 ? 0.3 : 0.2;
-    const e = engage(t, s + 0.12, (PP - 0.15 - dwell) / 1.75, dwell);
+    const e = engage(t, s + 0.1, (len - 0.12 - dwell) / 1.75, dwell);
     const bmax = i < 2 ? ELASTIC : BOW;
     const sh = shape(PX[i] - LEG_X);
     const total = HOVER + bmax * sh;
-    if (t >= s && t < s + PP) {
+    if (t >= s && t < s + len) {
       travel = e.d * total;
       needle = e.d * (i < 2 ? NEEDLE_BAND : NEEDLE_OVER);
       bow = bmax * clamp01((travel - HOVER) / (bmax * sh));
@@ -686,9 +692,27 @@ function movingJaw(ctx, jaw) {
 // ---------------------------------------------------------------------------------------------
 // Session hand.
 
-// The arm is drawn from sprites made at its parked pose (gx GX_REST, hy HAND_DROP) and moved. Its
-// boom runs in from beyond the right edge of the frame.
-const BOOM_LEN = 1300;
+// The arm is drawn from sprites made at its parked pose (gx GX_REST, hy HAND_DROP) and moved. It is
+// a machine: a hatched column on a carriage that rides a floor track off the right edge, a sleeve
+// that slides on the column, and a boom that telescopes out of the sleeve to the head. To bring a
+// bracket in or take one out, the whole carriage travels along the track.
+const BOOM_LEN = 640; // longer than the boom ever shows; the sleeve hides the rest
+const COL_TOP = 440;
+function armColumn(ctx, active) {
+  const SM = activeMat(MAT.session, active);
+  contactShadow(ctx, COL_X + 40, FLOOR - 8, 90, 16, 0.5);
+  prism(ctx, rect(COL_X - 30, FLOOR - 16, 108, 16), 60, SM, { sil: 3 });
+  if (!LOD.card) for (const x of [COL_X - 14, COL_X + 62]) ball(ctx, x, FLOOR - 4, 6, MAT.lit);
+  prism(ctx, rect(COL_X, COL_TOP, 48, FLOOR - 16 - COL_TOP), 40, SM, { hatch: true, sil: 3.5 });
+  prism(ctx, rect(COL_X - 6, COL_TOP - 14, 60, 14), 44, SM, { sil: 3 });
+}
+function armSleeve(ctx, active) {
+  const SM = activeMat(MAT.session, active);
+  const by = BY + HAND_DROP;
+  prism(ctx, rect(SLEEVE_X0, by - 18, COL_X - SLEEVE_X0, 36), 40, SM, { hatch: true, sil: 3.5 });
+  prism(ctx, rect(COL_X - 8, by - 30, 64, 60), 46, SM, { sil: 3 });
+  if (!LOD.card) for (const yy of [by - 18, by + 18]) ball(ctx, COL_X + 48, yy, 4, SM);
+}
 const ARM_ACT = 0.5; // the arm never lights to the ring's clean green: it is the session, not a tester
 function handBoom(ctx, active) {
   const SM = activeMat(MAT.session, active);
@@ -715,11 +739,23 @@ function handHead(ctx, active) {
   // wrist pivot
   ball(ctx, headR - 22, M[1] + 20, 7, SM);
 }
-function hand(ctx, gx, hy, gusset, active) {
+function hand(ctx, gx, hy, gusset, active, cdx = 0) {
   const ox = gx - GX_REST, oy = hy - HAND_DROP;
+  // column and carriage (travel with the carriage only)
   ctx.save();
+  ctx.translate(cdx, 0);
+  spriteAct(ctx, 'why-col', [COL_X - 40, COL_TOP - 30, 140, FLOOR - COL_TOP + 50], active, armColumn);
+  ctx.restore();
+  // boom: telescopes out of the sleeve
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, SLEEVE_X0 + 30 + cdx, H);
+  ctx.clip();
   ctx.translate(ox, oy);
   spriteAct(ctx, 'why-boom', [GX_REST + 112, BY + HAND_DROP - 26, BOOM_LEN + 30, 44], active, handBoom);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(ox, oy);
   if (gusset) {
     ctx.save();
     ctx.translate(gusset.dx, 0);
@@ -727,6 +763,11 @@ function hand(ctx, gx, hy, gusset, active) {
     ctx.restore();
   }
   spriteAct(ctx, 'why-head', [GX_REST + 20, 640, 130, 115], active, handHead);
+  ctx.restore();
+  // sleeve on the column (moves with the carriage and slides with the boom's height)
+  ctx.save();
+  ctx.translate(cdx, oy);
+  spriteAct(ctx, 'why-sleeve', [SLEEVE_X0 - 8, BY + HAND_DROP - 50, COL_X + 90 - SLEEVE_X0, 100], active, armSleeve);
   ctx.restore();
 }
 
@@ -736,15 +777,17 @@ const PARK = [GX_REST, HAND_DROP], FIT = [GX_FIT, 0], CARRY = [GX_FIT + 24, -29]
 const bezPose = (p0, p1, p2, p3, u) => [bez(p0[0], p1[0], p2[0], p3[0], u), bez(p0[1], p1[1], p2[1], p3[1], u)];
 function armPose(t) {
   if (t < LOWER_B) {
-    // carrying the bracket in from beyond the right edge, lifted, then setting it in the jaws
-    const dx = RUN * (1 - trap(seg(t, 0, ENTRY_B), 0.05, 0.35));
+    // the carriage brings the bracket in from beyond the right edge, lifted, and sets it in the jaws;
+    // until ENTRY_VIS it is still off frame, then it comes on at a steady feed and eases to a stop
+    const dx = t < ENTRY_VIS ? RUN_VIS + ENTRY_V * (ENTRY_VIS - t) : RUN_VIS * (1 - trap(seg(t, ENTRY_VIS, ENTRY_B), 0, 0.45));
     const dy = -LIFT * (1 - smooth(seg(t, LOWER_A, LOWER_B)));
     return { gx: CARRY[0] + dx, hy: CARRY[1] + dy, dx, dy, carrying: true };
   }
   if (t < RETRACT_A) return { gx: CARRY[0], hy: CARRY[1] };
   if (t < FIT_A) {
-    const [gx, hy] = bezPose(CARRY, [CARRY[0] + 30, 60], [1150, HAND_DROP], PARK, smooth(seg(t, RETRACT_A, RETRACT_B)));
-    return { gx, hy };
+    // back to the park: right first at the carrying height (clear of the vice), then down to the stand
+    const u = seg(t, RETRACT_A, RETRACT_B);
+    return { gx: lerp(CARRY[0], PARK[0], smooth(u)), hy: CARRY[1] - 8 * Math.sin(Math.PI * seg(u, 0, 0.5)) + (PARK[1] - CARRY[1]) * smooth(seg(u, 0.45, 1)) };
   }
   if (t < REGRIP[0]) {
     const [gx, hy] = bezPose(PARK, HAND_P1, HAND_P2, FIT, smooth(seg(t, FIT_A, FIT_B)));
@@ -752,7 +795,7 @@ function armPose(t) {
   }
   // re-grip under the arm, lift clear of the jaws, carry out past the right edge
   const r = smooth(seg(t, REGRIP[0], REGRIP[1]));
-  const dx = RUN * trap(seg(t, RUN_T[0], RUN_T[1]), 0.3, 0);
+  const dx = t < RUN_GONE ? RUN_VIS * trap(seg(t, RUN_A, RUN_GONE), 0.3, 0) : RUN_VIS + RUN_V * (t - RUN_GONE);
   const dy = -LIFT * smooth(seg(t, LIFT_T[0], LIFT_T[1]));
   return { gx: lerp(FIT[0], CARRY[0], r) + dx, hy: lerp(FIT[1], CARRY[1], r) + dy, dx, dy, carrying: t >= REGRIP[1] };
 }
@@ -870,6 +913,9 @@ function backLayer(ctx) {
   viceJaw(ctx, LEG_X, -1);
   prism(ctx, rect(END_X, 676, 36, BASE - 676), 80, MAT.lit);
   centreLine(ctx, LEG_X + LEG_W + 30, SCREW_Y, END_X + 120, SCREW_Y, 0.45);
+  // the floor track the arm's carriage rides, running off the right edge
+  rodH(ctx, COL_X - 50 + D.x * 40, W + 20, FLOOR - 6 + D.y * 40, 8, MAT.metal);
+  rodH(ctx, COL_X - 50 + D.x * 8, W + 20, FLOOR - 4 + D.y * 8, 6, MAT.metal);
   // the stand the arm's head rests on when parked
   contactShadow(ctx, STAND_X + STAND_W / 2 + 14, FLOOR - 6, 70, 12, 0.5);
   prism(ctx, rect(STAND_X, STAND_TOP, STAND_W, FLOOR - STAND_TOP), 50, MAT.metal, { sil: 2.5 });
@@ -910,7 +956,7 @@ export default {
     if (t >= P_END) bow = BOW;
     // The session's arm seats the gusset; on contact the bracket springs straight (one small overshoot).
     const seated = t >= FIT_B;
-    if (seated) bow = BOW * (1 - springStep(t - FIT_B, 0.55, 20));
+    if (seated) bow = BOW * (1 - springStep(t - FIT_B, SETTLE_K[0], SETTLE_K[1]));
     const arm = armPose(t);
 
     // Vice jaw and handle: open at the start (the arm sets the bracket in), closed for the review and
@@ -925,7 +971,7 @@ export default {
     // finished one leaves past the right edge of the frame (gone by 7.7) and the fresh one enters
     // from wholly off frame left; the feeds keep more than a bracket's length between them.
     // The bracket: carried in by the arm, reviewed and fitted in the vice, carried out by the arm.
-    if (arm.dx !== undefined && arm.dx > RUN - 1e-6) { /* wholly beyond the right edge */ }
+    if (arm.dx !== undefined && arm.dx > RUN_VIS + 40) { /* wholly beyond the right edge */ }
     else bracket(ctx, { dx: arm.dx || 0, dy: arm.dy || 0, bow, seated });
 
     // The ring, present 0.7 to 4.2: drop on a stiff spring, presses, lift out.
@@ -955,7 +1001,7 @@ export default {
     contactShadow(ctx, gx + 84 + D.x * 24, STAND_TOP + D.y * 24, 50, 8, 0.65 * parked);
     // the arm brightens a little while it works (to its own dim session green, never the ring's)
     const active = ARM_ACT * (1 - parked);
-    hand(ctx, gx, hy, gus, active);
+    hand(ctx, gx, hy, gus, active, arm.dx || 0);
 
     if (ringOn) {
       ctx.save();
@@ -977,7 +1023,9 @@ export default {
       ctx.beginPath();
       ctx.rect(0, BEAM_Y1, W, H - BEAM_Y1);
       ctx.clip();
-      ctx.translate(0, edge - CURT_END);
+      // whole device pixels, so the landing frame does not re-sample the curtain (no settle flicker)
+      const ds = Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1;
+      ctx.translate(0, Math.round((edge - CURT_END) * ds) / ds);
       for (const [a, b] of [[0, 1], [2, 3]]) {
         sprite(ctx, 'why-curtain' + a, RAIL_XS[a], BEAM_Y1, RAIL_XS[b] - RAIL_XS[a], CURT_END + 44 - BEAM_Y1, (c) => curtain(c, RAIL_XS[a], RAIL_XS[b], CURT_END));
       }
@@ -999,8 +1047,8 @@ export default {
     contactGlow(ctx, LEG_X + LEG_W + 4, ARM_TOP + ARM_T + 4, (t - FIT_B) / 0.12, 40);
     if (seated) {
       const tau = t - FIT_B;
-      dust(ctx, LEG_X + LEG_W + 2, ARM_TOP + ARM_T + 70, tau, 0x9a1, { ang: Math.PI * 0.75, spread: 1.4, n: 9, dur: 0.5 });
-      dust(ctx, LEG_X + LEG_W + 60, ARM_TOP + ARM_T + 2, tau, 0x9b2, { ang: -Math.PI * 0.35, spread: 1.2, n: 7, dur: 0.45 });
+      dust(ctx, LEG_X + LEG_W + 2, ARM_TOP + ARM_T + 70, tau, 0x9a1, { ang: Math.PI * 0.75, spread: 1.4, n: 9, dur: 0.3 });
+      dust(ctx, LEG_X + LEG_W + 60, ARM_TOP + ARM_T + 2, tau, 0x9b2, { ang: -Math.PI * 0.35, spread: 1.2, n: 7, dur: 0.28 });
     }
 
     grainOver(ctx, 0.3, 'soft-light');

@@ -26,9 +26,10 @@ export const TIMING = {
   introMin: 4.5,     // the product line under the title needs about 4 s on screen
   introMax: 4.5,
   truck: 1.0,       // transition length; the incoming loop starts when the truck starts
-  pullback: 1.8,    // camera pulls back to the nine stations at rest in one row: the bench it travelled
-  rowHold: 0.3,     // the row holds
-  fold: 1.1,        // the row folds into three bench rows of three, readable, with names
+  pullback: 3.0,    // the end move: camera pulls back while the bench folds into three lines of three
+  liftAt: 0.6,      // the earlier runs lift to their lines (off to the left) from here
+  lift: 0.8,
+  slideAt: 1.1,     // and slide right into place from here to the end of the move
   slate: 3.4,       // end slate hold (the plate arrives 0.5 s before it, so the URL holds about 3.9 s)
   capInDelay: 0.6,  // caption plate slides in this long after a loop starts
   capIn: 0.4,       // ease-out
@@ -213,14 +214,14 @@ function setTracking(ctx, px) {
 // Reel timeline, built from the scenes' periods.
 //   merge loop starts at intro + opener; loop i+1 starts truck/2 before loop i ends;
 //   the truck between them runs [start(i+1), start(i+1) + truck]; the last loop ends, then pull back and slate.
-//   total = intro + opener + sum(periods) - (n - 1) * truck / 2 + pullback + rowHold + fold + slate
+//   total = intro + opener + sum(periods) - (n - 1) * truck / 2 + pullback + slate
 
 export function buildReel(scenes) {
   const T = TIMING;
   const merge = scenes[0];
   const openerDur = merge.opener ? merge.opener.duration : 0;
   const sum = scenes.reduce((s, sc) => s + sc.period, 0);
-  const endMove = T.pullback + T.rowHold + T.fold;
+  const endMove = T.pullback;
   const rest = openerDur + sum - ((scenes.length - 1) * T.truck) / 2 + endMove + T.slate;
   const intro = Math.min(T.introMax, Math.max(T.introMin, T.target - rest));
   const opener = merge.opener ? { a: intro, b: intro + openerDur } : null;
@@ -233,10 +234,9 @@ export function buildReel(scenes) {
     return { sc, i, a, b, leave };
   });
   const showEnd = loops[loops.length - 1].b;
-  // pullback spans the whole end move: the camera (cam), the row's hold, then the fold
+  // pullback is the whole end move; fold marks where the earlier runs start to lift
   const pullback = { a: showEnd, b: showEnd + endMove };
-  pullback.cam = { a: showEnd, b: showEnd + T.pullback };
-  pullback.fold = { a: pullback.cam.b + T.rowHold, b: pullback.b };
+  pullback.fold = { a: showEnd + T.liftAt, b: pullback.b };
   const slate = { a: pullback.b, b: pullback.b + T.slate };
   const total = slate.b;
 
@@ -286,14 +286,13 @@ export function buildReel(scenes) {
   if (opener) chapters.push({ t: opener.a, name: merge.name + ' opener' });
   for (const L of loops) chapters.push({ t: L.a, name: L.sc.name });
   chapters.push({ t: pullback.a, name: 'pull back' }, { t: pullback.fold.a, name: 'fold' }, { t: slate.a, name: 'end slate' });
-  const formula = `intro ${qt(intro)} + opener ${openerDur} + sum(periods) ${qt(sum)} - ${scenes.length - 1} x ${T.truck / 2} + pullback ${T.pullback} + row ${T.rowHold} + fold ${T.fold} + slate ${T.slate}`;
+  const formula = `intro ${qt(intro)} + opener ${openerDur} + sum(periods) ${qt(sum)} - ${scenes.length - 1} x ${T.truck / 2} + end move ${T.pullback} + slate ${T.slate}`;
   return { intro, opener, loops, plates, pullback, slate, total, chapters, formula };
 }
 
 // Times where the camera moves fast enough to want sub-frame blur.
 function inCameraMove(reel, t) {
-  if (t >= reel.pullback.cam.a && t < reel.pullback.cam.b) return true;
-  if (t >= reel.pullback.fold.a && t < reel.pullback.fold.b) return true;
+  if (t >= reel.pullback.a && t < reel.pullback.b) return true;
   for (let k = 1; k < reel.loops.length; k++) {
     const a = reel.loops[k].a;
     if (t >= a && t < a + TIMING.truck) return true;
@@ -426,26 +425,33 @@ function drawIntro(ctx, base, t, I, scenes) {
   });
 }
 
-// End: the camera pulls back from the last station until all nine stand side by side in one row,
-// edge to edge, so their benches join into the one bench the trucks travelled. The row holds, then
-// folds into three bench rows of three (448 x 252 per station at 1920, readable, with names) under
-// the maker's plate. Reel order runs left to right, so the last scene (showpiece) is the row's
-// right end, where the camera starts, and the bottom-right station once folded.
+// End: the camera pulls back from the last station while the bench folds into three bench lines of
+// three stations (448 x 252 each at 1920, readable, with names) under the maker's plate. Reel order
+// runs left to right along each line, so the last scene (showpiece) is the bottom-right station,
+// the one the camera starts on.
 const GRID = { tw: 448, th: 252, gap: 14, top: 254 };
 GRID.x0 = Math.round((W - 3 * GRID.tw) / 2);
-const rowRect = (k, n) => ({ x: (k * W) / n, y: (H - H / n) / 2, w: W / n, h: H / n });
 const gridRect = (k) => ({ x: GRID.x0 + (k % 3) * GRID.tw, y: GRID.top + Math.floor(k / 3) * (GRID.th + GRID.gap), w: GRID.tw, h: GRID.th });
 const cubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
-// Snapshots: each scene's t = 0 frame as the reel draws it (no per-scene vignette; the reel's one
+// Each station shows its scene at rest with its work in place: a scene may declare `still` (a time
+// in its loop); otherwise STILL below, otherwise t = 0. The last scene always uses t = 0, because
+// the end move starts on its live last frame (seam equal to t = 0).
+const STILL = { why: 6.0 }; // why at t = 0 is an empty stall; at 6 s the gusset sits in the bowed arm
+const stillT = (scene, isLast) => {
+  if (isLast) return 0;
+  const v = Number.isFinite(scene.still) ? scene.still : STILL[scene.id] || 0;
+  return qt(Math.min(Math.max(0, v), scene.period - 1e-3));
+};
+
+// Snapshots: each scene's still as the reel draws it (no per-scene vignette; the reel's one
 // vignette goes over the whole frame), rendered once at the view's size, then halved with
-// high-quality resampling down to the folded station's exact device size and on down to the row
-// station's. Drawing picks the smallest level at least as wide as the station on screen, so every
+// high-quality resampling down to the folded station's exact device size. Drawing picks the smallest level at least as wide as the station on screen, so every
 // bitmap is drawn within 2x of its size with normal smoothing. Holds one canvas size only: a
 // resize drops the old size's bitmaps.
 const snapshots = new Map();
 let snapshotSize = '';
-function snapshot(scene, cw, ch, n) {
+function snapshot(scene, cw, ch, isLast) {
   const size = cw + 'x' + ch;
   if (size !== snapshotSize) {
     snapshots.clear();
@@ -460,11 +466,11 @@ function snapshot(scene, cw, ch, n) {
     c.fillRect(0, 0, cw, ch);
     const was = kit.RENDER.vignette;
     kit.setVignette(false);
-    drawPanel(c, base, 0, 0, 1, scene, scene.draw, 0);
+    drawPanel(c, base, 0, 0, 1, scene, scene.draw, stillT(scene, isLast));
     kit.setVignette(was);
     levels = [full];
     let src = full;
-    for (const tw of [Math.round(GRID.tw * base), Math.round((W / n) * base)]) {
+    for (const tw of [Math.round(GRID.tw * base)]) {
       while (src.width > tw) {
         const nw = src.width / 2 > tw ? Math.round(src.width / 2) : tw;
         const nh = nw === tw ? Math.round((tw * ch) / cw) : Math.round(src.height / 2);
@@ -482,38 +488,31 @@ function snapshot(scene, cw, ch, n) {
   return levels;
 }
 
-// Station rectangles (stage units) at reel time t in the end move.
+// Station rectangles (stage units) at reel time t in the end move. The camera pulls back from the
+// last station (zoom Z from the one that fills the frame with it down to 1, exponential so it reads
+// as a steady pull; the focus moves with 1 / Z so that station stays put on screen while the frame
+// opens). Meanwhile the bench folds: the three runs of three stand end to end on the bottom line,
+// the last run already in place, the earlier runs to its left along the bench the trucks travelled.
+// Off to the left, they lift to their lines (the middle and top), then slide right into place. A
+// run slides only once it has lifted clear of the line below, so no run passes through another,
+// and at most three parts move. The camera never shows fewer than one station per frame, and the
+// bench is never a thin strip: at three stations wide the runs are already arriving.
 function endRects(t, pb, n) {
+  const T = TIMING;
+  const e = cubic(seg(t, pb.a, pb.b));
+  const last = gridRect(n - 1);
+  const Z0 = W / GRID.tw, Z = Math.pow(Z0, 1 - e);
+  const w = (1 / Z - 1 / Z0) / (1 - 1 / Z0);
+  const fx = lerp(last.x + GRID.tw / 2, W / 2, w), fy = lerp(last.y + GRID.th / 2, H / 2, w);
+  const lift = cubic(seg(t, pb.a + T.liftAt, pb.a + T.liftAt + T.lift));
+  const slide = cubic(seg(t, pb.a + T.slideAt, pb.b));
+  const per = 3, lastRun = Math.floor((n - 1) / per), bottom = gridRect(lastRun * per).y;
   const rects = [];
-  if (t < pb.fold.a) {
-    // Camera: zoom Z from the one that fills the frame with the last station down to 1, exponential
-    // so it reads as a steady pull; the focus point moves with 1 / Z so the last station stays put
-    // on screen while the frame opens around it.
-    const e = cubic(seg(t, pb.cam.a, pb.cam.b));
-    const last = rowRect(n - 1, n);
-    const Z0 = W / last.w, Z = Math.pow(Z0, 1 - e);
-    const w = (1 / Z - 1 / Z0) / (1 - 1 / Z0);
-    const fx = lerp(last.x + last.w / 2, W / 2, w), fy = lerp(last.y + last.h / 2, H / 2, w);
-    for (let k = 0; k < n; k++) {
-      const r = rowRect(k, n);
-      rects.push({ x: (r.x - fx) * Z + W / 2, y: (r.y - fy) * Z + H / 2, w: r.w * Z, h: r.h * Z });
-    }
-    return rects;
-  }
-  // Fold, in two overlapping moves of the three runs of three (three parts moving, never crossing):
-  // each run first slides straight up or down to its line, then widens about that line's centre
-  // into its place. The lines' bands never overlap, so no run passes through another.
-  const u = seg(t, pb.fold.a, pb.fold.b);
-  const a = cubic(seg(u, 0, 0.5)), b = cubic(seg(u, 0.4, 1));
-  const per = Math.ceil(n / 3);
   for (let k = 0; k < n; k++) {
-    const s = Math.floor(k / per), j = k % per;
-    const r = rowRect(k, n), g = gridRect(k);
-    const runX0 = rowRect(s * per, n).x, runW = per * r.w;
-    const cy = lerp(r.y + r.h / 2, g.y + g.h / 2, a);
-    const x0 = lerp(runX0, GRID.x0, b), tw = lerp(runW, per * GRID.tw, b) / per;
-    const th = lerp(r.h, g.h, b);
-    rects.push({ x: x0 + j * tw, y: cy - th / 2, w: tw, h: th });
+    const s = Math.floor(k / per), j = k % per, g = gridRect(k);
+    const x = lerp(GRID.x0 + (s - lastRun) * per * GRID.tw, GRID.x0, slide) + j * GRID.tw;
+    const y = lerp(bottom, g.y, lift);
+    rects.push({ x: (x - fx) * Z + W / 2, y: (y - fy) * Z + H / 2, w: GRID.tw * Z, h: GRID.th * Z });
   }
   return rects;
 }
@@ -529,7 +528,7 @@ function drawEnd(ctx, base, cv, scenes, t, reel) {
     const xa = Math.round(r.x * base), xb = Math.round((r.x + r.w) * base);
     const ya = Math.round(r.y * base), yb = Math.round((r.y + r.h) * base);
     if (xa > cv.width || ya > cv.height || xb < 0 || yb < 0) continue;
-    const levels = snapshot(scenes[k], cv.width, cv.height, n);
+    const levels = snapshot(scenes[k], cv.width, cv.height, k === n - 1);
     let lv = levels[0];
     for (const L of levels) if (L.width >= xb - xa - 0.5) lv = L;
     ctx.drawImage(lv, xa, ya, xb - xa, yb - ya);
@@ -537,17 +536,24 @@ function drawEnd(ctx, base, cv, scenes, t, reel) {
   ctx.restore();
   onStage(ctx, base, () => {
     // one vignette over the frame, lighter once the camera is out so the corner stations stay lit
-    vignette(ctx, lerp(0.58, 0.3, cubic(seg(t, pb.cam.a, pb.cam.b))));
-    const done = easeOut(seg(t, pb.fold.b - 0.25, pb.fold.b + 0.35));
+    vignette(ctx, lerp(0.58, 0.3, cubic(seg(t, pb.a, pb.b))));
+    const done = easeOut(seg(t, pb.b - 0.25, pb.b + 0.35));
     if (done <= 0) return;
-    // a fine rule round each folded line, and the skill's name in each station's apron
+    // A name rail under each line's bench: covers the apron from just below the bench edge, so the
+    // floor pits some stations have (merge's output bin, smart-compact's chute) stop at the bench and
+    // the names sit on a clear band. A fine rule round each line.
     ctx.globalAlpha = done;
-    ctx.strokeStyle = '#2f4436';
-    ctx.lineWidth = 1.5;
-    const per = Math.ceil(n / 3);
+    const per = 3;
+    const railTop = ((BENCH_Y + 12) / H) * GRID.th;
     for (let s = 0; s * per < n; s++) {
-      const g = gridRect(s * per);
-      ctx.strokeRect(g.x - 1, g.y - 1, Math.min(per, n - s * per) * GRID.tw + 2, GRID.th + 2);
+      const g = gridRect(s * per), wRun = Math.min(per, n - s * per) * GRID.tw;
+      ctx.fillStyle = '#0b0f0c';
+      ctx.fillRect(g.x, g.y + railTop, wRun, GRID.th - railTop);
+      ctx.fillStyle = '#2a3b2f';
+      ctx.fillRect(g.x, g.y + railTop, wRun, 1.5);
+      ctx.strokeStyle = '#2f4436';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(g.x - 1, g.y - 1, wRun + 2, GRID.th + 2);
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
@@ -669,7 +675,7 @@ function drawReelFrame(ctx, cv, reel, scenes, t) {
     } else {
       // the first frame equals the last scene's last frame: same still, same vignette
       drawEnd(ctx, base, cv, scenes, t, reel);
-      note = t < reel.pullback.fold.a ? 'pull back  all nine at p = 0 in one row' : t < reel.slate.a ? 'fold  into three lines' : 'end slate';
+      note = t < reel.pullback.fold.a ? 'pull back' : t < reel.slate.a ? 'pull back and fold into three lines' : 'end slate';
     }
     onStage(ctx, base, () => {
       for (const p of reel.plates) drawPlate(ctx, p, t);
@@ -827,7 +833,7 @@ async function start() {
     // full-size renders and the downscales) to finish now, before the page reports ready, instead
     // of on the first played frame.
     const t0 = performance.now();
-    for (let k = scenes.length - 1; k >= 0; k--) snapshot(scenes[k], v.cv.width, v.cv.height, scenes.length);
+    for (let k = scenes.length - 1; k >= 0; k--) snapshot(scenes[k], v.cv.width, v.cv.height, k === scenes.length - 1);
     const sink = new OffscreenCanvas(1, 1).getContext('2d', { willReadFrequently: true });
     for (const levels of snapshots.values()) for (const lv of levels) sink.drawImage(lv, 0, 0, 1, 1);
     sink.getImageData(0, 0, 1, 1);

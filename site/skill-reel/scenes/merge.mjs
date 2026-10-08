@@ -17,11 +17,14 @@
 // rigid moving parts are cached as small sprites (one scale per part) and drawn translated.
 
 import {
-  W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn, easeInOut,
+  W, H, P, D, MAT, FLOOR, LOD, clamp01, lerp, seg, easeOut, easeIn,
   mix, springStep, indexEase, setLod, lw, cached, grainOver, poly, prism, rect,
   rodV, rodH, ball, discPts, contactShadow, contactGlow, dust, centreLine,
   benchFinal, activeMat, hatchPath, lampFalloff,
 } from '../kit.mjs';
+
+// Smoothstep: every move in this scene eases with it (peak speed 1.5x the mean, so nothing snaps).
+const ss = (u) => u * u * (3 - 2 * u);
 
 const T = 10.0;
 const OPENER = 6.9;
@@ -39,6 +42,28 @@ const KEY_X = 165;
 const BEAM_Y0 = 228, BEAM_Y1 = 258;
 const HOUSE = { x0: 510, x1: 970, y0: BEAM_Y1, y1: 312 };
 const BED_DEP = 120;
+// A hatch in the bed top: what is below its rim is seen through it, darkening with depth, and gone at
+// HATCH_DEEP. So a part that rises out of it brightens in, it never appears in one frame.
+const HATCH_DEEP = 40;
+function hatchPts(cx) {
+  const hx0 = cx - SW / 2 - 6, hx1 = cx + SW / 2 + 8, z0 = 4, z1 = SDEP + 4;
+  return [[hx0 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z1, LINE_Y + D.y * z1], [hx0 + D.x * z1, LINE_Y + D.y * z1]];
+}
+// Draw what rises out of the hatch at cx; below: how far the top of it still sits under the rim.
+function fromHatch(ctx, cx, below, draw) {
+  if (below >= HATCH_DEEP) return;
+  ctx.save();
+  const xr = cx + SW / 2 + 5;
+  poly(ctx, [[0, 0], [W, 0], [W, LINE_Y + D.y * SDEP], [xr + D.x * SDEP, LINE_Y + D.y * SDEP], [xr, LINE_Y], [0, LINE_Y]]);
+  ctx.clip();
+  draw();
+  ctx.restore();
+  if (below > 0) {
+    poly(ctx, hatchPts(cx));
+    ctx.fillStyle = `rgba(12,17,13,${(below / HATCH_DEEP).toFixed(4)})`;
+    ctx.fill();
+  }
+}
 
 const ZM = 55; // mid-depth of a sheet's top face
 const topPt = (cx, n) => [cx + D.x * ZM, LINE_Y - n * SH + D.y * ZM];
@@ -63,18 +88,21 @@ const TIP_X = (i) => GANG_CX - 2.5 * 40 + 40 * i;
 const HOVER = 22;
 const TIP_REACH = BAR_H + 22 + 30 + 26;
 const BAR_Y = topPt(X_REVIEW, 3)[1] - HOVER - TIP_REACH;
-const GANG_LIFT = 560;
+const GANG_LIFT = 560; // guide rod length in the sprite
+const GANG_HIDE = 240; // raised this far, the bar and carriers are inside the housing
 const TIP_STOW = 60; // a tip run fully back sits inside its carrier
 
-// Tag rail: a post set a little back on the bench, a peg at every sheet height.
-const RAIL_DZ = 36;
-const POST_X = 1012 + D.x * RAIL_DZ, PEG_X = 980 + D.x * RAIL_DZ;
+// Tag rail: a post on the bench edge, a peg at every sheet height. It rises for the findings and sinks before the feed.
+const RAIL_DZ = -40; // in front of the line, on the bench edge: the work passes behind it
+// The post stands just right of the review stack; the pegs point right, so the arm reads each tag from
+// its right without reaching across the post.
+const POST_X = 961 + D.x * RAIL_DZ, PEG_X = POST_X + 38;
 const pegY = (k) => sheetMid(k) - 16 + D.y * RAIL_DZ;
 
 // Claude's arm (the session): column behind the line, two links, jaws pointing left.
 const SHOULDER = [1240, 440];
 const L1 = 222, L2 = 222, JAW = 46;
-const ARM_REST = [1110, 560];
+const ARM_REST = [1020, 490]; // parked high: the wrist clears every stack on the line
 const READ_X = PEG_X + 22 + JAW; // jaw tip on the tag's right edge
 const FIX_X = X_REVIEW + SW / 2 + 4 + JAW;
 const JAW_CLOSED = 5, JAW_SHEET = SH / 2, JAW_FINGER = 8;
@@ -83,15 +111,17 @@ const LAY_X = FIX_SHEET_R; // the sheet's last 14 sit in the wrist block, the ja
 const LAY_Y = LINE_Y - 3 * SH - SH / 2 - JAW_FINGER; // held one finger above the stack
 const LAY_HOVER = LAY_Y - 34;
 
-// The session's sheet magazine: blank fix sheets on a spring feed, on the bench behind the line
-// (depth MAG_DZ) between the tag rail and the session column. The arm picks the top sheet by its
-// right edge, lifts it clear of the rail and lays it on the stack. The bed hides the feed below.
-const MAG_DZ = 140;
-const MAG_CX = 995 + D.x * MAG_DZ; // screen centre of the top sheet's front face
-const MAG_YB = FLOOR + D.y * MAG_DZ - SH; // the top sheet's front bottom edge
-const MAG_HIDE = LINE_Y + D.y * BED_DEP; // the bed's back edge: the magazine shows above it only
-const PICK = [MAG_CX + SW / 2, MAG_YB - SH / 2]; // wrist on the top sheet's right edge
-const LIFT_Y = 470; // carried high enough to clear the rail post
+
+// The fix sheet's lift: a slot in the bed right of the review station (like the PR's feed lift).
+// The sheet rises on a pad narrower than itself, so its right end overhangs for the jaws.
+const FS_CX = 1050, FS_R = FS_CX + SW / 2;
+const FS_YB = LINE_Y - 14; // risen: the sheet stands one finger clear of the bed on its pad
+const FS_YM = FS_YB - SH / 2;
+const FS_DROP = SH + 14 + HATCH_DEEP; // fully down: the sheet's top deep in the hatch, unseen
+const PAD_X0 = FS_CX - 70, PAD_X1 = FS_CX + 60;
+const LIFT_Y = 500; // lifted clear of the line before it is carried
+const FS_HOVER = FS_YM - 91; // the wrist waits above the rising sheet's end, finger drawn back
+
 // Press: two guide columns, a crown under the beam, a hydraulic cylinder in section, ram and platen.
 const CROWN = { x0: 1296, x1: 1644, y0: BEAM_Y1, y1: 312, dep: 130 };
 const COL_Z = 60, COL_W = 26;
@@ -163,7 +193,7 @@ function track(t, keys) {
   for (let i = 1; i < keys.length; i++) {
     if (t <= keys[i][0]) {
       const a = keys[i - 1], b = keys[i];
-      const u = easeInOut(seg(t, a[0], b[0]));
+      const u = ss(seg(t, a[0], b[0]));
       return [lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
     }
   }
@@ -497,7 +527,7 @@ function armDraw(ctx, wrist, active, o, slide) {
   ball(ctx, wx + 6, wy, 6.5, SM);
   ball(ctx, sx, sy, 15, SM);
 }
-const ARM_BOX = [960, 290, 1300, 640];
+const ARM_BOX = [940, 250, 1300, 560];
 
 // The person's key: an ivory cap in a dark bezel on a green stem that rides in a guide sleeve,
 // /merge in Fraunces Italic. press pushes it down; latch swings the pawl onto the cap's shoulder.
@@ -690,7 +720,7 @@ function backLayer(ctx) {
   }
   // the feed lift: a hatch in the bed top where each PR rises
   const hx0 = X_ENTRY - SW / 2 - 6, hx1 = X_ENTRY + SW / 2 + 8, z0 = 4, z1 = SDEP + 4;
-  poly(ctx, [[hx0 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z0, LINE_Y + D.y * z0], [hx1 + D.x * z1, LINE_Y + D.y * z1], [hx0 + D.x * z1, LINE_Y + D.y * z1]]);
+  poly(ctx, hatchPts(X_ENTRY));
   ctx.fillStyle = '#0c110d';
   ctx.fill();
   ctx.strokeStyle = MAT.lit.sil;
@@ -708,7 +738,21 @@ function backLayer(ctx) {
     }
     ctx.stroke();
   }
+  // the fix-sheet lift's slot beside the review station
+  poly(ctx, hatchPts(FS_CX));
+  ctx.fillStyle = '#0c110d';
+  ctx.fill();
+  ctx.strokeStyle = MAT.lit.sil;
+  ctx.lineWidth = lw(1.6);
+  ctx.stroke();
   pressFrame(ctx, PRESS_IDLE, P.dim, 'feet');
+  // the tag rail's slot in the bench edge
+  poly(ctx, [[POST_X - 13, RAIL_FOOT], [POST_X + 13, RAIL_FOOT], [POST_X + 13 + D.x * 22, RAIL_FOOT + D.y * 22], [POST_X - 13 + D.x * 22, RAIL_FOOT + D.y * 22]]);
+  ctx.fillStyle = '#070a08';
+  ctx.fill();
+  ctx.strokeStyle = MAT.lit.sil;
+  ctx.lineWidth = lw(1.4);
+  ctx.stroke();
   // key base and the pawl's post
   contactShadow(ctx, KEY_X + 50, FLOOR - 8, 160, 16, 0.5);
   prism(ctx, rect(KEY_X - 92, FLOOR - 40, 250, 40), 80, MAT.metal, { sil: 3 });
@@ -725,43 +769,35 @@ function backLayer(ctx) {
   ctx.stroke();
 }
 
-// The tag rail and the magazine's cheeks: in front of the magazine sheets, drawn over them. The bed
-// hides the post below its top.
-const RAIL_BOT = LINE_Y + D.y * RAIL_DZ;
+
+// The tag rail, on the bench edge in front of the line: post, foot and a peg at every sheet height.
+const RAIL_FOOT = FLOOR - D.y * RAIL_DZ;
 function railFront(ctx) {
-  const idle = activeMat(MAT.session, 0);
-  const top = MAG_YB - SH - 8 + D.y * 0;
-  // corner posts at the magazine's front: the sheets stand between them
-  for (const fx of [995 - SW / 2 - 10, 995 + SW / 2 + 2]) {
-    const x = fx + D.x * MAG_DZ;
-    prism(ctx, rect(x, top, 8, MAG_HIDE - top), 10, idle, { sil: 2.2 });
-  }
-  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, RAIL_BOT - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
+  contactShadow(ctx, POST_X + 8, RAIL_FOOT - 4, 44, 7, 0.45);
+  prism(ctx, rect(POST_X - 9, pegY(3) - 30, 18, RAIL_FOOT - 10 - (pegY(3) - 30)), 20, MAT.lit, { sil: 2.8 });
+  prism(ctx, rect(POST_X - 24, RAIL_FOOT - 10, 48, 10), 26, MAT.lit, { sil: 2.4 });
   for (let k = 0; k < 4; k++) {
-    rodH(ctx, PEG_X, POST_X - 6, pegY(k), 6, MAT.lit);
+    rodH(ctx, POST_X + 6, PEG_X, pegY(k), 6, MAT.lit);
     ball(ctx, PEG_X, pegY(k), 4.4, MAT.lit);
   }
 }
-const RAIL_BOX = [995 - SW / 2 - 20 + D.x * MAG_DZ, pegY(3) - 48, 995 + SW / 2 + 12 + D.x * MAG_DZ + D.x * SDEP + 10, RAIL_BOT + 4];
+const RAIL_BOX = [POST_X - 34, pegY(3) - 48, PEG_X + 14, RAIL_FOOT + 10];
+const RAIL_SINK = RAIL_FOOT - (pegY(3) - 40); // sunk this far, the rail is all below the bench top
 
-const MAG_BOX = [MAG_CX - SW / 2 - 6, MAG_YB - SH - 36, MAG_CX + SW / 2 + D.x * SDEP + 8, MAG_YB + 2 * SH + 4];
-function magazine(ctx, dy) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, BEAM_Y1, W, MAG_HIDE - BEAM_Y1);
-  ctx.clip();
-  if (dy === null) {
-    sprite(ctx, 'merge-mag', MAG_BOX, (c) => {
-      sheet(c, MAG_CX, MAG_YB + SH, SH, { top: false });
-      sheet(c, MAG_CX, MAG_YB, SH);
-    });
-  } else {
-    sprite(ctx, 'merge-mag-rest', MAG_BOX, (c) => {
-      sheet(c, MAG_CX, MAG_YB + 2 * SH, SH, { top: false });
-      sheet(c, MAG_CX, MAG_YB + SH, SH);
-    }, 0, dy);
-  }
-  ctx.restore();
+// The fix sheet on its lift (u: 0 down in the slot, 1 risen), and the pad under it.
+function fixLift(ctx, u, sheetOn, padU) {
+  const dy = (1 - u) * FS_DROP, pdy = (1 - padU) * FS_DROP;
+  // the highest thing in the hatch sets how deep the view into it is
+  const top = sheetOn ? FS_YB - SH + dy : FS_YB + pdy;
+  fromHatch(ctx, FS_CX, top - LINE_Y, () => {
+    if (padU > 0) {
+      sprite(ctx, 'merge-fix-pad', [PAD_X0 - 6, FS_YB - 40, PAD_X1 + D.x * 100 + 8, FS_YB + 30], (c) => {
+        rodV(c, (PAD_X0 + PAD_X1) / 2 + D.x * 50, FS_YB + 8, FS_YB + 30, 16, MAT.lit);
+        prism(c, rect(PAD_X0, FS_YB, PAD_X1 - PAD_X0, 8), 100, MAT.lit, { sil: 2.2 });
+      }, 0, pdy);
+    }
+    if (sheetOn) oneSheet(ctx, FS_CX, FS_YB + dy);
+  });
 }
 
 function trayFront(ctx) {
@@ -824,13 +860,16 @@ const FINDINGS = [
   { tip: 3, sheet: 0, read: 3.0, fix: 3.38, clear: 3.46 },
   { tip: 4, sheet: 1, read: 3.78, fix: 4.16, clear: 4.24 },
 ];
-// the fix sheet: to the magazine with the jaws opening, onto the sheet's edge, grip, lift it clear of
-// the rail, carry it to the stack, lower, slip the lower finger out, and it sits on the stack
-const OPEN_JAW = [4.36, 4.6], MAG_ON = [4.6, 4.7], PICK_T = 4.76, MAG_LIFT = [4.76, 4.96];
-const CARRY = [4.96, 5.24], LOWER = [5.24, 5.34], SLIP = [5.34, 5.44];
-const LAY = 5.44; // the fix sheet sits on the stack
-const MAG_INDEX = [4.98, 5.2]; // the magazine's spring feeds the next sheet up
-const ARM_HOME = [5.5, 5.78];
+// the fix sheet: it rises on its lift while the arm comes over with the jaws open and the lower
+// finger drawn back; the arm slides onto its overhanging edge, the finger closes under it, the arm
+// lifts it off the pad (the pad sinks back), carries it to the stack, lowers it, slips the finger
+// out, and it sits on the stack
+const RAIL_UP = [0.7, 1.15], RAIL_DOWN = [4.3, 4.56]; // the tag rail rises for the findings, then sinks
+const FS_RISE = [4.5, 4.72], OPEN_JAW = [4.36, 4.6], SLIDE_ON = [4.72, 4.8], FINGER_IN = [4.78, 4.86];
+const PICK_T = 4.88, LIFT_OFF = [4.88, 5.08], PAD_DOWN = [4.98, 5.2];
+const CARRY = [5.08, 5.32], LOWER = [5.32, 5.42], SLIP = [5.42, 5.52];
+const LAY = 5.52; // the fix sheet sits on the stack
+const ARM_HOME = [5.58, 5.86];
 const ARM_KEYS = [
   [2.3, ARM_REST[0], ARM_REST[1]],
   [2.55, READ_X, sheetMid(2)],
@@ -843,30 +882,31 @@ const ARM_KEYS = [
   [3.98, READ_X, sheetMid(1)],
   [4.16, FIX_X, sheetMid(1)],
   [4.36, FIX_X, sheetMid(1)],
-  [OPEN_JAW[1], PICK[0] + 26, PICK[1] - 24],
-  [MAG_ON[1], PICK[0], PICK[1]],
-  [PICK_T, PICK[0], PICK[1]],
-  [MAG_LIFT[1], PICK[0], LIFT_Y],
+  [OPEN_JAW[1], FS_R, FS_HOVER],
+  [SLIDE_ON[0], FS_R, FS_HOVER],
+  [SLIDE_ON[1], FS_R, FS_YM],
+  [PICK_T, FS_R, FS_YM],
+  [LIFT_OFF[1], FS_R, LIFT_Y],
   [CARRY[1], LAY_X, LAY_HOVER],
   [LOWER[1], LAY_X, LAY_Y],
   [ARM_HOME[0], LAY_X, LAY_Y],
   [ARM_HOME[1], ARM_REST[0], ARM_REST[1]],
 ];
-const RERUN = { in: 5.6, touch: 6.06, out: 6.26, gone: 6.64 };
-const FEED_PRESS = [6.56, 7.06];
-const PRESS_T = { down: 7.06, contact: 7.23, flat: 7.38, lift: 7.46, up: 7.72 };
-const SLIDE = [7.5, 7.92]; // the payoff holds still from SLIDE[1] to SEAM
+const RERUN = { in: 5.66, touch: 6.08, out: 6.26, gone: 6.6 };
+const FEED_PRESS = [6.58, 7.14]; // 710 px, smoothstep: peak about 1,900 px/s
+const PRESS_T = { down: 7.14, contact: 7.3, flat: 7.43, lift: 7.5, up: 7.74 };
+const SLIDE = [7.54, 7.92]; // the payoff holds still from SLIDE[1] to SEAM
 const SEAM = 9.5;
-const RISE = 3 * SH + 14;
+const RISE = 3 * SH + HATCH_DEEP; // fully down: the PR's top deep in the hatch, unseen
 const LAMP_REVIEW = 840, LAMP_PRESS = 1450, LAMP_TRAY = 1690;
 
 function platenBottom(t) {
   const top4 = LINE_Y - 4 * SH;
   if (t < PRESS_T.down || t >= PRESS_T.up) return PLATEN_REST;
-  if (t < PRESS_T.contact) return lerp(PLATEN_REST, top4, easeInOut(seg(t, PRESS_T.down, PRESS_T.contact)));
-  if (t < PRESS_T.flat) return lerp(top4, LINE_Y - SQ, easeInOut(seg(t, PRESS_T.contact, PRESS_T.flat)));
+  if (t < PRESS_T.contact) return lerp(PLATEN_REST, top4, ss(seg(t, PRESS_T.down, PRESS_T.contact)));
+  if (t < PRESS_T.flat) return lerp(top4, LINE_Y - SQ, ss(seg(t, PRESS_T.contact, PRESS_T.flat)));
   if (t < PRESS_T.lift) return LINE_Y - SQ;
-  return lerp(LINE_Y - SQ, PLATEN_REST, easeIn(seg(t, PRESS_T.lift, PRESS_T.up)));
+  return lerp(LINE_Y - SQ, PLATEN_REST, ss(seg(t, PRESS_T.lift, PRESS_T.up)));
 }
 
 function loopState(t) {
@@ -880,38 +920,37 @@ function loopState(t) {
 
   // the work
   if (t < FEED_PRESS[0]) {
-    const x = lerp(X_ENTRY, X_REVIEW, easeInOut(seg(t, FEED_IN[0], FEED_IN[1])));
+    const x = lerp(X_ENTRY, X_REVIEW, ss(seg(t, FEED_IN[0], FEED_IN[1])));
     s.stack = { x, n: t >= LAY ? 4 : 3 };
   } else if (t < PRESS_T.contact) {
-    s.stack = { x: lerp(X_REVIEW, X_PRESS, easeInOut(seg(t, FEED_PRESS[0], FEED_PRESS[1]))), n: 4 };
+    s.stack = { x: lerp(X_REVIEW, X_PRESS, ss(seg(t, FEED_PRESS[0], FEED_PRESS[1]))), n: 4 };
   } else if (t < PRESS_T.flat) {
-    s.squash = easeInOut(seg(t, PRESS_T.contact, PRESS_T.flat));
+    s.squash = ss(seg(t, PRESS_T.contact, PRESS_T.flat));
   } else if (t < SLIDE[1]) {
-    s.flat = lerp(X_PRESS, X_TRAY, easeInOut(seg(t, SLIDE[0], SLIDE[1])));
+    s.flat = lerp(X_PRESS, X_TRAY, ss(seg(t, SLIDE[0], SLIDE[1])));
   }
   // the last result goes dim while the new one slides over to it, so the hold stays still
-  s.oldTop = 1 - easeInOut(seg(t, SLIDE[0], SLIDE[1]));
+  s.oldTop = 1 - ss(seg(t, SLIDE[0], SLIDE[1]));
   if (t >= SEAM) {
     s.trayOff = SQ * indexEase(seg(t, SEAM, SEAM + 0.18));
     s.incoming = { rise: easeOut(seg(t, SEAM, T)) };
   }
-  s.lamp = LAMP_REVIEW + (LAMP_PRESS - LAMP_REVIEW) * easeInOut(seg(t, FEED_PRESS[0], FEED_PRESS[1]))
-    + (LAMP_TRAY - LAMP_PRESS) * easeInOut(seg(t, SLIDE[0], SLIDE[1]))
-    - (LAMP_TRAY - LAMP_REVIEW) * easeInOut(seg(t, SEAM, T));
+  s.lamp = LAMP_REVIEW + (LAMP_PRESS - LAMP_REVIEW) * ss(seg(t, FEED_PRESS[0], FEED_PRESS[1]))
+    + (LAMP_TRAY - LAMP_PRESS) * ss(seg(t, SLIDE[0], SLIDE[1]))
+    - (LAMP_TRAY - LAMP_REVIEW) * ss(seg(t, SEAM, T));
   // the bin's share of the lamp: some while the press works, full at the payoff, eased out over the
   // whole seam (a smoothstep, so it never snaps)
-  const ss = (u) => u * u * (3 - 2 * u);
   s.trayLight = 0.3 * ss(seg(t, FEED_PRESS[0], FEED_PRESS[1])) + 0.7 * ss(seg(t, SLIDE[0], SLIDE[1])) - ss(seg(t, SEAM, T));
-  s.pressLit = easeInOut(seg(t, FEED_PRESS[0] + 0.1, PRESS_T.down)) - easeInOut(seg(t, PRESS_T.up - 0.12, SLIDE[1]));
+  s.pressLit = ss(seg(t, FEED_PRESS[0] + 0.1, PRESS_T.down)) - ss(seg(t, PRESS_T.up - 0.12, SLIDE[1]));
 
   // round 1: the gang head drops on a stiff spring, runs its tips out, ripples them across the
   // stack, runs them back in, then lifts out as one piece
   if (t >= GANG_IN && t < GANG_OUT[1]) {
-    const yOff = -GANG_LIFT * (1 - springStep(t - GANG_IN, 0.78, 13)) - GANG_LIFT * easeIn(seg(t, GANG_OUT[0], GANG_OUT[1]));
+    const yOff = -GANG_HIDE * (1 - springStep(t - GANG_IN, 0.78, 13)) - GANG_HIDE * ss(seg(t, GANG_OUT[0], GANG_OUT[1]));
     const ext = [];
     for (let i = 0; i < N_TIPS; i++) {
       const a = tipT(i);
-      ext.push(HOVER * (easeInOut(seg(t, a, a + 0.07)) - easeIn(seg(t, a + 0.13, a + 0.19))));
+      ext.push(HOVER * (ss(seg(t, a, a + 0.07)) - easeIn(seg(t, a + 0.13, a + 0.19))));
     }
     const stow = TIP_STOW * (1 - easeOut(seg(t, TIPS_OUT[0], TIPS_OUT[1])) + easeIn(seg(t, TIPS_IN[0], TIPS_IN[1])));
     s.gang = { yOff, ext, stow };
@@ -948,13 +987,14 @@ function loopState(t) {
 
   // Claude's arm
   if (t >= ARM_KEYS[0][0] && t < ARM_KEYS[ARM_KEYS.length - 1][0]) s.arm.wrist = track(t, ARM_KEYS);
-  s.arm.active = easeInOut(seg(t, 2.1, 2.4)) - easeInOut(seg(t, ARM_HOME[0], ARM_HOME[1] + 0.12));
+  s.arm.active = ss(seg(t, 2.1, 2.4)) - ss(seg(t, ARM_HOME[0], ARM_HOME[1] + 0.12));
   // jaws open to the sheet's thickness for the fix sheet, the lower finger slips out from under it
   // on the stack, then the jaws close on the way home
-  const home = easeInOut(seg(t, ARM_HOME[0] + 0.04, ARM_HOME[1] - 0.04));
-  s.arm.o = JAW_CLOSED + (JAW_SHEET - JAW_CLOSED) * easeInOut(seg(t, OPEN_JAW[0], OPEN_JAW[1]))
+  const home = ss(seg(t, ARM_HOME[0] + 0.04, ARM_HOME[1] - 0.04));
+  s.arm.o = JAW_CLOSED + (JAW_SHEET - JAW_CLOSED) * ss(seg(t, OPEN_JAW[0], OPEN_JAW[1]))
     + 8 * easeOut(seg(t, SLIP[1], SLIP[1] + 0.06)) - (JAW_SHEET + 8 - JAW_CLOSED) * home;
-  s.arm.slide = easeIn(seg(t, SLIP[0], SLIP[1])) - home;
+  s.arm.slide = ss(seg(t, OPEN_JAW[0] + 0.04, OPEN_JAW[1] - 0.02)) - ss(seg(t, FINGER_IN[0], FINGER_IN[1]))
+    + easeIn(seg(t, SLIP[0], SLIP[1])) - home;
   for (const f of FINDINGS) {
     s.glows.push({ x: READ_X - JAW, y: sheetMid(f.sheet), u: (t - f.read) / 0.12, r: 18, color: P.bright });
     if (f.fix) {
@@ -962,19 +1002,17 @@ function loopState(t) {
       s.dusts.push({ x: X_REVIEW + JIT[f.sheet] + SW / 2 + 4, y: sheetMid(f.sheet), tau: t - f.fix, seed: 0x3a0 + f.sheet, o: { ang: -0.25, spread: 1.6, n: 7, dur: 0.4 } });
     }
   }
-  // the magazine: full until the pick, then the rest of the sheets rise one place on the spring
-  s.mag = t >= PICK_T && t < MAG_INDEX[1] ? -SH * indexEase(seg(t, MAG_INDEX[0], MAG_INDEX[1])) : null;
-  if (t >= PICK_T && t < LAY) {
-    // the picked sheet, held by its edge at full size; behind the rail post until it is lifted clear
-    s.carry = { behind: t < MAG_LIFT[1], drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
-  }
+  s.rail = ss(seg(t, RAIL_UP[0], RAIL_UP[1])) - ss(seg(t, RAIL_DOWN[0], RAIL_DOWN[1]));
+  // the fix sheet on its lift, then in the arm
+  s.fix = { rise: ss(seg(t, FS_RISE[0], FS_RISE[1])), pad: ss(seg(t, FS_RISE[0], FS_RISE[1])) - ss(seg(t, PAD_DOWN[0], PAD_DOWN[1])), on: t < PICK_T };
+  if (t >= PICK_T && t < LAY) s.carry = { drop: JAW_FINGER * easeIn(seg(t, SLIP[0], SLIP[1])) };
   s.glows.push({ x: X_REVIEW + JIT[3] + SW / 2 - 8, y: LINE_Y - 3 * SH, u: (t - LAY) / 0.12, r: 30, color: P.bright });
   s.dusts.push({ x: X_REVIEW - SW / 2 + 6, y: LINE_Y - 3 * SH - 2, tau: t - LAY, seed: 0x5e1, o: { ang: Math.PI * 1.1, spread: 1.0, n: 8, dur: 0.45 } });
 
   // rerun: one fresh steel tip swings in, touches the new head, the rail stays empty
   if (t >= RERUN.in && t < RERUN.gone) {
     // swings down out of the housing from flat behind it, and back up to stow
-    s.theta = lerp(TH_STOW_R, TH_B, easeInOut(seg(t, RERUN.in, RERUN.touch))) + (TH_STOW_R - TH_B) * easeInOut(seg(t, RERUN.out, RERUN.gone));
+    s.theta = lerp(TH_STOW_R, TH_B, ss(seg(t, RERUN.in, RERUN.touch))) + (TH_STOW_R - TH_B) * ss(seg(t, RERUN.out, RERUN.gone));
   }
   s.glows.push({ x: PB[0], y: PB[1], u: (t - RERUN.touch) / 0.12, r: 24, color: P.paper });
 
@@ -1003,14 +1041,14 @@ function openerState(t) {
   const R = OP.review;
   let reviewPlate = 0;
   if (t >= R.in && t < R.gone) {
-    s.theta = lerp(TH_STOW_L, TH_A, easeInOut(seg(t, R.in, R.touch))) + (TH_STOW_L - TH_A) * easeInOut(seg(t, R.out, R.gone));
+    s.theta = lerp(TH_STOW_L, TH_A, ss(seg(t, R.in, R.touch))) + (TH_STOW_L - TH_A) * ss(seg(t, R.out, R.gone));
     reviewPlate = easeOut(seg(t, R.in + 0.15, R.in + 0.4)) * (1 - easeIn(seg(t, R.out, R.out + 0.2)));
   }
   s.glows.push({ x: PA[0], y: PA[1], u: (t - R.touch) / 0.12, r: 24, color: P.paper });
   // (b) the review layers, then the person's key
   if (t >= OP.gIn && t < OP.gOut[1]) {
     s.gang = {
-      yOff: -GANG_LIFT * (1 - springStep(t - OP.gIn, 0.78, 11)) - GANG_LIFT * easeIn(seg(t, OP.gOut[0], OP.gOut[1])),
+      yOff: -GANG_HIDE * (1 - springStep(t - OP.gIn, 0.78, 11)) - GANG_HIDE * ss(seg(t, OP.gOut[0], OP.gOut[1])),
       ext: null,
       stow: TIP_STOW * (1 - easeOut(seg(t, OP.tipsOut[0], OP.tipsOut[1])) + easeIn(seg(t, OP.tipsIn[0], OP.tipsIn[1]))),
     };
@@ -1020,7 +1058,7 @@ function openerState(t) {
     full: easeOut(seg(t, OP.gIn + 0.2, OP.gIn + 0.45)) * (1 - easeIn(seg(t, OP.tipsIn[0] - 0.1, OP.tipsIn[0] + 0.1))),
     sol: easeOut(seg(t, OP.gIn + 0.35, OP.gIn + 0.65)) * (1 - easeIn(seg(t, OP.gOut[0] + 0.05, OP.gOut[0] + 0.35))),
   };
-  s.lamp = lerp(640, LAMP_REVIEW, easeInOut(seg(t, OP.gIn - 0.3, OP.gIn + 0.5)));
+  s.lamp = lerp(640, LAMP_REVIEW, ss(seg(t, OP.gIn - 0.3, OP.gIn + 0.5)));
   s.trayLight = 0;
   return s;
 }
@@ -1049,7 +1087,7 @@ function warm(ctx) {
   frameParts(c, s);
   for (let n = 3; n <= 4; n++) stackSprite(c, n, X_REVIEW);
   oneSheet(c, X_REVIEW, LINE_Y);
-  magazine(c, -SH);
+  fixLift(c, 1, true, 1);
   warming = false;
   setLod(ctx);
 }
@@ -1068,8 +1106,8 @@ function frameParts(ctx, s) {
 
   // tray: dim pile, the last result on top, then the whole bin dims with distance from the lamp
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(TRAY_X0 + TRAY_WALL, LINE_Y - 200, TRAY_X1 - TRAY_X0 - 2 * TRAY_WALL, TRAY_BOT - TRAY_WALL - LINE_Y + 200);
+  // the well clips the pile; above the well the arriving sheet is not cut
+  poly(ctx, [[TRAY_X0 + TRAY_WALL, LINE_Y - 200], [W, LINE_Y - 200], [W, LINE_Y], [TRAY_X1 - TRAY_WALL, LINE_Y], [TRAY_X1 - TRAY_WALL, TRAY_BOT - TRAY_WALL], [TRAY_X0 + TRAY_WALL, TRAY_BOT - TRAY_WALL]]);
   ctx.clip();
   sprite(ctx, 'merge-pile', [X_TRAY - SW / 2 - 4, LINE_Y - 36, X_TRAY + SW / 2 + D.x * SDEP + 6, LINE_Y + 7 * SQ + 4], (c) => {
     for (let k = 1; k <= 7; k++) sheet(c, X_TRAY, LINE_Y + k * SQ, SQ, { top: false, dim: 0.72 });
@@ -1079,33 +1117,15 @@ function frameParts(ctx, s) {
     ctx.fillStyle = `rgba(4,6,5,${dark.toFixed(4)})`;
     ctx.fillRect(TRAY_X0, LINE_Y, TRAY_X1 - TRAY_X0, TRAY_BOT - LINE_Y);
   }
-  if (!s.newest) flatSheet(ctx, X_TRAY, LINE_Y + SQ, 1, dark);
-  else {
-    flatSheet(ctx, X_TRAY, LINE_Y + SQ + s.trayOff, s.oldTop, dark);
-    flatSheet(ctx, X_TRAY, LINE_Y + s.trayOff, 1, dark);
-  }
+  // the previous result fades into the dim pile while the new one slides over (continuous)
+  flatSheet(ctx, X_TRAY, LINE_Y + SQ + s.trayOff, s.oldTop, dark);
+  if (s.newest) flatSheet(ctx, X_TRAY, LINE_Y + s.trayOff, 1, dark);
   ctx.restore();
   if (s.flat !== null) {
-    contactShadow(ctx, s.flat + 30, LINE_Y - 6, 150, 12, 0.35);
+    // its shadow fades as it leaves the bed for the well, gone when it lands
+    contactShadow(ctx, s.flat + 30, LINE_Y - 6, 150, 12, 0.35 * (1 - ss(seg(s.flat, X_TRAY - 170, X_TRAY))));
     flatSheet(ctx, s.flat, LINE_Y);
   }
-
-  // the session's magazine, the picked sheet while it is still behind the rail, then the rail
-  magazine(ctx, s.mag === undefined ? null : s.mag);
-  const w = s.arm.wrist;
-  if (s.carry && s.carry.behind) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, BEAM_Y1, W, MAG_HIDE - BEAM_Y1);
-    ctx.clip();
-    oneSheet(ctx, w[0] - SW / 2, w[1] + SH / 2);
-    ctx.restore();
-  }
-  sprite(ctx, 'merge-rail', RAIL_BOX, railFront);
-
-  // tags hang behind the stack's end
-  for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k), g.ang, g.alpha, 0, g.readU);
-  for (const g of s.tags) if (g.deadU) tagShape(ctx, PEG_X + g.dx, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
 
   if (s.stack) {
     contactShadow(ctx, s.stack.x + 30, LINE_Y - 8, 150, 12, 0.4);
@@ -1120,22 +1140,32 @@ function frameParts(ctx, s) {
   if (s.incoming && s.incoming.rise > 0) {
     // the next PR rises out of the feed lift; the bed top hides what is still below it
     const dy = (1 - s.incoming.rise) * RISE;
-    const xr = X_ENTRY + SW / 2 + 5;
     contactShadow(ctx, X_ENTRY + 30, LINE_Y - 8, 150, 12, 0.4 * s.incoming.rise);
-    if (dy > 0.25) {
-      ctx.save();
-      poly(ctx, [[0, 0], [W, 0], [W, LINE_Y + D.y * SDEP], [xr + D.x * SDEP, LINE_Y + D.y * SDEP], [xr, LINE_Y], [0, LINE_Y]]);
-      ctx.clip();
-      stackSprite(ctx, 3, X_ENTRY, dy);
-      ctx.restore();
-    } else stackSprite(ctx, 3, X_ENTRY, dy);
+    if (dy > 0.25) fromHatch(ctx, X_ENTRY, dy - 3 * SH, () => stackSprite(ctx, 3, X_ENTRY, dy));
+    else stackSprite(ctx, 3, X_ENTRY, dy);
   }
+
+  // the fix sheet's lift
+  if (s.fix.rise > 0 || s.fix.pad > 0) fixLift(ctx, s.fix.rise, s.fix.on, s.fix.pad);
 
   // Codex tools come out of the housing
   if (s.gang) gangHead(ctx, s.gang.yOff, s.gang.ext, s.gang.stow);
   let tipPos = null;
   if (s.theta !== null) tipPos = swingArm(ctx, s.theta);
   cached(ctx, 'merge-front', frontLayer);
+
+  // the tag rail stands in front of the line; the tags hang on it
+  if (s.rail > 0) {
+    const rd = (1 - s.rail) * RAIL_SINK;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, RAIL_FOOT);
+    ctx.clip();
+    sprite(ctx, 'merge-rail', RAIL_BOX, railFront, 0, rd);
+    for (const g of s.tags) if (!g.deadU) tagShape(ctx, PEG_X, pegY(g.k) + rd, g.ang, g.alpha, 0, g.readU);
+    ctx.restore();
+  }
+  for (const g of s.tags) if (g.deadU) tagShape(ctx, PEG_X + g.dx, pegY(g.k) + g.dy, g.ang, g.alpha, g.deadU, g.readU);
 
   // press: ram, then the platen; the platen's shadow falls on the work as it closes
   const dP = s.pb - PLATEN_REST;
@@ -1150,7 +1180,8 @@ function frameParts(ctx, s) {
   sprite(ctx, 'merge-platen-lit', PLATEN_BOX, (c) => platenDraw(c, PRESS_LIT), 0, dP, s.pressLit);
 
   // the fix sheet, carried by its edge, then laid
-  if (s.carry && !s.carry.behind) oneSheet(ctx, w[0] - SW / 2, w[1] + SH / 2 + s.carry.drop);
+  const w = s.arm.wrist;
+  if (s.carry) oneSheet(ctx, w[0] - SW / 2, w[1] + SH / 2 + s.carry.drop);
   const a = s.arm;
   if (a.active <= 0 && a.slide <= 0 && a.o === JAW_CLOSED && w === ARM_REST) {
     sprite(ctx, 'merge-arm-rest', ARM_BOX, (c) => armDraw(c, ARM_REST, 0, JAW_CLOSED, 0));
