@@ -14,7 +14,7 @@
      node scripts/skill-reel-posters.mjs --check    exit 1 if a poster differs from a fresh render:
                                                     any 16 x 16 px block (compared at half size)
                                                     off by more than BLOCK_MAX / 255 on average
-     options: --port <n> (4415), --quality <0..1> (0.92), --only <id,id>,
+     options: --port <n> (4415), --quality <0..1> (0.85), --only <id,id>,
               --shift <n> (with --check: move the brightest part of each fresh render n stage
               units first, to prove the check catches a small rest-pose edit)
 
@@ -38,7 +38,7 @@ export const POSTER_W = 848, POSTER_H = 477; // 16:9; 848 / 1920 = 0.442 device 
 // and moving one bright part of a scene 24 stage units (worst block 46 to 154), measured on all nine.
 const BLOCK_MAX = 25, MEAN_MAX = 3;
 
-const opt = { port: 4415, quality: 0.92, check: false, only: null, shift: 0 };
+const opt = { port: 4415, quality: 0.85, check: false, only: null, shift: 0 };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
