@@ -22,9 +22,9 @@ const FALLBACK_OPENER = 5.5;
 // Reel timing, pitch A section 4 with BRIEF.md changes. The intro absorbs the difference to TARGET,
 // within [introMin, introMax], so the reel lands near 90 s whatever the scene periods add up to.
 export const TIMING = {
-  target: 98,
-  introMin: 4.0,     // the product line under the title stays on about 3 s
-  introMax: 4.5,
+  target: 100,
+  introMin: 5.5,     // the 13-word product line under the title is fully on 4.45 s (250 ms a word + 1 s)
+  introMax: 5.5,
   truck: 0.9,       // transition: the outgoing station holds its rest frame, the incoming loop starts with it
   pullback: 2.6,    // the end move: camera pulls back while the bench folds into three lines of three
   liftAt: 0.5,      // the earlier runs lift to their lines (off to the left) from here
@@ -172,15 +172,18 @@ function reportOnce(key, err) {
 
 // Draws fn(ctx, localT) into a 1920x1080 panel placed at (x, y) with scale s, in logical stage units.
 // clipW (panel units) narrows the panel from its left edge (the intro's reveal).
-function drawPanel(ctx, base, x, y, s, scene, fn, localT, clipW = W) {
+// opts.x0 widens the clip to the left of the panel (negative), opts.under(ctx) draws before the scene.
+function drawPanel(ctx, base, x, y, s, scene, fn, localT, clipW = W, opts = {}) {
+  const x0 = opts.x0 || 0;
   const enter = () => {
     ctx.save();
     ctx.setTransform(base * s, 0, 0, base * s, base * x, base * y);
     ctx.beginPath();
-    ctx.rect(0, 0, clipW, H);
+    ctx.rect(x0, 0, clipW - x0, H);
     ctx.clip();
     ctx.fillStyle = P.ink;
     ctx.fillRect(0, 0, W, H);
+    if (opts.under) opts.under(ctx);
   };
   enter();
   let err = null;
@@ -667,8 +670,7 @@ function drawReelFrame(ctx, cv, reel, scenes, t) {
         const Pv = reel.loops[j - 1];
         const e = easeInOut(seg(t, L.a, L.a + TIMING.truck));
         const xa = -Math.round(W * e * base) / base;
-        drawPanel(ctx, base, xa, 0, 1, Pv.sc, Pv.sc.draw, 0); // the outgoing station at rest
-        drawPanel(ctx, base, xa + W, 0, 1, L.sc, L.sc.draw, local);
+        drawTruck(ctx, cv, base, xa, e, Pv.sc, L.sc, local);
         note = `truck  ${Pv.sc.name} -> ${L.sc.name}`;
       } else {
         drawPanel(ctx, base, 0, 0, 1, L.sc, L.sc.draw, qt(mod(local, L.sc.period)));
@@ -723,6 +725,57 @@ function warmStep(reel, scenes, cv, t, warmed) {
     kit.setVignette(true);
     if (builtNothing) warmed.add(next);
   }
+}
+
+// The joint between two panels in a truck is a soft crossfade FEATHER stage units wide, not a cut:
+// a scene's art that runs past its panel edge (long-horizon's row of units, smart-compact's card
+// row) would otherwise end on a hard vertical line in mid-screen. The outgoing panel draws its art
+// up to half the feather past its right edge, the incoming one half the feather before its left
+// edge, each over the bench continued past its edge, and the incoming panel is laid over the
+// outgoing one with an alpha ramp across the joint. The bench is opaque in both, so it stays one
+// bench. The feather opens over the first and closes over the last FEATHER_EASE of the truck, so
+// the truck's first and last frames are exactly the panels as they are outside it.
+const FEATHER = 80, FEATHER_EASE = 0.12;
+let truckLayer = null;
+function benchBeyond(ctx, dx) {
+  ctx.save();
+  ctx.translate(dx, 0);
+  kit.benchFinal(ctx);
+  ctx.restore();
+}
+function drawTruck(ctx, cv, base, xa, e, out, inc, localIn) {
+  const f = FEATHER * Math.min(1, e / FEATHER_EASE, (1 - e) / FEATHER_EASE);
+  if (f * base < 1) {
+    drawPanel(ctx, base, xa, 0, 1, out, out.draw, 0); // the outgoing station at rest
+    drawPanel(ctx, base, xa + W, 0, 1, inc, inc.draw, localIn);
+    return;
+  }
+  const h = f / 2;
+  // outgoing station at rest, its art and bench carried h past its right edge
+  drawPanel(ctx, base, xa, 0, 1, out, out.draw, 0, W + h, { under: (c) => benchBeyond(c, W) });
+  // incoming station on its own layer, carried h before its left edge, then faded in across the joint
+  if (!truckLayer || truckLayer.width !== cv.width || truckLayer.height !== cv.height) truckLayer = new OffscreenCanvas(cv.width, cv.height);
+  const lc = truckLayer.getContext('2d');
+  lc.setTransform(1, 0, 0, 1, 0, 0);
+  lc.globalAlpha = 1;
+  lc.globalCompositeOperation = 'source-over';
+  lc.clearRect(0, 0, truckLayer.width, truckLayer.height);
+  drawPanel(lc, base, xa + W, 0, 1, inc, inc.draw, localIn, W, { x0: -h, under: (c) => benchBeyond(c, -W) });
+  const jx = (xa + W) * base;
+  lc.setTransform(1, 0, 0, 1, 0, 0);
+  lc.globalCompositeOperation = 'destination-in';
+  const g = lc.createLinearGradient(jx - h * base, 0, jx + h * base, 0);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,1)');
+  lc.fillStyle = g;
+  lc.fillRect(0, 0, truckLayer.width, truckLayer.height);
+  lc.globalCompositeOperation = 'source-over';
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(truckLayer, 0, 0);
+  ctx.restore();
 }
 
 function drawScene(view, scene, localT) {
@@ -840,6 +893,15 @@ async function start() {
     for (let k = scenes.length - 1; k >= 0; k--) snapshot(scenes[k], v.cv.width, v.cv.height, k === scenes.length - 1);
     const sink = new OffscreenCanvas(1, 1).getContext('2d', { willReadFrequently: true });
     for (const levels of snapshots.values()) for (const lv of levels) sink.drawImage(lv, 0, 0, 1, 1);
+    // one feathered truck frame on the view itself (the first paint below replaces it): the truck
+    // layer, its mask and its first draw onto the view are set up now, not on the first truck a
+    // viewer sees (that first frame measured 40 to 50 ms)
+    if (reel.loops.length > 1) {
+      for (const u of [0.125, 0.5]) {
+        drawReelFrame(v.ctx, v.cv, reel, scenes, reel.loops[1].a + TIMING.truck * u);
+        sink.drawImage(v.cv, 0, 0, 1, 1);
+      }
+    }
     sink.getImageData(0, 0, 1, 1);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     console.log(`[reel] snapshots built in ${Math.round(performance.now() - t0)} ms, layers ${JSON.stringify(kit.layerStats())}`);

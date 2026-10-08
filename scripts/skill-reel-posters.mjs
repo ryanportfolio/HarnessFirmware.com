@@ -1,20 +1,22 @@
 /* Poster frames for the skills-reel cards on /skills.
 
    Each card shows site/skill-reel/posters/<id>.webp the moment the page paints; the live canvas
-   fades in over it once its scene has painted t = 0. The poster is that same t = 0 frame, drawn the
-   way site/skill-reel/cards.mjs paints a card (ink fill, stage scaled to the canvas, the scene's own
-   vignette and card line weights), at POSTER_W x POSTER_H: wide enough for a 2x phone card, and
-   under the kit's card threshold (0.45 device px per stage unit), so it uses the same line weights
-   as the live card and the swap does not show.
+   replaces it once its scene has painted t = 0. The poster is that same t = 0 frame, drawn the way
+   site/skill-reel/cards.mjs paints a card (ink fill, stage scaled to the canvas, the scene's own
+   vignette and card line weights), at POSTER_W x POSTER_H. That is under the kit's card threshold
+   (0.45 device px per stage unit), as every card canvas is (cards.mjs caps the backing store at
+   862 px wide), so poster and live card use the same line weights at any width and DPR.
 
    Regenerate the posters whenever a scene's t = 0 frame changes (any edit to its rest pose, kit
    materials or the bench), or the swap from poster to live card will jump:
 
      node scripts/skill-reel-posters.mjs            render and write all nine
-     node scripts/skill-reel-posters.mjs --check    exit 1 if a poster differs from a fresh render
-                                                    (mean absolute difference over 2/255, measured
-                                                    at 240 x 135 so WebP noise does not count)
-     options: --port <n> (4415), --quality <0..1> (0.8), --only <id,id>
+     node scripts/skill-reel-posters.mjs --check    exit 1 if a poster differs from a fresh render:
+                                                    any 16 x 16 px block (compared at half size)
+                                                    off by more than BLOCK_MAX / 255 on average
+     options: --port <n> (4415), --quality <0..1> (0.92), --only <id,id>,
+              --shift <n> (with --check: move the brightest part of each fresh render n stage
+              units first, to prove the check catches a small rest-pose edit)
 
    Uses headed Chrome on the real GPU through launchPlacedChrome (parked offscreen) and serves the
    repository root with docs/skill-reel/animatic/serve.mjs, so the scenes load with the site faces
@@ -27,9 +29,16 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'site', 'skill-reel', 'posters');
 const IDS = ['merge', 'deep-plan', 'long-horizon', 'smart-compact', 'why', 'wow-loop', 'perf-loop', 'arena', 'showpiece'];
-export const POSTER_W = 832, POSTER_H = 468; // 16:9; 832 / 1920 = 0.433 device px per stage unit
+export const POSTER_W = 848, POSTER_H = 477; // 16:9; 848 / 1920 = 0.442 device px per stage unit
 
-const opt = { port: 4415, quality: 0.8, check: false, only: null };
+// --check metric: both images downscaled 2x (to 424 x 238, which averages away the film grain the
+// WebP encoder smooths), split into 8 x 8 blocks (16 x 16 poster px, about 36 x 36 stage units);
+// the worst block's mean absolute difference must stay under BLOCK_MAX (and the whole frame under
+// MEAN_MAX). BLOCK_MAX sits between the WebP noise of an up-to-date poster (worst block 6.8 to 14.8)
+// and moving one bright part of a scene 24 stage units (worst block 46 to 154), measured on all nine.
+const BLOCK_MAX = 25, MEAN_MAX = 3;
+
+const opt = { port: 4415, quality: 0.92, check: false, only: null, shift: 0 };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -37,6 +46,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--port') opt.port = Number(argv[++i]);
   else if (a === '--quality') opt.quality = Number(argv[++i]);
   else if (a === '--only') opt.only = argv[++i].split(',');
+  else if (a === '--shift') opt.shift = Number(argv[++i]); // test of --check: move the brightest part N stage units first
   else throw new Error(`unknown option ${a}`);
 }
 const ids = opt.only || IDS;
@@ -60,7 +70,7 @@ try {
   for (const id of ids) {
     const file = path.join(OUT, `${id}.webp`);
     const old = opt.check ? readFileSync(file).toString('base64') : null;
-    const r = await page.evaluate(async ({ id, W, H, q, old }) => {
+    const r = await page.evaluate(async ({ id, W, H, q, old, shift }) => {
       const scene = (await import(`/site/skill-reel/scenes/${id}.mjs`)).default;
       const cv = document.createElement('canvas');
       cv.width = W;
@@ -77,28 +87,54 @@ try {
       scene.draw(ctx, 0);
       for (let i = 0; i < 64; i++) ctx.restore();
       if (!old) return { url: cv.toDataURL('image/webp', q) };
-      // compare at 240 x 135 against the existing poster
+      if (shift) {
+        // a stand-in for a small rest-pose edit: the brightest 120 x 80 stage-unit patch moves right
+        const x = cv.getContext('2d', { willReadFrequently: true });
+        const k = W / 1920, pw = Math.round(120 * k), ph = Math.round(80 * k), dx = Math.round(shift * k);
+        const d = x.getImageData(0, 0, W, H).data;
+        let best = -1, bx = 0, by = 0;
+        for (let y = 0; y + ph < H; y += 8) for (let xx = 0; xx + pw + dx < W; xx += 8) {
+          let lum = 0;
+          for (let yy = y; yy < y + ph; yy += 4) for (let x2 = xx; x2 < xx + pw; x2 += 4) { const i = (yy * W + x2) * 4; lum += d[i] + d[i + 1] + d[i + 2]; }
+          if (lum > best) { best = lum; bx = xx; by = y; }
+        }
+        const patch = x.getImageData(bx, by, pw, ph);
+        x.fillStyle = '#0f1210';
+        x.fillRect(bx, by, pw, ph);
+        x.putImageData(patch, bx + dx, by);
+      }
       const img = new Image();
       img.src = 'data:image/webp;base64,' + old;
       await img.decode();
-      const small = (src) => {
+      const sw = Math.round(W / 2), sh = Math.round(H / 2);
+      const half = (src) => {
         const c = document.createElement('canvas');
-        c.width = 240;
-        c.height = 135;
+        c.width = sw;
+        c.height = sh;
         const x = c.getContext('2d', { willReadFrequently: true });
         x.imageSmoothingQuality = 'high';
-        x.drawImage(src, 0, 0, 240, 135);
-        return x.getImageData(0, 0, 240, 135).data;
+        x.drawImage(src, 0, 0, sw, sh);
+        return x.getImageData(0, 0, sw, sh).data;
       };
-      const a = small(cv), b = small(img);
-      let sum = 0;
-      for (let i = 0; i < a.length; i += 4) sum += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
-      return { mad: sum / ((a.length / 4) * 3) };
-    }, { id, W: POSTER_W, H: POSTER_H, q: opt.quality, old });
+      const a = half(cv), b = half(img);
+      let sum = 0, worst = 0;
+      for (let by = 0; by < sh; by += 8) for (let bx = 0; bx < sw; bx += 8) {
+        let bs = 0, n = 0;
+        for (let y = by; y < Math.min(sh, by + 8); y++) for (let x = bx; x < Math.min(sw, bx + 8); x++) {
+          const i = (y * sw + x) * 4;
+          const dv = (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2])) / 3;
+          bs += dv;
+          n++;
+        }
+        sum += bs;
+        if (bs / n > worst) worst = bs / n;
+      }
+      return { mad: sum / (sw * sh), worst };
+    }, { id, W: POSTER_W, H: POSTER_H, q: opt.quality, old, shift: opt.shift });
     if (opt.check) {
-      const ok = r.mad <= 2;
+      const ok = r.worst <= BLOCK_MAX && r.mad <= MEAN_MAX;
       if (!ok) failed = true;
-      console.log(`${ok ? 'ok   ' : 'STALE'} ${id}: mean abs diff ${r.mad.toFixed(2)} / 255`);
+      console.log(`${ok ? 'ok   ' : 'STALE'} ${id}: worst block ${r.worst.toFixed(2)} (max ${BLOCK_MAX}), mean ${r.mad.toFixed(2)} (max ${MEAN_MAX}) / 255`);
     } else {
       writeFileSync(file, Buffer.from(r.url.slice(r.url.indexOf(',') + 1), 'base64'));
       console.log(`${id}.webp  ${POSTER_W}x${POSTER_H}  ${(statSync(file).size / 1024).toFixed(1)} KB`);

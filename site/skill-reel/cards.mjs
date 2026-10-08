@@ -15,6 +15,10 @@
 
 const STAGE_W = 1920, STAGE_H = 1080;
 const DPR_CAP = 1.5, DPR_CAP_SMALL = 2, SMALL_W = 600; // CSS px
+// Widest backing store a card gets: 862 / 1920 = 0.449 device px per stage unit, under the kit's
+// card line-weight threshold (0.45, kit.mjs setLod), so every card draws with the card weights its
+// poster was rendered with (posters are 848 px wide), at any width and DPR.
+const MAX_BACKING_W = 862;
 const DT_CAP = 0.064; // seconds; a long frame (tab switch, GC) never jumps a loop forward
 const RESIZE_SETTLE = 150; // ms the card size must hold before cards rebuild at the new size
 const FULL_RATE_MAX = 3; // playing cards that still redraw every frame
@@ -76,7 +80,7 @@ function mount(root) {
   // The canvas fills the box inside its border (inset: 0), so its own rect is the content box.
   const size = (c) => {
     const r = c.cv.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, r.width < SMALL_W ? DPR_CAP_SMALL : DPR_CAP);
+    const dpr = Math.min(window.devicePixelRatio || 1, r.width < SMALL_W ? DPR_CAP_SMALL : DPR_CAP, MAX_BACKING_W / Math.max(1, r.width));
     const bw = Math.max(1, Math.round(r.width * dpr)), bh = Math.max(1, Math.round(r.height * dpr));
     if (c.cv.width !== bw || c.cv.height !== bh) {
       c.cv.width = bw;
