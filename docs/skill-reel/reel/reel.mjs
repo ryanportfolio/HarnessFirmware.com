@@ -362,9 +362,16 @@ function drawIntro(ctx, base, t, I, scenes) {
 // All nine at rest, side by side with no gap, so their benches join into one long bench.
 // Each scene's p = 0 frame is a still: render it once per canvas size, then scale the bitmap.
 const ROW = { w: 1872, top: 604 };
+// Holds one canvas size only: a resize drops the old size's nine bitmaps instead of keeping them.
 const snapshots = new Map();
+let snapshotSize = '';
 function snapshot(scene, cw, ch) {
-  const key = scene.id + '@' + cw + 'x' + ch;
+  const size = cw + 'x' + ch;
+  if (size !== snapshotSize) {
+    snapshots.clear();
+    snapshotSize = size;
+  }
+  const key = scene.id + '@' + size;
   let cv = snapshots.get(key);
   if (!cv) {
     cv = new OffscreenCanvas(cw, ch);

@@ -73,6 +73,7 @@ async function main() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let browser = null;
+  let enc = null; // function scope so cleanup can stop the encoder whatever failed
   try {
     await waitForServer(server, o.port);
     const { launchPlacedChrome } = await import(new URL('../../../scripts/lib/launch-chrome.mjs', import.meta.url));
@@ -101,7 +102,7 @@ async function main() {
     let out = o.out || path.join(defaultDir, partial ? `skills-reel-${from}-${to}.mp4` : 'skills-reel.mp4');
     mkdirSync(path.dirname(out), { recursive: true });
 
-    const enc = spawn(ffmpeg, [
+    enc = spawn(ffmpeg, [
       '-y', '-v', 'error',
       '-f', 'image2pipe', '-framerate', String(o.fps), '-c:v', 'png', '-i', '-',
       // ffmpeg 8 takes colour tags from the frames, and PNG frames carry none: setparams writes them
@@ -115,14 +116,19 @@ async function main() {
       out,
     ], { stdio: ['pipe', 'inherit', 'inherit'] });
     const encDone = new Promise((res, rej) => enc.on('exit', (c) => (c === 0 ? res() : rej(new Error(`ffmpeg exited with ${c}`)))));
+    // An encoder that dies mid-export is recorded at once (no unhandled rejection) and stops the frame loop.
+    let encError = null;
+    encDone.catch((e) => { encError = e; });
+    enc.stdin.on('error', (e) => { encError ||= e; });
 
     const started = Date.now();
     let firstPng = null;
     for (let f = f0; f < f1; f++) {
+      if (encError) throw encError;
       const url = await page.evaluate((t) => window.grabFrame(t), f / o.fps);
       const png = Buffer.from(url.slice(url.indexOf(',') + 1), 'base64');
       if (f === f0) firstPng = png;
-      if (!enc.stdin.write(png)) await new Promise((r) => enc.stdin.once('drain', r));
+      if (!enc.stdin.write(png)) await new Promise((r) => { enc.stdin.once('drain', r); enc.once('exit', r); });
       const n = f - f0 + 1;
       if (n % 60 === 0 || f === f1 - 1) {
         const s = (Date.now() - started) / 1000;
@@ -145,13 +151,18 @@ async function main() {
       console.log('ffprobe:', JSON.stringify({ video: v, audioStreams: a.length, duration: j.format && j.format.duration }));
     }
     if (firstPng) {
-      const ref = out.replace(/\.mp4$/, '-first.png');
+      const p = path.parse(out);
+      const ref = path.join(p.dir, `${p.name}-first.png`); // never the video path, whatever its extension
       writeFileSync(ref, firstPng);
       const ps = spawnSync(ffmpeg, ['-v', 'info', '-i', out, '-i', ref, '-frames:v', '1', '-lavfi', '[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr', '-f', 'null', '-'], { encoding: 'utf8' });
       const m = /PSNR.*average:([\d.inf]+)/.exec(ps.stderr || '');
       console.log(`first frame PSNR vs source PNG: ${m ? m[1] : 'n/a'} dB (${ref})`);
     }
   } finally {
+    if (enc && enc.exitCode === null && enc.signalCode === null) {
+      enc.stdin.destroy();
+      enc.kill();
+    }
     if (browser) await browser.close().catch(() => {});
     server.kill();
   }
