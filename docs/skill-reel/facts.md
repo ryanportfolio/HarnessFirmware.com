@@ -333,6 +333,21 @@ A Claude Code mod (plugin with a hooks module), not a skill. If the reel groups 
 | Do not | 375 px check as always | `showpiece/SKILL.md:59` |
 | Do not | "Distinctive" as source wording (site paraphrase, not in SKILL.md) | `site/skills.html:18` |
 
+### Review on every PR (template rule, added 2026-10-08)
+
+Source: Harness-Firmware `CLAUDE.md` at `8884312` (PR #214, merged 2026-10-08). The rule did not exist at `64e8f24`.
+
+| Kind | Fact or string | Source |
+|---|---|---|
+| Fact | Claude Code opening or updating a PR runs `/codex-review` in the same turn, without asking | `CLAUDE.md:65` @ 8884312 |
+| Fact | Nothing merges until surviving findings are fixed or waived by the user | `CLAUDE.md:63` @ 8884312 (instruction to the agent; do not put this on screen, it collides with the site's "never claim nothing merges without your approval" rule) |
+| Fact | In merge mode the `/merge` loop replaces the trigger | `CLAUDE.md:65` @ 8884312 |
+| Fact | Codex sessions get the mirror rule: `$claude-review` with Opus | `AGENTS.md` @ 8884312 |
+| String | "Every PR from Claude Code gets a Codex review" | paraphrase of `CLAUDE.md:65` @ 8884312; scoped to Claude Code because Codex-opened PRs get a Claude review instead |
+| Picture | A PR arrives and the single Codex tip swings in with no key pressed (automatic) | `CLAUDE.md:65` @ 8884312 |
+| Do not | "Codex reviews every PR" with no scope (false for PRs Codex opens) | `AGENTS.md` @ 8884312 |
+| Do not | Rerun counts, the user's OK for reruns, billing | brief: no settings fine print |
+
 ## 3. Global copy rules
 
 | # | Rule | Source |

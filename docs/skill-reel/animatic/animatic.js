@@ -9,6 +9,8 @@ import * as kit from './kit.js';
 const { W, H, C, F, BENCH_Y, seg, lerp, easeOut, easeIn, easeInOut } = kit;
 
 export const IDS = ['merge', 'deep-plan', 'long-horizon', 'smart-compact', 'why', 'wow-loop', 'perf-loop', 'arena', 'showpiece'];
+// Style frames at final fidelity: loadable in card mode only (?mode=card&scene=<id>), not part of the reel.
+const CARD_ONLY = ['why-final'];
 
 // Reel timing, pitch A section 4. Each scene's loop length comes from the scene module itself.
 export const TIMING = {
@@ -453,7 +455,7 @@ function lcmPeriods(periods) {
 
 async function start() {
   buildNav();
-  const cardId = IDS.includes(params.get('scene')) ? params.get('scene') : 'merge';
+  const cardId = [...IDS, ...CARD_ONLY].includes(params.get('scene')) ? params.get('scene') : 'merge';
   const wanted = MODE === 'card' ? [cardId] : IDS;
 
   const fontJobs = FACES.map((f) =>
