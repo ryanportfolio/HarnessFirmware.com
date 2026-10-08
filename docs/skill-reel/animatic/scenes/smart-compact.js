@@ -144,6 +144,7 @@ function beat(t) {
 export default {
   id: 'smart-compact',
   name: '/smart-compact',
+  kind: 'mod', // a Claude Code mod (plugin), not a skill; the reel tags it as such
   caption: 'Write custom /compact instructions from this session, then compact with them',
   period: T,
   draw(ctx, t) {

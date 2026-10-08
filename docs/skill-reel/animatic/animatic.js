@@ -84,7 +84,7 @@ async function loadScene(id) {
     if (s.opener && typeof s.opener.draw === 'function' && Number(s.opener.duration) > 0) {
       opener = { duration: Number(s.opener.duration), draw: s.opener.draw.bind(s.opener) };
     }
-    return { id, name: String(s.name || '/' + id), caption: String(s.caption || ''), period, opener, placeholder: false, draw: s.draw.bind(s) };
+    return { id, name: String(s.name || '/' + id), kind: s.kind ? String(s.kind) : '', caption: String(s.caption || ''), period, opener, placeholder: false, draw: s.draw.bind(s) };
   } catch (err) {
     console.warn(`[animatic] scenes/${id}.js -> placeholder:`, err);
     return placeholder(id, err && err.message ? err.message : String(err));
@@ -202,7 +202,19 @@ function captionPlate(ctx, L, t) {
   ctx.font = FONT.title;
   setTracking(ctx, -0.015 * 72);
   ctx.fillText(L.sc.name, 120 + dx, 140);
+  const nameW = ctx.measureText(L.sc.name).width;
   setTracking(ctx, 0);
+  // A scene that is not a skill (smart-compact is a Claude Code mod) carries its kind as a mono tag after the name.
+  if (L.sc.kind) {
+    ctx.font = F.mono;
+    const tw = ctx.measureText(L.sc.kind).width + 24;
+    const tx = 120 + dx + nameW + 28;
+    ctx.strokeStyle = C.sub;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(tx, 98, tw, 40);
+    ctx.fillStyle = C.sub;
+    ctx.fillText(L.sc.kind, tx + 12, 127);
+  }
   if (L.sc.caption) {
     ctx.fillStyle = C.sub;
     ctx.font = FONT.line;

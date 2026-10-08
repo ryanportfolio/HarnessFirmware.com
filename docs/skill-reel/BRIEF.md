@@ -20,7 +20,8 @@ Grafts and changes against pitch A:
 4. **Order**: merge, deep-plan, long-horizon, smart-compact, why, wow-loop, perf-loop, arena, showpiece (both A and B moved deep-plan second so its real handoff to long-horizon happens on screen). Owner to confirm.
 5. **No CI in `/merge`** (owner, 2026-10-08: "CI is the least important part of /merge and is basic"). No flags and no CI in the card copy. In the build, the freed second goes to the Codex review layers.
 6. **No measured numbers** (owner, 2026-10-08: "the point is the loop and the process, not specific ms reductions"). `/perf-loop` shows relative dots on the strip chart, never a figure; the /about results stay off screen.
-7. **Automatic Codex review on PRs: pending owner decision.** The owner wants it highlighted. The template at `64e8f24` only reminds Claude to run codex-review "AFTER substantive changes, before merging" (`.claude/hooks/session-start.sh:105`). The rule that fires on every PR open lives in the owner's global CLAUDE.md, not the template. Either the template gains that rule first, or the reel states only what `/merge` guarantees.
+7. **`/smart-compact` is tagged as a mod** (owner, 2026-10-08). Its reel caption carries a `mod` tag in Departure Mono after the name, and its card does the same in HTML. It is a Claude Code plugin mod, not a skill (SCR:3, PR #208). The intro keeps "Skills".
+8. **Automatic Codex review on PRs: pending owner decision.** The owner wants it highlighted. The template at `64e8f24` only reminds Claude to run codex-review "AFTER substantive changes, before merging" (`.claude/hooks/session-start.sh:105`). The rule that fires on every PR open lives in the owner's global CLAUDE.md, not the template. Either the template gains that rule first, or the reel states only what `/merge` guarantees.
 
 ## Copy (on screen)
 
