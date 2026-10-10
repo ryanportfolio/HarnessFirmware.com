@@ -215,3 +215,22 @@ package that `scripts/lib/launch-chrome.mjs` imports. A plain `npm install` (for
 `node scripts/build-site.mjs`) prunes it, and every headed-Chrome check then fails with
 "launch-chrome needs playwright or playwright-core installed". Restore it without touching the
 manifest or lockfile: `npm install --no-save playwright-core`.
+
+## Canvas pixel checks need a twin baseline (2026-10-09)
+
+Two runs of the same unchanged reel code in fresh headed Chrome differ by up to 8 pixels (one to
+eleven levels) on a few scene frames (arena and showpiece at full size): the GPU rasterizes some
+edges two ways, and a fresh browser picks one at random. A pixel-identity check against a single
+baseline then reports false regressions. Capture the baseline twice, start every page paused
+(`?t=0` in the dev player, so no frames play before the grab), and count a frame as changed only
+when it differs from both baselines. The order of GPU work does change pixels for real: drawing
+the end-move snapshots into the 1 x 1 sink after each snapshot instead of after all of them moved
+a few intro pixels one level in every run (`prepareSteps` in `site/skill-reel/reel.mjs`).
+
+## Playwright clicks miss controls under the smooth-scroll layer (2026-10-09)
+
+On pages with the smooth-scroll layer (`/skills`, `/about`), the layer is `position: fixed` and
+moved by a transform, so `locator.click()` cannot scroll a control into view and times out with
+"element is outside of the viewport", or "site-header intercepts pointer events" when the control
+sits under the fixed header. Scroll with `window.scrollBy(0, <element rect offset>)`, wait until
+the element's rect settles, then click.

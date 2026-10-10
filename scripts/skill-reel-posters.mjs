@@ -7,14 +7,19 @@
    (0.45 device px per stage unit), as every card canvas is (cards.mjs caps the backing store at
    862 px wide), so poster and live card use the same line weights at any width and DPR.
 
+   The reel player above the cards shows site/skill-reel/posters/reel.webp until the visitor presses
+   play: the reel's intro at REEL_T, the title and product line fully on over the waiting /merge
+   station, drawn by site/skill-reel/reel.mjs (the player's renderer) at REEL_W x REEL_H. Regenerate it
+   when the intro, the merge opener's first frame or the reel's captions change.
+
    Regenerate the posters whenever a scene's t = 0 frame changes (any edit to its rest pose, kit
    materials or the bench), or the swap from poster to live card will jump:
 
-     node scripts/skill-reel-posters.mjs            render and write all nine
+     node scripts/skill-reel-posters.mjs            render and write all nine and the reel's
      node scripts/skill-reel-posters.mjs --check    exit 1 if a poster differs from a fresh render:
                                                     any 16 x 16 px block (compared at half size)
                                                     off by more than BLOCK_MAX / 255 on average
-     options: --port <n> (4415), --quality <0..1> (0.85), --only <id,id>,
+     options: --port <n> (4415), --quality <0..1> (0.85; the reel's 0.8), --only <id,id> (reel for the reel's),
               --shift <n> (with --check: move the brightest part of each fresh render n stage
               units first, to prove the check catches a small rest-pose edit)
 
@@ -30,6 +35,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'site', 'skill-reel', 'posters');
 const IDS = ['merge', 'deep-plan', 'long-horizon', 'smart-compact', 'why', 'wow-loop', 'perf-loop', 'arena', 'showpiece'];
 export const POSTER_W = 848, POSTER_H = 477; // 16:9; 848 / 1920 = 0.442 device px per stage unit
+export const REEL_W = 1920, REEL_H = 1080, REEL_T = 3.5; // the reel poster: its intro at 3.5 s
+const REEL_QUALITY = 0.8;
 
 // --check metric: both images downscaled 2x (to 424 x 238, which averages away the film grain the
 // WebP encoder smooths), split into 8 x 8 blocks (16 x 16 poster px, about 36 x 36 stage units);
@@ -38,18 +45,19 @@ export const POSTER_W = 848, POSTER_H = 477; // 16:9; 848 / 1920 = 0.442 device 
 // and moving one bright part of a scene 24 stage units (worst block 46 to 154), measured on all nine.
 const BLOCK_MAX = 25, MEAN_MAX = 3;
 
+let qGiven = false;
 const opt = { port: 4415, quality: 0.85, check: false, only: null, shift: 0 };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--check') opt.check = true;
   else if (a === '--port') opt.port = Number(argv[++i]);
-  else if (a === '--quality') opt.quality = Number(argv[++i]);
+  else if (a === '--quality') { opt.quality = Number(argv[++i]); qGiven = true; }
   else if (a === '--only') opt.only = argv[++i].split(',');
   else if (a === '--shift') opt.shift = Number(argv[++i]); // test of --check: move the brightest part N stage units first
   else throw new Error(`unknown option ${a}`);
 }
-const ids = opt.only || IDS;
+const ids = opt.only || [...IDS, 'reel'];
 
 const server = spawn(process.execPath, [path.join(ROOT, 'docs/skill-reel/animatic/serve.mjs')], {
   env: { ...process.env, PORT: String(opt.port) },
@@ -85,22 +93,30 @@ try {
   for (const id of ids) {
     const file = path.join(OUT, `${id}.webp`);
     const old = opt.check ? readFileSync(file).toString('base64') : null;
-    const r = await page.evaluate(async ({ id, W, H, q, old, shift }) => {
-      const scene = (await import(`/site/skill-reel/scenes/${id}.mjs`)).default;
+    const isReel = id === 'reel';
+    const r = await page.evaluate(async ({ id, W, H, q, old, shift, isReel, reelT }) => {
       const cv = document.createElement('canvas');
       cv.width = W;
       cv.height = H;
       const ctx = cv.getContext('2d');
-      // as cards.mjs paint(): ink, then the 1920 x 1080 stage scaled to the canvas, clipped
-      ctx.fillStyle = '#0f1210';
-      ctx.fillRect(0, 0, W, H);
-      ctx.save();
-      ctx.setTransform(W / 1920, 0, 0, H / 1080, 0, 0);
-      ctx.beginPath();
-      ctx.rect(0, 0, 1920, 1080);
-      ctx.clip();
-      scene.draw(ctx, 0);
-      for (let i = 0; i < 64; i++) ctx.restore();
+      if (isReel) {
+        // as player.mjs paints a frame: the reel renderer into a canvas of the poster's size
+        const R = await import('/site/skill-reel/reel.mjs');
+        const scenes = await R.loadReel();
+        R.drawReel(ctx, R.buildReel(scenes), scenes, reelT);
+      } else {
+        const scene = (await import(`/site/skill-reel/scenes/${id}.mjs`)).default;
+        // as cards.mjs paint(): ink, then the 1920 x 1080 stage scaled to the canvas, clipped
+        ctx.fillStyle = '#0f1210';
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.setTransform(W / 1920, 0, 0, H / 1080, 0, 0);
+        ctx.beginPath();
+        ctx.rect(0, 0, 1920, 1080);
+        ctx.clip();
+        scene.draw(ctx, 0);
+        for (let i = 0; i < 64; i++) ctx.restore();
+      }
       if (!old) return { url: cv.toDataURL('image/webp', q) };
       if (shift) {
         // a stand-in for a small rest-pose edit: the brightest 120 x 80 stage-unit patch moves right
@@ -145,14 +161,14 @@ try {
         if (bs / n > worst) worst = bs / n;
       }
       return { mad: sum / (sw * sh), worst };
-    }, { id, W: POSTER_W, H: POSTER_H, q: opt.quality, old, shift: opt.shift });
+    }, { id, W: isReel ? REEL_W : POSTER_W, H: isReel ? REEL_H : POSTER_H, q: isReel && !qGiven ? REEL_QUALITY : opt.quality, old, shift: opt.shift, isReel, reelT: REEL_T });
     if (opt.check) {
       const ok = r.worst <= BLOCK_MAX && r.mad <= MEAN_MAX;
       if (!ok) failed = true;
       console.log(`${ok ? 'ok   ' : 'STALE'} ${id}: worst block ${r.worst.toFixed(2)} (max ${BLOCK_MAX}), mean ${r.mad.toFixed(2)} (max ${MEAN_MAX}) / 255`);
     } else {
       writeFileSync(file, Buffer.from(r.url.slice(r.url.indexOf(',') + 1), 'base64'));
-      console.log(`${id}.webp  ${POSTER_W}x${POSTER_H}  ${(statSync(file).size / 1024).toFixed(1)} KB`);
+      console.log(`${id}.webp  ${isReel ? REEL_W : POSTER_W}x${isReel ? REEL_H : POSTER_H}  ${(statSync(file).size / 1024).toFixed(1)} KB`);
     }
   }
 } catch (err) {

@@ -12,6 +12,8 @@
 // The first paint waits for the site faces, so no frame is ever set in a fallback face.
 // A missing or throwing scene keeps its poster; the card text is real HTML either way.
 // No reduced-motion variant (owner decision, same as the homepage explainer).
+// While the reel player above the cards plays or prepares (player.mjs sends `skill-reel:busy` on
+// document), every card holds its frame and no card goes live, so the reel has the frame budget.
 
 const STAGE_W = 1920, STAGE_H = 1080;
 const DPR_CAP = 1.5, DPR_CAP_SMALL = 2, SMALL_W = 600; // CSS px
@@ -128,7 +130,8 @@ function mount(root) {
     }
   };
 
-  const running = () => !document.hidden && cards.some((c) => c.visible && c.scene);
+  let reelBusy = false;
+  const running = () => !reelBusy && !document.hidden && cards.some((c) => c.visible && c.scene);
 
   // Going live. A scene's first draws build its cached layers and make the GPU compile the
   // programs its drawing needs: 70 to 110 ms of GPU time per scene in a fresh browser, which
@@ -152,7 +155,7 @@ function mount(root) {
   for (const ev of ['scroll', 'wheel', 'touchmove', 'keydown', 'pointerdown']) addEventListener(ev, mark, { passive: true, capture: true });
   const still = () => {
     const now = performance.now();
-    if (now - loadAt < AFTER_LOAD || now - lastInput < STILL) return false;
+    if (reelBusy || now - loadAt < AFTER_LOAD || now - lastInput < STILL) return false;
     const h = window.harnessScroll;
     if (h && h.y && Math.abs(h.y.get() + window.scrollY) > 0.5) return false; // the layer still glides
     return true;
@@ -398,6 +401,15 @@ function mount(root) {
     seen.observe(c.box);
     resize.observe(c.box);
   }
+  document.addEventListener('skill-reel:busy', (e) => {
+    reelBusy = !!e.detail;
+    if (!reelBusy) wake();
+    else if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      last = null;
+    }
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (raf) cancelAnimationFrame(raf);
