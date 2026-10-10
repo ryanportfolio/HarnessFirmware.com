@@ -21,7 +21,7 @@
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="preload" href="/assets/fonts/lineal/Lineal-VF.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/fraunces/Fraunces-Italic.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/harness-text/HarnessText-VF.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/assets/fonts/departure-mono/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/fonts.css">
-    <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="living-system.css"><link rel="stylesheet" href="hero-pillars.css"><link rel="stylesheet" href="site-header.css"><script type="module" src="site-header.mjs"></script>
+    <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="living-system.css"><link rel="stylesheet" href="hero-pillars.css"><link rel="stylesheet" href="site-header.css"><script type="module" src="site-header.mjs"></script><link rel="stylesheet" href="agent-cta.css"><script type="module" src="agent-cta.mjs"></script>
     <link rel="preload" href="/hero-desktop.svg" as="fetch" crossorigin media="(min-width:701px)"><link rel="preload" href="/hero-mobile.svg" as="fetch" crossorigin media="(max-width:700px)"><script type="module" src="living-system.mjs"></script><link rel="modulepreload" href="hero-pillars.mjs"><!-- Render-blocking: the scroll scenes take their full height before the first paint, so the page does not grow after it. A failed load unblocks and leaves the static sections. Its whole module graph is preloaded, so it arrives in one round trip. --><script type="module" src="app.mjs" blocking="render"></script><link rel="modulepreload" href="effects.mjs"><link rel="modulepreload" href="smooth-scroll.mjs"><link rel="modulepreload" href="statement-block.mjs"><link rel="modulepreload" href="converge.mjs"><link rel="modulepreload" href="card-row.mjs"><link rel="modulepreload" href="card-art.mjs"><link rel="modulepreload" href="split-reveal.mjs"><link rel="modulepreload" href="pixel-wipe.mjs"><link rel="modulepreload" href="hover-grid.mjs"><link rel="modulepreload" href="text-effects.mjs"><script type="module" src="tab-title.mjs">
     </script>
   <link rel="stylesheet" href="home.css"><link rel="stylesheet" href="split-reveal.css"><link rel="stylesheet" href="pixel-wipe.css"><link rel="stylesheet" href="hover-grid.css"><link rel="stylesheet" href="statement-block.css"><link rel="stylesheet" href="card-art.css"><link rel="stylesheet" href="dither-effects.css"><script type="module" src="dither-effects.mjs"></script><link rel="stylesheet" href="site-footer.css">
@@ -72,6 +72,7 @@
     <main id="main" tabindex="-1">
 <section class="living-system" id="loop" aria-labelledby="hero-title" data-phase="recall">
 <div class="living-heading"><h1 id="hero-title">Better outcomes, <br>every round</h1><span class="living-rule"></span><p>Memory, workflows and review for Claude Code and Codex, built into the repository.</p></div>
+<div class="agent-cta-slot agent-cta-slot--hero" data-agent-cta="hero"></div>
 <div class="system-field">
 <canvas class="system-particles" aria-hidden="true"></canvas>
 <span class="goal-label">Your goal</span>
@@ -308,7 +309,7 @@
     <footer class="site-footer" id="footer" data-motion="paused">
   <div class="sf-heading"><div class="sf-emblem" aria-hidden="true"></div><h2>Better outcomes,<br>every round</h2></div>
   <div class="sf-ticker" aria-hidden="true"><div class="sf-track"></div><div class="sf-track"></div></div>
-  <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
+  <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><div class="agent-cta-slot" data-agent-cta="footer"></div><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
   <nav aria-label="Footer"><a href="/skills">Explore the skills</a><a href="https://github.com/ryanportfolio/Harness-Firmware">View source ↗</a><a href="https://fullbuild.ai/">Made by Fullbuild ↗</a></nav>
   <a class="sf-top" href="#main">Back to top <span aria-hidden="true">↑</span></a></div>
   <div class="sf-bottom"><span>Open source · Human directed</span></div>

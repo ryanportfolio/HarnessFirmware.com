@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Lab · Agent prompt button</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/fonts.css">
+  <link rel="stylesheet" href="/agent-cta.css">
+  <link rel="stylesheet" href="/lab/agent-cta-lab.css">
+  <script type="module" src="/lab/agent-cta-lab.mjs"></script>
+</head>
+<body>
+  <header class="lab-head">
+    <p>Lab · local preview only, never deployed</p>
+    <h1>Agent prompt button</h1>
+    <p class="lab-sub">Every slider writes <code>TUNE</code> in <code>site/agent-cta.mjs</code> live. Values persist in this browser. Copy the JSON and paste it back into <code>TUNE</code> to keep a change.</p>
+  </header>
+
+  <main class="lab">
+    <section class="lab-stages" aria-label="Placements">
+      <div class="lab-stage lab-stage--hero"><span class="lab-tag">Hero · #070c08</span><div data-agent-cta="hero"></div></div>
+      <div class="lab-stage lab-stage--footer"><span class="lab-tag">Footer · #181914 + grid floor</span><div data-agent-cta="footer"></div></div>
+      <div class="lab-stage lab-stage--new"><span class="lab-tag">/new · #0f1210</span><p class="agent-cta-kicker">Already have a project? Hand it to your agent</p><div data-agent-cta="new"></div></div>
+      <div class="lab-stage lab-stage--narrow"><span class="lab-tag">Phone width · 358px</span><div data-agent-cta="footer"></div></div>
+    </section>
+
+    <aside class="lab-panel" aria-label="Controls">
+      <div class="lab-actions">
+        <button type="button" data-act="hold" aria-pressed="false">Hold armed</button>
+        <button type="button" data-act="boot">Replay boot</button>
+        <button type="button" data-act="burst">Burst</button>
+        <button type="button" data-act="copied">Copied state</button>
+        <button type="button" data-act="reset">Reset values</button>
+        <button type="button" data-act="export">Copy JSON</button>
+      </div>
+      <p class="lab-status" role="status"></p>
+      <form class="lab-controls" id="lab-controls"></form>
+    </aside>
+  </main>
+</body>
+</html>

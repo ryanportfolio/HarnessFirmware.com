@@ -1,0 +1,127 @@
+/* Agent prompt button (agent-cta.mjs): a chip-shaped copy button. Pin stubs and the green key show at
+   rest; [data-state="armed"] (hover, keyboard focus, touch press) lifts it and lights the pins while the
+   canvas (.acta-fx, which spills --acta-bleed-x/y past the button) draws the flash. */
+.acta{--acta-bleed-x:40px;--acta-bleed-y:26px;--acta-reach-below:11px;--acta-green:#53db76;--acta-paper:#f3f3ec;--acta-pin:rgb(83 219 118 / .34);position:relative;width:min(100%,468px);color:var(--acta-paper);font-family:var(--font-text);font-weight:500;text-align:left;pointer-events:auto}
+.acta *,.acta *::before,.acta *::after{box-sizing:border-box}
+.acta-btn{position:relative;isolation:isolate;display:flex;align-items:center;gap:16px;width:100%;min-height:80px;margin:0;padding:12px 12px 12px 22px;border:1px solid rgb(83 219 118 / .34);border-radius:6px;background:#0a110c;color:inherit;font:inherit;letter-spacing:normal;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .24s cubic-bezier(.2,.7,.2,1),border-color .24s,box-shadow .32s,background-color .32s}
+.acta-btn::before{content:"";position:absolute;inset:4px;border:1px dashed rgb(83 219 118 / .17);border-radius:3px;pointer-events:none;transition:border-color .32s}
+.acta-btn:focus{outline:none}
+.acta-btn:focus-visible{outline:2px solid var(--acta-green);outline-offset:6px}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-btn{transform:translateY(-2px);border-color:rgb(83 219 118 / .8);background:#0c1610;box-shadow:0 0 0 1px rgb(83 219 118 / .12),0 12px 34px -10px rgb(83 219 118 / .45),0 0 28px rgb(83 219 118 / .14)}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-btn::before{border-color:rgb(83 219 118 / .3)}
+.acta[data-state="copied"] .acta-btn{border-color:var(--acta-green)}
+.acta[data-state="error"] .acta-btn{border-color:#e0b25b}
+.acta-btn:active{transform:translateY(0) scale(.992)}
+
+/* Pin stubs: seven columns across the long edges; each column draws a top and a bottom stub. */
+.acta-pins{position:absolute;left:7%;right:7%;top:-4px;bottom:-4px;display:flex;justify-content:space-between;pointer-events:none}
+.acta-pins i{position:relative;width:4px}
+.acta-pins i::before,.acta-pins i::after{content:"";position:absolute;left:0;width:4px;height:3px;background:var(--acta-pin);transition:background-color .2s calc(var(--i) * 38ms),box-shadow .2s calc(var(--i) * 38ms)}
+.acta-pins i::before{top:0}
+.acta-pins i::after{bottom:0}
+.acta-side i{position:absolute;width:3px;height:4px;background:var(--acta-pin);transition:background-color .2s .12s}
+.acta-side i:nth-child(1){left:-4px;top:calc(32% - 2px)}
+.acta-side i:nth-child(2){left:-4px;top:calc(68% - 2px)}
+.acta-side i:nth-child(3){right:-4px;top:calc(32% - 2px)}
+.acta-side i:nth-child(4){right:-4px;top:calc(68% - 2px)}
+.acta:is([data-state="armed"],[data-state="copied"]) :is(.acta-pins i::before,.acta-pins i::after,.acta-side i){background:var(--acta-green);box-shadow:0 0 6px rgb(83 219 118 / .7)}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-pins i::before,.acta:is([data-state="armed"],[data-state="copied"]) .acta-pins i::after{background:var(--acta-green);box-shadow:0 0 6px rgb(83 219 118 / .7)}
+
+.acta-fx{position:absolute;left:calc(-1 * var(--acta-bleed-x));top:calc(-1 * var(--acta-bleed-y));z-index:0;width:calc(100% + 2 * var(--acta-bleed-x));height:calc(100% + 2 * var(--acta-bleed-y));pointer-events:none}
+
+.acta-body{position:relative;z-index:2;display:grid;gap:8px;flex:1;min-width:0}
+.acta-eyebrow{display:flex;align-items:center;gap:9px;min-width:0;font:400 11px/1.1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8;white-space:nowrap}
+.acta-eyebrow-text{overflow:hidden;text-overflow:clip}
+.acta-led{flex:none;width:6px;height:6px;background:var(--acta-green);box-shadow:0 0 6px rgb(83 219 118 / .8);opacity:.6}
+.acta[data-state="armed"] .acta-led{animation:acta-led .5s steps(1) infinite}
+.acta[data-state="copied"] .acta-led{opacity:1}
+.acta-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
+.acta-label{display:grid;font-size:19px;line-height:1.15;letter-spacing:-.012em;white-space:nowrap}
+.acta-label>span{grid-area:1/1;transition:opacity .18s,transform .24s cubic-bezier(.2,.7,.2,1)}
+.acta-label-done{opacity:0;transform:translateY(.35em)}
+.acta[data-state="copied"] .acta-label-rest{opacity:0;transform:translateY(-.35em)}
+.acta[data-state="copied"] .acta-label-done{opacity:1;transform:none}
+.acta-cmd{display:inline-flex;align-items:center;gap:1px;padding:5px 6px 5px 8px;border-radius:3px;background:rgb(83 219 118 / .1);box-shadow:inset 0 0 0 1px rgb(83 219 118 / .24);color:var(--acta-green);font:400 13px/1 var(--font-mono);letter-spacing:0;white-space:pre;transition:background-color .3s,box-shadow .3s}
+.acta-cmd-text{display:inline-block;width:15ch}
+.acta-caret{width:.6em;height:1.05em;background:currentColor;animation:acta-blink 1.06s steps(1) infinite}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-cmd{background:rgb(83 219 118 / .16);box-shadow:inset 0 0 0 1px rgb(83 219 118 / .5),0 0 14px rgb(83 219 118 / .18)}
+
+/* Key: copy glyph at rest, paste glyph slides in when armed, check when copied. */
+.acta-key{position:relative;z-index:2;display:grid;flex:none;width:54px;height:54px;overflow:hidden;border-radius:5px;background:var(--acta-green);color:#08100a;transition:box-shadow .3s}
+.acta-key-glyph{grid-area:1/1;display:grid;place-items:center;transition:transform .42s cubic-bezier(.215,.61,.355,1),opacity .2s}
+.acta-key svg{width:22px;height:22px;shape-rendering:crispEdges}
+.acta-key-paste{transform:translateY(-100%)}
+.acta-key-check{transform:scale(.4);opacity:0}
+.acta[data-state="armed"] .acta-key-copy{transform:translateY(100%)}
+.acta[data-state="armed"] .acta-key-paste{transform:none}
+.acta[data-state="copied"] .acta-key-copy,.acta[data-state="copied"] .acta-key-paste{transform:translateY(100%);opacity:0}
+.acta[data-state="copied"] .acta-key-check{transform:none;opacity:1}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-key{box-shadow:0 0 18px rgb(83 219 118 / .55),inset 0 0 0 1px rgb(255 255 255 / .25)}
+
+.acta-note{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px;margin:20px 0 0;font:400 11px/1.5 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:#96ab9a}
+.acta-read{margin:0;padding:0 0 1px;border:0;border-bottom:1px solid currentColor;background:none;color:var(--acta-green);font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.acta-read:hover{color:#8af0a4}
+.acta-read:focus-visible{outline:2px solid var(--acta-green);outline-offset:4px}
+.acta-live{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+@keyframes acta-blink{50%{opacity:0}}
+@keyframes acta-led{50%{opacity:.25}}
+
+/* Prompt dialog: "Read the prompt", and the fallback when the clipboard is refused. */
+.acta-dialog{width:min(720px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid rgb(83 219 118 / .45);border-radius:8px;background:#0a110c;color:#f3f3ec;box-shadow:0 30px 80px rgb(0 0 0 / .6),0 0 40px rgb(83 219 118 / .12)}
+.acta-dialog::backdrop{background:rgb(4 8 5 / .72);backdrop-filter:blur(3px)}
+.acta-dialog-shell{display:grid;gap:16px;padding:24px;font-family:var(--font-text)}
+.acta-dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.acta-dialog header p{margin:0 0 8px;font:400 11px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8}
+.acta-dialog h2{margin:0;font:var(--display-weight,700) clamp(24px,3vw,32px)/1.05 var(--font-display);letter-spacing:-.03em}
+.acta-dialog-close{flex:none;padding:6px 0;border:0;background:none;color:#a3bca8;font:400 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.acta-dialog-close:hover{color:#f3f3ec}
+.acta-dialog-msg{margin:0;font:400 12px/1.4 var(--font-mono);color:var(--acta-green,#53db76)}
+.acta-dialog-msg:empty{display:none}
+.acta-dialog textarea{width:100%;min-height:300px;padding:16px;resize:vertical;border:1px solid rgb(83 219 118 / .25);border-radius:4px;background:#060b07;color:#e3e7da;font:400 13px/1.55 var(--font-mono);letter-spacing:0}
+.acta-dialog textarea:focus-visible{outline:2px solid #53db76;outline-offset:2px}
+.acta-dialog footer{display:flex;justify-content:flex-end}
+.acta-dialog-copy{display:inline-flex;align-items:center;gap:14px;padding:12px 14px 12px 18px;border:0;border-radius:5px;background:#53db76;color:#08100a;font:500 15px/1 var(--font-text);cursor:pointer}
+.acta-dialog-copy svg{width:16px;height:16px;shape-rendering:crispEdges}
+.acta-dialog :is(.acta-dialog-close,.acta-dialog-copy):focus-visible{outline:2px solid #53db76;outline-offset:4px}
+
+/* Placements */
+.acta--hero{--acta-reach-below:20px}
+.acta--hero .acta-note{display:none}
+.acta--new .acta-note :is(.acta-note-text,.acta-note-sep){display:none}
+@media (scripting:none){.agent-cta-slot{display:none}}
+
+@media (max-width:700px){
+  .acta{--acta-bleed-x:10px;--acta-bleed-y:18px;width:100%}
+  .acta-btn{min-height:76px;gap:12px;padding:12px 11px 12px 16px}
+  .acta-label{font-size:17px}
+  .acta-key{width:48px;height:48px}
+  .acta--hero .acta-btn{min-height:96px}
+}
+@media (prefers-reduced-motion:reduce){
+  .acta-fx{display:none}
+  .acta *,.acta-btn,.acta *::before,.acta *::after{transition:none!important;animation:none!important}
+  .acta:is([data-state="armed"],[data-state="copied"]) .acta-btn{transform:none}
+}
+
+/* Hero: the slot follows .living-heading in the markup and stays out of flow until living-system.mjs
+   moves it under the lede. Its room is held from the first paint, so nothing moves when it lands:
+   below 1101px the heading is in flow and keeps a bottom padding until the slot arrives; above, the
+   heading is absolute and the field's top margin makes the room where the feed labels would meet it. */
+.living-system{--hero-cta-h:80px;--hero-cta-gap:26px;--hero-cta-room:calc(var(--hero-cta-h) + var(--hero-cta-gap))}
+.living-system>.agent-cta-slot--hero{position:absolute;visibility:hidden}
+.living-heading>.agent-cta-slot--hero{height:var(--hero-cta-h);margin-top:var(--hero-cta-gap)}
+@media (max-width:1100px){
+  .living-system:has(>.agent-cta-slot--hero) .living-heading{padding-bottom:var(--hero-cta-room)}
+  .living-system .living-heading:has(>.agent-cta-slot--hero){padding-bottom:0}
+}
+/* Above 1100px the field scales with the viewport and its upper feed (labels and travelling skill chips)
+   rises toward the lede; these extra margins hold 18px between the button and the nearest label
+   (measured at 1101-2560px wide). */
+@media (min-width:1101px) and (max-width:1799px){
+  .living-system:has(.agent-cta-slot--hero) .system-field{margin-top:calc(120px + clamp(0px,606px - 34.4vw,156px) + clamp(0px,17.3vw - 209px,120px))}
+}
+@media (min-width:1800px){
+  .living-system:has(.agent-cta-slot--hero) .system-field{margin-top:calc(100px + clamp(0px,467px - 20vw,120px))}
+}
+@media (max-width:700px){.living-system{--hero-cta-h:96px}}

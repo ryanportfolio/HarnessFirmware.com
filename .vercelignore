@@ -16,3 +16,6 @@
 /site/*.test.mjs
 /site/generate-grain.mjs
 /site/README.md
+
+# Dev-only labs (site/lab/): served by the local preview, never deployed
+/site/lab

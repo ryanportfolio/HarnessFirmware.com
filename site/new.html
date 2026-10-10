@@ -25,6 +25,8 @@
   <link rel="stylesheet" href="/site-header.css">
   <link rel="stylesheet" href="/site-footer.css">
   <link rel="stylesheet" href="/new/new-project.css">
+  <link rel="stylesheet" href="/agent-cta.css">
+  <script type="module" src="/agent-cta.mjs"></script>
   <script type="module" src="/site-header.mjs"></script>
   <script type="module" src="/site-footer.mjs"></script>
   <script type="module" src="/skill-scroll.mjs"></script>
@@ -35,6 +37,14 @@
   <header class="site-header"><a class="brand" href="/" aria-label="Harness Firmware home"><svg class="harness-mark" viewBox="30 5 295 320" aria-hidden="true"><path d="M47 65 123 21v168l-76-30Z M232 21l76 44v103l-76-28Z M47 172l76 30v108l-76-25Z M134 115l174 64v105l-76 26v-84l-98-32Z"/></svg><span>Harness<br>Firmware</span></a><nav aria-label="Main navigation"><a href="/#converge-block">How it works</a><a href="/skills">Skills</a><a href="/memory">Memory</a><a href="/about">About</a><a href="/about">About</a><a href="https://github.com/ryanportfolio/Harness-Firmware" class="github">GitHub ↗</a><a class="nav-start" href="/new">Get started<span>↗</span></a></nav></header>
 
   <main id="creator">
+    <section class="agent-band" aria-labelledby="agent-band-title">
+      <div class="agent-band-copy">
+        <p class="kicker">Already have a project?</p>
+        <h2 id="agent-band-title">Hand it to your agent</h2>
+        <p>Paste the prompt into Claude Code or Codex. The agent runs <strong>/apply-firmware</strong>, which adds the firmware to the folder you are in and shows you a preview before it writes anything.</p>
+      </div>
+      <div class="agent-cta-slot agent-cta-slot--new" data-agent-cta="new"></div>
+    </section>
     <section class="intro" aria-labelledby="creator-title">
       <h1 id="creator-title">Start warm</h1>
       <p class="lede">Create a new repo with project memory, coding workflows, and agent setup already inside</p>
@@ -211,7 +221,7 @@
   <footer class="site-footer" id="footer" data-motion="paused">
     <div class="sf-heading"><div class="sf-emblem" aria-hidden="true"></div><h2>Better work,<br>every round</h2></div>
     <div class="sf-ticker" aria-hidden="true"><div class="sf-track"></div><div class="sf-track"></div></div>
-    <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
+    <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><div class="agent-cta-slot" data-agent-cta="footer"></div><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
     <nav aria-label="Footer"><a href="/skills">Explore the skills</a><a href="https://github.com/ryanportfolio/Harness-Firmware">View source ↗</a><a href="https://fullbuild.ai/">Made by Fullbuild ↗</a></nav>
     <a class="sf-top" href="#creator">Back to top <span aria-hidden="true">↑</span></a></div>
     <div class="sf-bottom"><span>Open source · Human directed</span></div>
