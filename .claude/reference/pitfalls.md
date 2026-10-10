@@ -234,3 +234,14 @@ moved by a transform, so `locator.click()` cannot scroll a control into view and
 "element is outside of the viewport", or "site-header intercepts pointer events" when the control
 sits under the fixed header. Scroll with `window.scrollBy(0, <element rect offset>)`, wait until
 the element's rect settles, then click.
+
+## Playwright clip screenshots drop :hover (2026-10-10)
+
+In headed Chromium on Linux (Xvfb, Playwright 1.56), `page.screenshot({ clip })` and `fullPage: true`
+fire `pointerleave` on the hovered element: a hover-armed button read `data-state="armed"` before the
+capture and `idle` right after it, so every hover frame came back at rest and a review round was
+wasted. Capture hover states with a CDP screencast instead (`Page.startScreencast`, timestamps from
+`metadata.timestamp`, crop afterwards), or hold the state through a page hook, then verify the state
+attribute in the frame you cite. A plain viewport `page.screenshot()` taken after reading the state is
+fine. The `.tmp/wow-loop/agent-prompt-cta/rig.mjs` pattern (`screencast` plus `cropFrames`) is the
+working example.
