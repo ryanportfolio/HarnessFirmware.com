@@ -35,6 +35,8 @@ function mount(fig) {
   let t = 0, playing = false, ended = false, painted = false, raf = 0, last = null;
   let prep = []; // prepare steps still to run for the current canvas size
   let warmed = new Set(), warmT = -1, busy = false;
+  // A play that waits on ensure() is pending; a pause before it resolves cancels it.
+  let pending = 0, requests = 0;
 
   const setBusy = (on) => {
     if (on === busy) return;
@@ -107,11 +109,13 @@ function mount(fig) {
       range.setAttribute('aria-valuetext', `${fmt(t)} of ${fmt(total)}${ch ? ', ' + ch.name : ''}`);
       for (const b of ticks.children) b.classList.toggle('is-current', ch && b.dataset.t === String(ch.t));
     }
-    const label = playing ? 'Pause the reel' : ended ? 'Replay the reel' : 'Play the reel';
+    // while a play is loading, a press on either control cancels it, so both say so
+    const label = playing ? 'Pause the reel' : pending ? 'Stop loading the reel' : ended ? 'Replay the reel' : 'Play the reel';
     toggle.setAttribute('aria-label', label);
-    toggle.dataset.state = playing ? 'pause' : ended ? 'replay' : 'play';
-    start.querySelector('span').textContent = ended ? 'Replay the reel' : 'Play the reel';
-    start.setAttribute('aria-label', ended ? 'Replay the reel' : 'Play the reel');
+    toggle.dataset.state = playing || pending ? 'pause' : ended ? 'replay' : 'play';
+    const startText = pending ? 'Loading the reel' : ended ? 'Replay the reel' : 'Play the reel';
+    start.querySelector('span').textContent = startText;
+    start.setAttribute('aria-label', pending ? 'Loading the reel, press to stop' : startText);
     fig.classList.toggle('is-playing', playing);
     fig.classList.toggle('is-ended', ended);
   };
@@ -179,8 +183,6 @@ function mount(fig) {
     return true;
   }));
 
-  // A play that waits on ensure() is pending; a pause before it resolves cancels it.
-  let pending = 0, requests = 0;
   const endLoading = () => {
     fig.classList.remove('is-loading');
     fig.removeAttribute('aria-busy');
@@ -192,11 +194,12 @@ function mount(fig) {
     setBusy(true);
     fig.classList.add('is-loading');
     fig.setAttribute('aria-busy', 'true');
+    show();
     const ok = await ensure();
     if (pending !== id) return; // paused while loading
     pending = 0;
     endLoading();
-    if (!ok) { setBusy(false); return; }
+    if (!ok) { setBusy(false); show(); return; }
     if (ended || t >= reel.total - 0.01) { t = 0; ended = false; }
     playing = true;
     last = null;
