@@ -243,5 +243,4 @@ capture and `idle` right after it, so every hover frame came back at rest and a 
 wasted. Capture hover states with a CDP screencast instead (`Page.startScreencast`, timestamps from
 `metadata.timestamp`, crop afterwards), or hold the state through a page hook, then verify the state
 attribute in the frame you cite. A plain viewport `page.screenshot()` taken after reading the state is
-fine. The `.tmp/wow-loop/agent-prompt-cta/rig.mjs` pattern (`screencast` plus `cropFrames`) is the
-working example.
+fine.
