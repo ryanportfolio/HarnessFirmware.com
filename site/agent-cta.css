@@ -10,7 +10,8 @@
 .acta-btn{position:relative;isolation:isolate;display:flex;align-items:center;gap:16px;width:100%;height:80px;margin:0;padding:12px 12px 12px 22px;border:1px solid rgb(83 219 118 / .34);border-radius:6px;background:#0a110c;color:inherit;font:inherit;letter-spacing:normal;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .24s cubic-bezier(.2,.7,.2,1),border-color .24s,box-shadow .32s,background-color .32s}
 .acta-btn::before{content:"";position:absolute;inset:4px;border:1px dashed rgb(83 219 118 / .17);border-radius:3px;pointer-events:none;transition:border-color .32s}
 .acta-btn:focus{outline:none}
-.acta-btn:focus-visible{outline:2px solid var(--acta-green);outline-offset:6px}
+/* focus rides the inner hairline, inside the pins and traces the canvas draws outside the button */
+.acta-btn:focus-visible{outline:2px solid var(--acta-green);outline-offset:-6px}
 .acta:is([data-state="armed"],[data-state="copied"]) .acta-btn{transform:translateY(-2px);border-color:rgb(83 219 118 / .8);background:#0c1610;box-shadow:0 0 0 1px rgb(83 219 118 / .12),0 12px 34px -10px rgb(83 219 118 / .45),0 0 28px rgb(83 219 118 / .14)}
 .acta:is([data-state="armed"],[data-state="copied"]) .acta-btn::before{border-color:rgb(83 219 118 / .3)}
 .acta[data-state="copied"] .acta-btn{border-color:var(--acta-green)}
@@ -48,13 +49,14 @@
 .acta-label-done{transform:translateY(110%)}
 .acta[data-state="copied"] .acta-label-rest{transform:translateY(-110%)}
 .acta[data-state="copied"] .acta-label-done{transform:none}
-.acta-cmd{display:inline-flex;align-items:center;gap:1px;padding:5px 6px 5px 8px;border-radius:3px;background:rgb(83 219 118 / .1);box-shadow:inset 0 0 0 1px rgb(83 219 118 / .24);color:var(--acta-green);font:400 13px/1 var(--font-mono);letter-spacing:0;white-space:pre;transition:background-color .3s,box-shadow .3s}
+.acta-cmd{display:inline-flex;align-items:center;gap:1px;padding:5px 6px 5px 8px;border-radius:3px;background:#112517;box-shadow:inset 0 0 0 1px rgb(83 219 118 / .24);color:var(--acta-green);font:400 13px/1 var(--font-mono);letter-spacing:0;white-space:pre;transition:background-color .3s,box-shadow .3s}
 .acta-cmd-text{display:inline-block;width:15ch}
+.acta-cmd-noise{opacity:.45}
 .acta-caret{width:.6em;height:1.05em;background:currentColor;opacity:.85}
 .acta:is([data-state="armed"],[data-state="copied"]) .acta-caret{animation:acta-blink 1.06s steps(1) infinite}
-.acta:is([data-state="armed"],[data-state="copied"]) .acta-cmd{background:rgb(83 219 118 / .16);box-shadow:inset 0 0 0 1px rgb(83 219 118 / .5),0 0 14px rgb(83 219 118 / .18)}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-cmd{background:#17361f;box-shadow:inset 0 0 0 1px rgb(83 219 118 / .5),0 0 14px rgb(83 219 118 / .18)}
 /* "written": the retype has landed */
-.acta[data-written] .acta-cmd{background:rgb(83 219 118 / .3);box-shadow:inset 0 0 0 1px var(--acta-green),0 0 22px rgb(83 219 118 / .45);transition:none}
+.acta[data-written] .acta-cmd{background:#21512f;box-shadow:inset 0 0 0 1px var(--acta-green),0 0 22px rgb(83 219 118 / .45);transition:none}
 
 /* Key: a raised green cap that leans toward the pointer (--acta-tilt-x/y from agent-cta.mjs). Copy
    glyph at rest, paste glyph slides in when armed, check when copied. */
@@ -95,8 +97,9 @@
 .acta-dialog{width:min(720px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid rgb(83 219 118 / .45);border-radius:8px;background:#0a110c;color:#f3f3ec;box-shadow:0 30px 80px rgb(0 0 0 / .6),0 0 40px rgb(83 219 118 / .12)}
 .acta-dialog::backdrop{background:rgb(4 8 5 / .72);backdrop-filter:blur(3px)}
 .acta-dialog-shell{display:grid;gap:16px;padding:24px;font-family:var(--font-text)}
+.acta-dialog :is(header,footer){padding:0;overflow:visible}
 .acta-dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-.acta-dialog header p{margin:0 0 8px;font:400 11px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8}
+.acta-dialog header p{margin:0 0 8px;text-wrap:balance;font:400 11px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8}
 .acta-dialog h2{margin:0;font:var(--display-weight,700) clamp(24px,3vw,32px)/1.05 var(--font-display);letter-spacing:-.03em}
 .acta-dialog-close{flex:none;padding:6px 0;border:0;background:none;color:#a3bca8;font:400 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
 .acta-dialog-close:hover{color:#f3f3ec}

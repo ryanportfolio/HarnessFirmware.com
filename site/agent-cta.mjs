@@ -248,7 +248,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
         <span class="acta-eyebrow"><span class="acta-led"></span><span class="acta-eyebrow-text">${EYEBROW.rest[0]}</span></span>
         <span class="acta-line">
           <span class="acta-label"><span class="acta-label-rest">${TEXT.label}</span><span class="acta-label-done">${TEXT.copiedLabel}</span></span>
-          <span class="acta-cmd"><span class="acta-cmd-text">${TEXT.command}</span><span class="acta-caret"></span></span>
+          <span class="acta-cmd"><span class="acta-cmd-text">${TEXT.command}<span class="acta-cmd-noise"></span></span><span class="acta-caret"></span></span>
         </span>
       </span>
       <span class="acta-key" aria-hidden="true"><span class="acta-key-face"><span class="acta-key-glyph acta-key-copy">${glyph('copy')}</span><span class="acta-key-glyph acta-key-paste">${glyph('paste')}</span><span class="acta-key-glyph acta-key-check">${glyph('check')}</span></span></span>
@@ -261,6 +261,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   const canvas = root.querySelector('.acta-fx');
   const eyebrowEl = root.querySelector('.acta-eyebrow-text');
   const cmdEl = root.querySelector('.acta-cmd-text');
+  const typedEl = cmdEl.firstChild, noiseEl = cmdEl.lastChild;
   const key = root.querySelector('.acta-key');
   const live = root.querySelector('.acta-live');
   const pinEls = [...root.querySelectorAll('.acta-pins i')];
@@ -271,12 +272,13 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   let clock = 0, lastReal = performance.now();
   const now = () => { const real = performance.now(); clock += (real - lastReal) * TUNE.timeScale; lastReal = real; return clock; };
   let ctx = null, dpr = 1, W = 0, H = 0, BX = 0, BY = 0;
-  let ring = [], traces = [], dith = null;
+  let ring = [], traces = [], dith = null, quiet = [], keyC = { x: 0, y: 0, r: 27 };
   let armed = false, held = false, arm = 0, armedAt = 0, lastT = 0, frame = 0;
   let pointer = { x: 0, y: 0 }, target = { x: 0, y: 0 }, bloomR = 0, rect = null;
   let scanAt = -1, scanGain = 1, bootAt = -1, ringAt = -1, ringO = { x: 0, y: 0 }, flashAt = -1, writeAt = -1;
   let particles = [];
   let text = null; // eyebrow decode: {to, start, dur, rolled, tail}
+  let armedOn = 0, armScan = -1, noiseAt = -1e9;
   let eyebrowKind = 'rest', typing = false, copiedTimer = 0, writtenTimer = 0, lastPointer = 'mouse', tilt = '';
 
   // The longest eyebrow line of a kind that fits the eyebrow's current width.
@@ -304,6 +306,11 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     ring = ringPoints(W, H, 6);
     dith = null;
     const pinXs = pinEls.map((p) => { const b = p.getBoundingClientRect(); return Math.round(b.left - r.left + b.width / 2); });
+    // Light dims behind the eyebrow and label so they stay readable; the key is where focus parks the pool.
+    const box = (el, pad = 3) => { const b = el.getBoundingClientRect(); return [b.left - r.left - pad, b.top - r.top - pad, b.right - r.left + pad, b.bottom - r.top + pad]; };
+    quiet = [box(root.querySelector('.acta-eyebrow')), box(root.querySelector('.acta-label'))];
+    const kb = key.getBoundingClientRect();
+    keyC = { x: kb.left - r.left + kb.width / 2, y: kb.top - r.top + kb.height / 2, r: kb.width / 2 };
     traces = buildTraces(pinXs, W, H, BX, BY, parseFloat(cs.getPropertyValue('--acta-reach-below')) || BY, 8 - r.left, innerWidth - 8 - r.left);
   }
   new ResizeObserver(() => {
@@ -317,25 +324,39 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     if (!frame) { lastT = now(); root.dataset.anim = 'running'; frame = requestAnimationFrame(tick); }
   }
 
-  function setArmed(on, at) {
+  // quietArm: a touch press, which copies about 150 ms later, so the retype and decode would only
+  // collide with the copied beat.
+  function setArmed(on, at, quietArm) {
     if (on === armed || (!on && held)) return;
     armed = on;
-    const copiedNow = root.dataset.state === 'copied';
-    if (!copiedNow) root.dataset.state = on ? 'armed' : 'idle';
+    const state = root.dataset.state, copiedNow = state === 'copied';
+    // a copied or error state outlives the pointer (the fallback dialog opening over the button counts as a leave)
+    if (!copiedNow && state !== 'error') root.dataset.state = on ? 'armed' : 'idle';
     if (reduce.matches) { if (!copiedNow) showEyebrow(on ? 'armed' : 'rest'); return; }
     if (!ctx) measure();
     const t = now();
     if (on) {
-      armedAt = t; scanAt = t; scanGain = 1;
-      const p = at || { x: W / 2, y: H / 2 };
-      pointer = { ...p }; target = { ...p }; bloomR = 0;
-      if (!copiedNow) showEyebrow('armed', TUNE.decodeIn);
-      typing = true;
+      const p = at || { x: keyC.x, y: keyC.y };
+      armedOn = t; target = { ...p };
+      // Re-entered while the last arm is still fading: carry on from where it is rather than restart.
+      if (arm <= 0) {
+        armedAt = t; pointer = { ...p }; bloomR = 0;
+        if (!quietArm) { scanAt = armScan = t; scanGain = 1; typing = true; }
+      }
+      if (!copiedNow && !quietArm) showEyebrow('armed', TUNE.decodeIn);
     } else {
-      typing = false; cmdEl.textContent = TEXT.command;
-      if (!copiedNow) showEyebrow('rest', TUNE.decodeIn * .7);
+      typing = false; setCmd(TEXT.command, '');
+      // A pointer that only crossed the button: drop the sweep and decode it set off.
+      const flyby = t - armedOn < 150;
+      if (flyby && scanAt === armScan) scanAt = -1;
+      if (!copiedNow) showEyebrow('rest', flyby ? 0 : TUNE.decodeIn * .7);
     }
     start();
+  }
+
+  function setCmd(typed, noise) {
+    if (typedEl.data !== typed) typedEl.data = typed;
+    if (noiseEl.textContent !== noise) noiseEl.textContent = noise;
   }
 
   function decode(to, dur) { text = { to, start: now() + 40, dur, rolled: -1e9, tail: '' }; }
@@ -345,7 +366,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   btn.addEventListener('pointerenter', (event) => { rect = null; lastPointer = event.pointerType; if (event.pointerType !== 'touch') setArmed(true, local(event)); });
   btn.addEventListener('pointermove', (event) => { if (armed) target = local(event); });
   btn.addEventListener('pointerleave', (event) => { if (event.pointerType !== 'touch' && !btn.matches(':focus-visible')) setArmed(false); });
-  btn.addEventListener('pointerdown', (event) => { rect = null; lastPointer = event.pointerType; if (event.pointerType === 'touch') setArmed(true, local(event)); });
+  btn.addEventListener('pointerdown', (event) => { rect = null; lastPointer = event.pointerType; if (event.pointerType === 'touch') setArmed(true, local(event), true); });
   // A touch that turns into a scroll is cancelled and never clicks: disarm, or it stays lit.
   btn.addEventListener('pointercancel', (event) => { if (event.pointerType !== 'mouse') setArmed(false); });
   btn.addEventListener('focus', () => { if (btn.matches(':focus-visible')) setArmed(true); });
@@ -357,7 +378,8 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
 
   btn.addEventListener('click', async (event) => {
     rect = null;
-    const at = event.detail ? local(event) : { x: btn.offsetWidth / 2, y: btn.offsetHeight / 2 };
+    if (!ctx) measure();
+    const at = event.detail ? local(event) : { x: keyC.x, y: keyC.y };
     const touch = (event.pointerType || lastPointer) === 'touch';
     const ok = await copyText(AGENT_PROMPT);
     clearTimeout(copiedTimer);
@@ -421,11 +443,16 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     stepText(t);
     if (typing) {
       const n = Math.floor((t - armedAt - 60) / TUNE.typeStep);
-      if (n > TEXT.command.length) { typing = false; cmdEl.textContent = TEXT.command; written(); }
-      else { const shown = n < 0 ? ' ' : TEXT.command.slice(0, n) || ' '; if (cmdEl.textContent !== shown) cmdEl.textContent = shown; }
+      // the new command writes over glyph noise from left to right, so the chip never goes blank
+      if (n > TEXT.command.length) { typing = false; setCmd(TEXT.command, ''); written(); }
+      else {
+        const k = Math.max(0, n);
+        if (t - noiseAt > 45) { noiseAt = t; setCmd(TEXT.command.slice(0, k), Array.from(TEXT.command.slice(k), () => GLYPH_POOL[Math.floor(Math.random() * GLYPH_POOL.length)]).join('')); }
+        else setCmd(TEXT.command.slice(0, k), noiseEl.textContent.slice(noiseEl.textContent.length - (TEXT.command.length - k)));
+      }
     }
-    // the key leans toward the pointer
-    const lean = arm > 0 && W ? `${(((pointer.x / W) - .5) * 2 * TUNE.keyTilt * arm).toFixed(1)}deg ${((.5 - (pointer.y / H)) * 2 * TUNE.keyTilt * arm).toFixed(1)}deg` : '';
+    // the key leans toward the pointer, measured from its own centre, so it rocks under a pointer on it
+    const lean = arm > 0 && W ? `${(Math.tanh((pointer.x - keyC.x) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1)}deg ${(Math.tanh((keyC.y - pointer.y) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1)}deg` : '';
     if (lean !== tilt) { tilt = lean; if (lean) { const [y, x] = lean.split(' '); key.style.setProperty('--acta-tilt-y', y); key.style.setProperty('--acta-tilt-x', x); } else key.style.removeProperty('--acta-tilt-y'), key.style.removeProperty('--acta-tilt-x'); }
 
     const c = ctx;
@@ -506,9 +533,10 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
         if (scanAmp > 0) { const q = (qx - sx) / TUNE.scanWidth; I += scanAmp * Math.exp(-q * q); }
         if (ringAmp > 0) { const q = roundRectDist(qx - ringO.x, py - ringO.y, hx, hy, 6) / TUNE.ringWidth; I += ringAmp * Math.exp(-q * q); }
         if (I <= 0) continue;
-        const v = I * 3 - BAYER[(cy & 3) * 4 + (cx & 3)];
+        const dim = quiet.some(([x0, y0, x1, y1]) => qx > x0 && qx < x1 && py > y0 && py < y1);
+        const v = (dim ? I * .4 : I) * 3 - BAYER[(cy & 3) * 4 + (cx & 3)];
         if (v <= 0) continue;
-        const [r, g, b, a] = tiers[v < 1 ? 0 : v < 2 ? 1 : v < 3 ? 2 : 3];
+        const [r, g, b, a] = tiers[v < 1 ? 0 : v < 2 || dim ? 1 : v < 3 ? 2 : 3];
         const o = (cy * cols + cx) * 4;
         px[o] = r; px[o + 1] = g; px[o + 2] = b; px[o + 3] = a;
       }
