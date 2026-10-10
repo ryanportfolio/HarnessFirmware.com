@@ -244,3 +244,12 @@ wasted. Capture hover states with a CDP screencast instead (`Page.startScreencas
 `metadata.timestamp`, crop afterwards), or hold the state through a page hook, then verify the state
 attribute in the frame you cite. A plain viewport `page.screenshot()` taken after reading the state is
 fine.
+
+## Cloud session start rebases a branch that carries a merge commit (2026-10-10)
+
+In a cloud session, `.claude/hooks/session-start.sh` runs `git rebase origin/main` on the current
+branch whenever the tree is clean. If the pushed branch already contains a `Merge main into ...`
+commit, the rebase linearizes it, so after a container restart the local branch is ahead and behind
+its remote with the same tree, and a plain push is rejected. Do not force-push. Confirm the tree
+matches (`git rev-parse HEAD^{tree} origin/<branch>^{tree}`) and that `origin/main` is already an
+ancestor of the remote branch, then reset the local branch to `origin/<branch>` and carry on.
