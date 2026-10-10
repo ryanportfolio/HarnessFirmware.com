@@ -95,3 +95,20 @@ html:not([data-smooth-scroll]) body{padding-top:90px}
 @media(max-width:620px){#skills h1{font-size:28vw}#skills .ss-horizon{height:510px}#skills .ss-horizon .ss-illustration{height:266px;margin-top:24px}#skills .ss-heading p.ss-lede{font-size:18px}}
 /* A command never breaks at its hyphen. */
 #skills .ss-lede code,#skills .ss-ultra code{white-space:nowrap}
+
+/* Agent prompt button (agent-cta.mjs, data-agent-cta="skills"). From 1101px the heading is two columns
+   and the big variant fills the empty space right of the lede; the row is sized by the heading text, so
+   the button cannot move anything. Narrower, it takes a row under the lede at the standard size, reserved
+   like the /new band: the 80px button (96px under 440px) plus the 38px "Read the prompt" line. */
+#skills .agent-cta-slot--skills{display:none}
+@media(scripting:enabled){
+  #skills .ss-heading{container:ss-heading / inline-size;flex-wrap:wrap}
+  #skills .agent-cta-slot--skills{display:block;order:3;flex:0 0 100%;min-height:118px;margin-top:34px}
+  @container ss-heading (max-width:439.98px){#skills .agent-cta-slot--skills{min-height:134px}}
+}
+@media(scripting:enabled) and (min-width:1101px){
+  #skills .ss-heading{display:grid;grid-template-columns:max-content minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;column-gap:64px;row-gap:14px;align-items:end}
+  #skills .ss-heading>div:first-child{grid-row:1 / 3}
+  #skills .ss-motion{grid-column:2;grid-row:2;justify-self:end}
+  #skills .agent-cta-slot--skills{grid-column:2;grid-row:1;align-self:stretch;display:flex;align-items:center;justify-content:center;min-height:0;margin:0}
+}

@@ -115,7 +115,20 @@
 /* Placements: the hero has no note; /new shows only "Read the prompt". */
 .acta--hero{--acta-reach-below:14px}
 .acta--hero .acta-note{display:none}
-.acta--new .acta-note :is(.acta-note-text,.acta-note-sep){display:none}
+.acta:is(.acta--new,.acta--skills) .acta-note :is(.acta-note-text,.acta-note-sep){display:none}
+/* /skills from 1101px: the big panel. Sizes follow its own width (cqi of the acta container), so the
+   heading row it sits in never depends on it. */
+@media (min-width:1101px){
+  .acta--skills{width:min(100%,880px)}
+  .acta.acta--skills .acta-btn{height:clamp(146px,calc(60px + 16cqi),200px);gap:clamp(16px,3cqi,28px);padding:20px clamp(18px,3cqi,26px) 20px clamp(24px,4.6cqi,40px)}
+  .acta--skills .acta-body{gap:clamp(10px,1.8cqi,14px)}
+  .acta--skills .acta-eyebrow{font-size:12px}
+  .acta.acta--skills .acta-line{flex-direction:column;align-items:flex-start;gap:clamp(10px,1.8cqi,14px)}
+  .acta.acta--skills .acta-label{font-size:clamp(24px,4.8cqi,42px);letter-spacing:-.02em}
+  .acta--skills .acta-cmd{padding:7px 8px 7px 10px;font-size:clamp(14px,2.2cqi,17px)}
+  .acta.acta--skills .acta-key{width:clamp(64px,11cqi,88px);height:clamp(64px,11cqi,88px);border-radius:7px}
+  .acta--skills .acta-key svg{width:clamp(26px,4.4cqi,34px);height:clamp(26px,4.4cqi,34px)}
+}
 
 @media (max-width:700px){
   .acta{--acta-bleed-x:10px;--acta-bleed-y:18px}

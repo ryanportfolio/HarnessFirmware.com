@@ -111,7 +111,7 @@ async function copyText(text) {
     area.value = text;
     area.setAttribute('readonly', '');
     area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-    document.body.append(area);
+    (document.querySelector('dialog[open]') || document.body).append(area); // outside an open modal it is inert and copies nothing
     area.select();
     let ok = false;
     try { ok = document.execCommand('copy'); } catch { ok = false; }
@@ -253,7 +253,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
       </span>
       <span class="acta-key" aria-hidden="true"><span class="acta-key-face"><span class="acta-key-glyph acta-key-copy">${glyph('copy')}</span><span class="acta-key-glyph acta-key-paste">${glyph('paste')}</span><span class="acta-key-glyph acta-key-check">${glyph('check')}</span></span></span>
     </button>
-    <div class="acta-note"><span class="acta-note-text" id="acta-note-${id}">${TEXT.note}</span><span class="acta-note-sep" aria-hidden="true"> · </span><button type="button" class="acta-read">${TEXT.read}</button></div>
+    <div class="acta-note"><span class="acta-note-text" id="acta-note-${id}">${TEXT.note}</span><span class="acta-note-sep" aria-hidden="true"> · </span><button type="button" class="acta-read" aria-label="${TEXT.read}">${TEXT.read}</button></div>
     <span class="acta-live" role="status"></span>`;
   host.replaceChildren(root);
 
@@ -274,7 +274,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   let ctx = null, dpr = 1, W = 0, H = 0, BX = 0, BY = 0;
   let ring = [], traces = [], dith = null, quiet = [], keyC = { x: 0, y: 0, r: 27 };
   let armed = false, held = false, arm = 0, armedAt = 0, lastT = 0, frame = 0;
-  let pointer = { x: 0, y: 0 }, target = { x: 0, y: 0 }, bloomR = 0, rect = null;
+  let pointer = { x: 0, y: 0 }, target = { x: 0, y: 0 }, bloomR = 0;
   let scanAt = -1, scanGain = 1, bootAt = -1, ringAt = -1, ringO = { x: 0, y: 0 }, flashAt = -1, writeAt = -1;
   let particles = [];
   let text = null; // eyebrow decode: {to, start, dur, rolled, tail}
@@ -361,23 +361,24 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
 
   function decode(to, dur) { text = { to, start: now() + 40, dur, rolled: -1e9, tail: '' }; }
 
-  const local = (event) => { rect ||= btn.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top }; };
+  // read fresh each time: the smooth-scroll layer moves the button without a window scroll event
+  const local = (event) => { const rect = btn.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top }; };
 
-  btn.addEventListener('pointerenter', (event) => { rect = null; lastPointer = event.pointerType; if (event.pointerType !== 'touch') setArmed(true, local(event)); });
+  btn.addEventListener('pointerenter', (event) => { lastPointer = event.pointerType; if (event.pointerType !== 'touch') setArmed(true, local(event)); });
   btn.addEventListener('pointermove', (event) => { if (armed) target = local(event); });
   btn.addEventListener('pointerleave', (event) => { if (event.pointerType !== 'touch' && !btn.matches(':focus-visible')) setArmed(false); });
-  btn.addEventListener('pointerdown', (event) => { rect = null; lastPointer = event.pointerType; if (event.pointerType === 'touch') setArmed(true, local(event), true); });
+  btn.addEventListener('pointerdown', (event) => { lastPointer = event.pointerType; if (event.pointerType === 'touch') setArmed(true, local(event), true); });
   // A touch that turns into a scroll is cancelled and never clicks: disarm, or it stays lit.
   btn.addEventListener('pointercancel', (event) => { if (event.pointerType !== 'mouse') setArmed(false); });
   btn.addEventListener('focus', () => { if (btn.matches(':focus-visible')) setArmed(true); });
   btn.addEventListener('blur', () => { if (!btn.matches(':hover')) setArmed(false); });
-  addEventListener('scroll', () => { rect = null; }, { passive: true });
+  // Reduced motion switched on mid-arm: settle the text the frame loop was animating.
+  reduce.addEventListener('change', () => { if (reduce.matches) { typing = false; text = null; setCmd(TEXT.command, ''); eyebrowEl.textContent = fit(eyebrowKind); } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && root.dataset.anim === 'running' && !frame) start(); });
   // Scrolled out of view while armed (a fling, a sticky :hover on touch): let it settle.
   new IntersectionObserver(([entry]) => { if (!entry.isIntersecting && armed && !held) setArmed(false); }).observe(btn);
 
   btn.addEventListener('click', async (event) => {
-    rect = null;
     if (!ctx) measure();
     const at = event.detail ? local(event) : { x: keyC.x, y: keyC.y };
     const touch = (event.pointerType || lastPointer) === 'touch';
@@ -427,7 +428,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   new IntersectionObserver(([entry], io) => {
     if (!entry.isIntersecting) return;
     io.disconnect();
-    setTimeout(boot, variant === 'hero' ? TUNE.bootDelay : 120);
+    setTimeout(boot, variant === 'hero' || variant === 'skills' ? TUNE.bootDelay : 120);
   }, { threshold: .6 }).observe(btn);
 
   // ---- frame ----
@@ -506,12 +507,15 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   // band, the click's shock ring and flash. Cells are written as pixels of a cols x rows image,
   // scaled up without smoothing, and the 1 px gaps between cells are cut out with a tiled mask.
   function drawDither(scan, ringU, flash) {
-    const amp = easeOut(arm), cell = Math.max(2, TUNE.cell | 0);
+    const amp = easeOut(arm);
     if (amp <= 0 && scan >= 1 && ringU >= 1 && flash <= 0) return;
+    // Cells are a whole number of device pixels and the image is drawn 1:1, so the grid stays even at
+    // fractional scales (1.25x, 1.5x); cell is that size back in CSS px.
+    const dcell = Math.max(2, Math.round(Math.max(2, TUNE.cell | 0) * dpr)), cell = dcell / dpr;
     const cols = Math.floor((W - 2) / cell), rows = Math.floor((H - 2) / cell);
     if (cols < 1 || rows < 1) return;
-    const d = ditherBuffers(cols, rows, cell);
-    const R = Math.max(W, 120) * (TUNE.bloomMin + TUNE.bloomMax * easeOut(bloomR));
+    const d = ditherBuffers(cols, rows, dcell);
+    const R = Math.min(Math.max(W, 120), 520) * (TUNE.bloomMin + TUNE.bloomMax * easeOut(bloomR));
     const sx = -40 + (W + 80) * easeInOut(scan), scanAmp = scan < 1 ? Math.sin(scan * Math.PI) * TUNE.scanGain * scanGain : 0;
     const ringE = easeOut(ringU), ringAmp = ringU < 1 ? (1 - ringU) * 1.5 : 0;
     const hx = ringE * W, hy = ringE * H * .9;
@@ -548,16 +552,18 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     d.bctx.globalCompositeOperation = 'destination-out';
     d.bctx.fillStyle = d.mask;
     d.bctx.fillRect(0, 0, d.big.width, d.big.height);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(d.big, 1, 1, cols * cell, rows * cell);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, Math.round((BX + 1) * dpr), Math.round((BY + 1) * dpr));
+    ctx.drawImage(d.big, 0, 0);
+    ctx.restore();
   }
 
-  function ditherBuffers(cols, rows, cell) {
-    if (dith && dith.cols === cols && dith.rows === rows && dith.cell === cell) return dith;
+  function ditherBuffers(cols, rows, dcell) {
+    if (dith && dith.cols === cols && dith.rows === rows && dith.dcell === dcell) return dith;
     const small = document.createElement('canvas');
     small.width = cols; small.height = rows;
     const sctx = small.getContext('2d');
-    const dcell = Math.max(2, Math.round(cell * dpr)), gap = Math.max(1, Math.round(dpr));
+    const gap = Math.max(1, Math.round(dpr));
     const big = document.createElement('canvas');
     big.width = cols * dcell; big.height = rows * dcell;
     const bctx = big.getContext('2d');
@@ -566,7 +572,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     const tctx = tile.getContext('2d');
     tctx.fillStyle = '#000';
     tctx.fillRect(dcell - gap, 0, gap, dcell); tctx.fillRect(0, dcell - gap, dcell, gap);
-    return (dith = { cols, rows, cell, small, sctx, img: sctx.createImageData(cols, rows), big, bctx, mask: bctx.createPattern(tile, 'repeat') });
+    return (dith = { cols, rows, dcell, small, sctx, img: sctx.createImageData(cols, rows), big, bctx, mask: bctx.createPattern(tile, 'repeat') });
   }
 
   // Traces brighten near the pointer. After a copy, packets run back out and every via lights.
@@ -682,5 +688,8 @@ export async function mountAll(scope = document) {
   return hosts.map((host) => mountAgentCta(host));
 }
 
-// Hosts already in the page mount now; `ready` resolves to their instance roots.
-export const ready = mountAll();
+// Hosts in the page mount once it is parsed (the module is async, so it can run before a later slot
+// exists); `ready` resolves to their instance roots.
+export const ready = document.readyState === 'loading'
+  ? new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve, { once: true })).then(() => mountAll())
+  : mountAll();
