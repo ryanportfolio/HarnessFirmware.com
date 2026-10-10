@@ -249,9 +249,12 @@ let headline=null;
 async function leaveFallback(h){if(reduced.matches||+getComputedStyle(h).opacity<.02)return;
  const a=[...h.children].flatMap(e=>[e.animate([{transform:'translateY(0)'},{transform:'translateY(-.2em)'}],{duration:380,easing:'cubic-bezier(.45,0,.85,.45)',fill:'forwards'}),e.animate([{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(.04em)'}],{duration:260,easing:'cubic-bezier(.25,.4,.45,1)',fill:'forwards'})]);
  await Promise.all(a.filter((_,i)=>i%2).map(x=>x.finished));}
-function heroFailed(err){const h=$('.living-heading');h.getAnimations({subtree:true}).forEach(a=>a.cancel());h.style.opacity='1';driven=false;restBranch();render();schedule();reportError(err);}// the static heading shows at once; the loop runs its own story
+// The agent prompt button sits after the heading in the markup and moves under the lede once the headline
+// has mounted, so the fallback heading's exit and the headline's mount never touch it.
+function heroCta(h){const slot=$('.agent-cta-slot--hero');if(slot&&slot.parentNode!==h)h.append(slot);}
+function heroFailed(err){const h=$('.living-heading');h.getAnimations({subtree:true}).forEach(a=>a.cancel());heroCta(h);h.style.opacity='1';driven=false;restBranch();render();schedule();reportError(err);}// the static heading shows at once; the loop runs its own story
 (async()=>{const {mountHeroPillars}=await import('./hero-pillars.mjs');const h=$('.living-heading');await leaveFallback(h);
- headline=mountHeroPillars(h,{titleId:'hero-title',onPillar});})().catch(heroFailed);
+ headline=mountHeroPillars(h,{titleId:'hero-title',onPillar});heroCta(h);})().catch(heroFailed);
 // The hero runs without waiting for its drawing: the one this viewport shows is asked for here,
 // the other when the viewport crosses 700px, and each is read in when it lands; the phone
 // strands take the feeds' current state. Without its drawing the hero runs on; the browser has

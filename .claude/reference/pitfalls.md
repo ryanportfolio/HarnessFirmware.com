@@ -234,3 +234,22 @@ moved by a transform, so `locator.click()` cannot scroll a control into view and
 "element is outside of the viewport", or "site-header intercepts pointer events" when the control
 sits under the fixed header. Scroll with `window.scrollBy(0, <element rect offset>)`, wait until
 the element's rect settles, then click.
+
+## Playwright clip screenshots drop :hover (2026-10-10)
+
+In headed Chromium on Linux (Xvfb, Playwright 1.56), `page.screenshot({ clip })` and `fullPage: true`
+fire `pointerleave` on the hovered element: a hover-armed button read `data-state="armed"` before the
+capture and `idle` right after it, so every hover frame came back at rest and a review round was
+wasted. Capture hover states with a CDP screencast instead (`Page.startScreencast`, timestamps from
+`metadata.timestamp`, crop afterwards), or hold the state through a page hook, then verify the state
+attribute in the frame you cite. A plain viewport `page.screenshot()` taken after reading the state is
+fine.
+
+## Cloud session start rebases a branch that carries a merge commit (2026-10-10)
+
+In a cloud session, `.claude/hooks/session-start.sh` runs `git rebase origin/main` on the current
+branch whenever the tree is clean. If the pushed branch already contains a `Merge main into ...`
+commit, the rebase linearizes it, so after a container restart the local branch is ahead and behind
+its remote with the same tree, and a plain push is rejected. Do not force-push. Confirm the tree
+matches (`git rev-parse HEAD^{tree} origin/<branch>^{tree}`) and that `origin/main` is already an
+ancestor of the remote branch, then reset the local branch to `origin/<branch>` and carry on.

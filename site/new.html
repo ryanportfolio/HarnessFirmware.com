@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/site-header.css">
   <link rel="stylesheet" href="/site-footer.css">
   <link rel="stylesheet" href="/new/new-project.css">
+  <script type="module" src="/agent-cta.mjs" async></script>
   <script type="module" src="/site-header.mjs"></script>
   <script type="module" src="/site-footer.mjs"></script>
   <script type="module" src="/skill-scroll.mjs"></script>
@@ -44,6 +45,14 @@
         <li><span>03</span>Claude Code and Codex setup</li>
       </ul>
       <p class="init-copy">Add your framework or first project files, then run <strong><a class="skill-ref" href="https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/init-project/SKILL.md">init-project</a></strong> once so it can detect and tailor the real stack</p>
+    </section>
+    <section class="agent-band" aria-labelledby="agent-band-title">
+      <div class="agent-band-copy">
+        <p class="kicker">Already have a project?</p>
+        <h2 id="agent-band-title">Hand it to your agent</h2>
+        <p>Paste the prompt into Claude Code or Codex. The agent runs <strong>/apply-firmware</strong>, which adds the firmware to the folder you are in and shows you a preview before it writes anything.</p>
+      </div>
+      <div class="agent-band-cta"><div class="agent-cta-slot agent-cta-slot--new" data-agent-cta="new"></div></div>
     </section>
 
     <section class="machine" aria-label="Project creation path">
@@ -107,9 +116,9 @@
         <div class="connection" id="connection" aria-live="polite">
           <span aria-hidden="true"></span>
           <div><strong>Checking creator</strong><p>Looking for a GitHub connection</p></div>
-          <button class="skill-trigger" id="skill-trigger" type="button" aria-controls="skill-picker" aria-expanded="false" aria-label="Customize skills, 43 enabled" hidden disabled>
+          <button class="skill-trigger" id="skill-trigger" type="button" aria-controls="skill-picker" aria-expanded="false" aria-label="Customize skills, 44 enabled" hidden disabled>
             <span>Skills</span>
-            <output id="skill-count" aria-live="polite">43 enabled</output>
+            <output id="skill-count" aria-live="polite">44 enabled</output>
             <span>Customize -&gt;</span>
           </button>
         </div>
@@ -200,7 +209,7 @@
 
       <footer class="skill-picker-foot">
         <div>
-          <output id="skill-picker-count" aria-live="polite">43 skills enabled</output>
+          <output id="skill-picker-count" aria-live="polite">44 skills enabled</output>
           <small>Always included: <strong>init-project</strong> for setup after scaffolding, and <strong>external-review</strong>, which the review commands run in Codex</small>
         </div>
         <button class="action primary" id="skills-done" type="button"><span>Use selection</span><span>-&gt;</span></button>
@@ -211,7 +220,7 @@
   <footer class="site-footer" id="footer" data-motion="paused">
     <div class="sf-heading"><div class="sf-emblem" aria-hidden="true"></div><h2>Better work,<br>every round</h2></div>
     <div class="sf-ticker" aria-hidden="true"><div class="sf-track"></div><div class="sf-track"></div></div>
-    <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
+    <div class="sf-closing"><div class="sf-intro"><p>Harness Firmware</p><p>Give your AI a way to remember,<br>build, and check its work.</p><div class="agent-cta-slot" data-agent-cta="footer"></div><a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">Get started ↗</a></div>
     <nav aria-label="Footer"><a href="/skills">Explore the skills</a><a href="https://github.com/ryanportfolio/Harness-Firmware">View source ↗</a><a href="https://fullbuild.ai/">Made by Fullbuild ↗</a></nav>
     <a class="sf-top" href="#creator">Back to top <span aria-hidden="true">↑</span></a></div>
     <div class="sf-bottom"><span>Open source · Human directed</span></div>

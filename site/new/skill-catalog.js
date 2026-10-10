@@ -75,6 +75,13 @@ const SKILLS = [
     description: 'Mirror an existing repository privately and add the Harness to it',
   },
   {
+    name: 'apply-firmware',
+    label: 'Apply firmware',
+    group: 'core',
+    recent: true,
+    description: 'Bring the folder you are in up to the full firmware in place, with a preview before anything is written',
+  },
+  {
     name: 'servers',
     label: 'Servers',
     group: 'core',

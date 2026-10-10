@@ -1,0 +1,146 @@
+/* Agent prompt button (agent-cta.mjs): a chip-shaped copy button. Pin stubs and the green key show at
+   rest; [data-state="armed"] (hover, keyboard focus, touch press) lifts it and lights the pins while the
+   canvas (.acta-fx, which spills --acta-bleed-x/y past the button) draws the flash.
+   Heights are fixed per width so the slots can reserve them before the button mounts: the button is
+   80px tall, or 96px when .acta is under 440px wide (the command chip drops under the label); the note
+   is one 18px line 20px below it, or two lines under 380px. Change these and the reservations in
+   living-system.css, site-footer.css and new/new-project.css with them. */
+.acta{--acta-bleed-x:40px;--acta-bleed-y:26px;--acta-reach-below:11px;--acta-green:#53db76;--acta-paper:#f3f3ec;--acta-pin:rgb(83 219 118 / .34);container:acta / inline-size;position:relative;width:min(100%,468px);color:var(--acta-paper);font-family:var(--font-text);font-weight:500;text-align:left;pointer-events:auto}
+.acta *,.acta *::before,.acta *::after{box-sizing:border-box}
+.acta-btn{position:relative;isolation:isolate;display:flex;align-items:center;gap:16px;width:100%;height:80px;margin:0;padding:12px 12px 12px 22px;border:1px solid rgb(83 219 118 / .34);border-radius:6px;background:#0a110c;color:inherit;font:inherit;letter-spacing:normal;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .24s cubic-bezier(.2,.7,.2,1),border-color .24s,box-shadow .32s,background-color .32s}
+.acta-btn::before{content:"";position:absolute;inset:4px;border:1px dashed rgb(83 219 118 / .17);border-radius:3px;pointer-events:none;transition:border-color .32s}
+.acta-btn:focus{outline:none}
+/* focus rides the inner hairline, inside the pins and traces the canvas draws outside the button */
+.acta-btn:focus-visible{outline:2px solid var(--acta-green);outline-offset:-6px}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-btn{transform:translateY(-2px);border-color:rgb(83 219 118 / .8);background:#0c1610;box-shadow:0 0 0 1px rgb(83 219 118 / .12),0 12px 34px -10px rgb(83 219 118 / .45),0 0 28px rgb(83 219 118 / .14)}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-btn::before{border-color:rgb(83 219 118 / .3)}
+.acta[data-state="copied"] .acta-btn{border-color:var(--acta-green)}
+.acta[data-state="error"] .acta-btn{border-color:#e0b25b}
+/* every press lands while armed, so the press rule has to outrank the armed lift */
+.acta .acta-btn:active,.acta:is([data-state="armed"],[data-state="copied"]) .acta-btn:active{transform:translateY(0) scale(.992)}
+
+/* Pin stubs: seven columns across the long edges; each column draws a top and a bottom stub. */
+.acta-pins{position:absolute;left:7%;right:7%;top:-4px;bottom:-4px;display:flex;justify-content:space-between;pointer-events:none}
+.acta-pins i{position:relative;width:4px}
+.acta-pins i::before,.acta-pins i::after{content:"";position:absolute;left:0;width:4px;height:3px;background:var(--acta-pin);transition:background-color .2s calc(var(--i) * 38ms),box-shadow .2s calc(var(--i) * 38ms)}
+.acta-pins i::before{top:0}
+.acta-pins i::after{bottom:0}
+.acta-side i{position:absolute;width:3px;height:4px;background:var(--acta-pin);transition:background-color .2s .12s,box-shadow .2s .12s}
+.acta-side i:nth-child(1){left:-4px;top:calc(32% - 2px)}
+.acta-side i:nth-child(2){left:-4px;top:calc(68% - 2px)}
+.acta-side i:nth-child(3){right:-4px;top:calc(32% - 2px)}
+.acta-side i:nth-child(4){right:-4px;top:calc(68% - 2px)}
+.acta:is([data-state="armed"],[data-state="copied"]) :is(.acta-pins i,.acta-side i)::before,
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-pins i::after,
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-side i{background:var(--acta-green);box-shadow:0 0 6px rgb(83 219 118 / .7)}
+
+.acta-fx{position:absolute;left:calc(-1 * var(--acta-bleed-x));top:calc(-1 * var(--acta-bleed-y));z-index:0;width:calc(100% + 2 * var(--acta-bleed-x));height:calc(100% + 2 * var(--acta-bleed-y));pointer-events:none}
+
+.acta-body{position:relative;z-index:2;display:grid;gap:8px;flex:1;min-width:0}
+.acta-eyebrow{display:flex;align-items:center;gap:9px;min-width:0;font:400 11px/1.1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8;white-space:nowrap}
+.acta-eyebrow-text{flex:1;min-width:0;overflow:hidden}
+.acta-led{flex:none;width:6px;height:6px;background:var(--acta-green);box-shadow:0 0 6px rgb(83 219 118 / .8);opacity:.6;transition:opacity .2s,box-shadow .2s}
+.acta[data-state="armed"] .acta-led{animation:acta-led .5s steps(1) infinite}
+.acta[data-state="copied"] .acta-led,.acta[data-written] .acta-led{opacity:1;animation:none;box-shadow:0 0 10px 1px rgb(83 219 118 / .9)}
+.acta-line{display:flex;align-items:center;gap:6px 12px;white-space:nowrap}
+/* Label: the copied line rolls up into place, like the key's glyphs. */
+.acta-label{display:grid;overflow:hidden;font-size:19px;line-height:1.25;letter-spacing:-.012em}
+.acta-label>span{grid-area:1/1;transition:transform .36s cubic-bezier(.2,.7,.2,1)}
+.acta-label-done{transform:translateY(110%)}
+.acta[data-state="copied"] .acta-label-rest{transform:translateY(-110%)}
+.acta[data-state="copied"] .acta-label-done{transform:none}
+.acta-cmd{display:inline-flex;align-items:center;gap:1px;padding:5px 6px 5px 8px;border-radius:3px;background:#112517;box-shadow:inset 0 0 0 1px rgb(83 219 118 / .24);color:var(--acta-green);font:400 13px/1 var(--font-mono);letter-spacing:0;white-space:pre;transition:background-color .3s,box-shadow .3s}
+.acta-cmd-text{display:inline-block;width:15ch}
+.acta-cmd-noise{opacity:.45}
+.acta-caret{width:.6em;height:1.05em;background:currentColor;opacity:.85}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-caret{animation:acta-blink 1.06s steps(1) infinite}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-cmd{background:#17361f;box-shadow:inset 0 0 0 1px rgb(83 219 118 / .5),0 0 14px rgb(83 219 118 / .18)}
+/* "written": the retype has landed */
+.acta[data-written] .acta-cmd{background:#21512f;box-shadow:inset 0 0 0 1px var(--acta-green),0 0 22px rgb(83 219 118 / .45);transition:none}
+
+/* Key: a raised green cap that leans toward the pointer (--acta-tilt-x/y from agent-cta.mjs). Copy
+   glyph at rest, paste glyph slides in when armed, check when copied. */
+.acta-key{position:relative;z-index:2;flex:none;width:54px;height:54px;border-radius:5px;background:linear-gradient(#62e283,#4fd472);color:#08100a;box-shadow:inset 0 1px 0 rgb(255 255 255 / .38),inset 0 -2px 0 rgb(8 16 10 / .2),0 2px 0 #2d8546,0 8px 16px -8px rgb(0 0 0 / .7);transform:perspective(180px) rotateY(var(--acta-tilt-y,0deg)) rotateX(var(--acta-tilt-x,0deg));transition:box-shadow .3s}
+.acta-key-face{display:grid;width:100%;height:100%;overflow:hidden;border-radius:inherit}
+.acta-key-glyph{grid-area:1/1;display:grid;place-items:center;transition:transform .42s cubic-bezier(.215,.61,.355,1),opacity .2s}
+.acta-key svg{width:22px;height:22px;shape-rendering:crispEdges}
+.acta-key-paste{transform:translateY(-100%)}
+.acta-key-check{transform:scale(.4);opacity:0}
+.acta[data-state="armed"] .acta-key-copy{transform:translateY(100%)}
+.acta[data-state="armed"] .acta-key-paste{transform:none}
+.acta[data-state="copied"] .acta-key-copy,.acta[data-state="copied"] .acta-key-paste{transform:translateY(100%);opacity:0}
+.acta[data-state="copied"] .acta-key-check{transform:none;opacity:1}
+.acta:is([data-state="armed"],[data-state="copied"]) .acta-key{box-shadow:inset 0 1px 0 rgb(255 255 255 / .45),inset 0 -2px 0 rgb(8 16 10 / .2),0 2px 0 #2d8546,0 0 22px rgb(83 219 118 / .55)}
+
+.acta-note{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px;margin:20px 0 0;font:400 11px/18px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:#96ab9a}
+.acta-read{margin:0;padding:0;border:0;background:none;color:var(--acta-green);font:inherit;letter-spacing:inherit;text-transform:inherit;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.acta-read:hover{color:#8af0a4}
+.acta-read:focus-visible{outline:2px solid var(--acta-green);outline-offset:4px}
+.acta-live{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+@keyframes acta-blink{50%{opacity:0}}
+@keyframes acta-led{50%{opacity:.25}}
+
+/* Narrow buttons stack the command under the label; very narrow ones put the note on two lines. */
+@container acta (max-width:439.98px){
+  .acta-btn{height:96px;gap:12px;padding:11px 11px 11px 16px}
+  .acta-line{flex-direction:column;align-items:flex-start}
+  .acta-label{font-size:17px}
+  .acta-key{width:48px;height:48px}
+}
+@container acta (max-width:379.98px){
+  .acta-note{flex-direction:column;align-items:flex-start}
+  .acta-note-sep{display:none}
+}
+
+/* Prompt dialog: "Read the prompt", and the fallback when the clipboard is refused. */
+.acta-dialog{width:min(720px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid rgb(83 219 118 / .45);border-radius:8px;background:#0a110c;color:#f3f3ec;box-shadow:0 30px 80px rgb(0 0 0 / .6),0 0 40px rgb(83 219 118 / .12)}
+.acta-dialog::backdrop{background:rgb(4 8 5 / .72);backdrop-filter:blur(3px)}
+.acta-dialog-shell{display:grid;gap:16px;padding:24px;font-family:var(--font-text)}
+.acta-dialog :is(header,footer){padding:0;overflow:visible}
+.acta-dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.acta-dialog header p{margin:0 0 8px;text-wrap:balance;font:400 11px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#a3bca8}
+.acta-dialog h2{margin:0;font:var(--display-weight,700) clamp(24px,3vw,32px)/1.05 var(--font-display);letter-spacing:-.03em}
+.acta-dialog-close{flex:none;padding:6px 0;border:0;background:none;color:#a3bca8;font:400 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.acta-dialog-close:hover{color:#f3f3ec}
+.acta-dialog-msg{margin:0;font:400 12px/1.4 var(--font-mono);color:var(--acta-green,#53db76)}
+.acta-dialog-msg:empty{display:none}
+.acta-dialog textarea{width:100%;min-height:300px;padding:16px;resize:vertical;border:1px solid rgb(83 219 118 / .25);border-radius:4px;background:#060b07;color:#e3e7da;font:400 13px/1.55 var(--font-mono);letter-spacing:0}
+.acta-dialog textarea:focus-visible{outline:2px solid #53db76;outline-offset:2px}
+.acta-dialog footer{display:flex;justify-content:flex-end}
+.acta-dialog-copy{display:inline-flex;align-items:center;gap:14px;padding:12px 14px 12px 18px;border:0;border-radius:5px;background:#53db76;color:#08100a;font:500 15px/1 var(--font-text);cursor:pointer}
+.acta-dialog-copy svg{width:16px;height:16px;shape-rendering:crispEdges}
+.acta-dialog :is(.acta-dialog-close,.acta-dialog-copy):focus-visible{outline:2px solid #53db76;outline-offset:4px}
+
+/* Placements: the hero has no note; /new shows only "Read the prompt". */
+.acta--hero{--acta-reach-below:14px}
+.acta--hero .acta-note{display:none}
+.acta:is(.acta--new,.acta--skills) .acta-note :is(.acta-note-text,.acta-note-sep){display:none}
+/* /skills from 1101px: the big panel. Sizes follow its own width (cqi of the acta container), so the
+   heading row it sits in never depends on it. */
+@media (min-width:1101px){
+  .acta--skills{width:min(100%,880px)}
+  .acta.acta--skills .acta-btn{height:clamp(146px,calc(60px + 16cqi),200px);gap:clamp(16px,3cqi,28px);padding:20px clamp(18px,3cqi,26px) 20px clamp(24px,4.6cqi,40px)}
+  .acta--skills .acta-body{gap:clamp(10px,1.8cqi,14px)}
+  .acta--skills .acta-eyebrow{font-size:12px}
+  .acta.acta--skills .acta-line{flex-direction:column;align-items:flex-start;gap:clamp(10px,1.8cqi,14px)}
+  .acta.acta--skills .acta-label{font-size:clamp(24px,4.8cqi,42px);letter-spacing:-.02em}
+  .acta--skills .acta-cmd{padding:7px 8px 7px 10px;font-size:clamp(14px,2.2cqi,17px)}
+  .acta.acta--skills .acta-key{width:clamp(64px,11cqi,88px);height:clamp(64px,11cqi,88px);border-radius:7px}
+  .acta--skills .acta-key svg{width:clamp(26px,4.4cqi,34px);height:clamp(26px,4.4cqi,34px)}
+}
+
+@media (max-width:700px){
+  .acta{--acta-bleed-x:10px;--acta-bleed-y:18px}
+  /* the phone hero reserves 96px whatever its width, so it always takes the stacked layout */
+  .acta--hero .acta-btn{height:96px;gap:12px;padding:11px 11px 11px 16px}
+  .acta--hero .acta-line{flex-direction:column;align-items:flex-start}
+  .acta--hero .acta-label{font-size:17px}
+  .acta--hero .acta-key{width:48px;height:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  .acta-fx{display:none}
+  .acta *,.acta-btn,.acta *::before,.acta *::after{transition:none!important;animation:none!important}
+  .acta:is([data-state="armed"],[data-state="copied"]) .acta-btn{transform:none}
+  .acta-key{transform:none}
+}

@@ -18,6 +18,13 @@
 @keyframes sf-spin{to{transform:rotate(-360deg)}}
 .site-footer .sf-closing{display:grid;grid-template-columns:1.4fr 1fr auto;gap:40px;padding:64px 0 92px;color:var(--paper)}
 .site-footer .sf-intro p:first-child{font-size:14px;margin:0 0 24px;text-transform:uppercase;letter-spacing:.06em}
+/* Agent prompt button slot (agent-cta.mjs): its height is held before the button mounts. Heights from
+   agent-cta.css: 118px; 134px under 440px (the button stacks); 152px under 380px (the note wraps). */
+.site-footer .sf-intro{container:sf-intro / inline-size}
+.site-footer .sf-intro .agent-cta-slot{min-height:118px;margin:0 0 30px}
+@container sf-intro (max-width:439.98px){.site-footer .sf-intro .agent-cta-slot{min-height:134px}}
+@container sf-intro (max-width:379.98px){.site-footer .sf-intro .agent-cta-slot{min-height:152px}}
+@media(scripting:none){.site-footer .sf-intro .agent-cta-slot{display:none}}
 .site-footer .sf-intro p:nth-child(2){font-size:clamp(20px,2.1vw,30px);line-height:1.25;margin:0 0 36px;letter-spacing:-.025em}
 .site-footer a{font-size:16px;line-height:1.5;text-decoration:none}
 .site-footer a:hover{text-decoration:underline;text-underline-offset:5px}

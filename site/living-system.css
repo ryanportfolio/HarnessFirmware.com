@@ -70,3 +70,30 @@ button.memory-caption{background:none;border:0;color:inherit;font-family:inherit
  .feed{background:#070c08;border-radius:4px;box-shadow:0 0 6px 2px #070c08}.feed.is-skill,.feed.is-idle{box-shadow:0 0 6px 2px #070c0800}
  .goal-label{padding:3px 6px;margin:-3px -6px;background:#070c08;border-radius:4px;box-shadow:0 0 6px 2px #070c08}
  .living-system:after{z-index:6}/* the grain runs over the plates too, so they match the ground around them */}
+
+/* Agent prompt button (agent-cta.mjs) under the lede. The slot follows .living-heading in the markup and
+   stays out of flow until heroCta() moves it in, once the headline has mounted. Its room is held from
+   the first paint, so nothing moves when it lands: up to 1100px the heading is in flow and keeps a
+   bottom padding until the slot arrives; above, the heading is absolute and the field's top margin
+   grows where the upper feed (labels, travelling skill chips) would come within 18px of the button
+   (measured at 1101-2560px). Heights match .acta-btn in agent-cta.css (80px; 96px on phones). */
+.living-system>.agent-cta-slot--hero{position:absolute;visibility:hidden}
+@media(scripting:none){.agent-cta-slot--hero{display:none}}
+@media(scripting:enabled){
+ .living-system{--hero-cta-h:80px;--hero-cta-gap:26px;--hero-cta-room:calc(var(--hero-cta-h) + var(--hero-cta-gap))}
+ .living-heading>.agent-cta-slot--hero{height:var(--hero-cta-h);margin-top:var(--hero-cta-gap)}
+}
+@media(scripting:enabled) and (max-width:1100px){
+ .living-system:has(>.agent-cta-slot--hero) .living-heading{padding-bottom:var(--hero-cta-room)}
+ .living-system .living-heading:has(>.agent-cta-slot--hero){padding-bottom:0}
+}
+@media(scripting:enabled) and (max-width:700px){
+ .living-system{--hero-cta-h:96px}
+ .living-heading>.agent-cta-slot--hero{margin-right:11px}/* the heading's right padding is 12px; this keeps a 23px gutter like the left */
+}
+@media(scripting:enabled) and (min-width:1101px) and (max-width:1799px){
+ .living-system:has(.agent-cta-slot--hero) .system-field{margin-top:calc(120px + clamp(0px,606px - 34.4vw,156px) + clamp(0px,17.3vw - 209px,120px))}
+}
+@media(scripting:enabled) and (min-width:1800px){
+ .living-system:has(.agent-cta-slot--hero) .system-field{margin-top:calc(100px + clamp(0px,467px - 20vw,120px))}
+}

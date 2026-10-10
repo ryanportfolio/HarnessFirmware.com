@@ -468,3 +468,27 @@ noscript { color: var(--muted); font-size: .85rem; }
 /* Spring scroll (skill-scroll.mjs) inserts its own header spacer inside the scroll layer. */
 html[data-smooth-scroll] body { padding-top: 0; }
 html[data-smooth-scroll], html[data-smooth-scroll] [data-scroll-layer], html[data-smooth-scroll] [data-scroll-spacer] { overflow-anchor: none; }
+
+/* Agent prompt band: a row across the top of the creator for people who already have a project. It
+   follows the intro in the markup (the page's h1 comes first) and is placed first by the grid. The
+   button (agent-cta.mjs) mounts into a slot whose height is held from the first paint: 118px, or 134px
+   when the slot is under 440px wide and the button stacks (heights from agent-cta.css). */
+main:has(> .agent-band) { grid-template-areas: "band band" "intro creator" "intro machine"; grid-template-rows: auto minmax(300px, .82fr) minmax(0, 1.18fr); }
+.agent-band { grid-area: band; display: grid; grid-template-columns: minmax(0, 1fr) min(468px, 46%); gap: 20px clamp(32px, 5vw, 80px); align-items: center; padding: 24px clamp(24px, 2.5vw, 40px) 24px clamp(32px, 4vw, 70px); border-bottom: 1px solid var(--line); background: var(--machine); }
+.agent-band-copy { max-width: 700px; }
+.agent-band .kicker { margin: 0 0 10px; color: var(--green); }
+.agent-band h2 { margin: 0; font: var(--display-weight) clamp(1.7rem, 2.6vw, 2.4rem) / 1.02 var(--font-display); letter-spacing: var(--display-track); }
+.agent-band-copy p:last-child { margin: 12px 0 0; color: var(--muted); font-size: .95rem; line-height: 1.5; }
+.agent-band-copy strong { color: var(--bone); font: 400 .9em var(--mono); }
+.agent-band-cta { container: band-cta / inline-size; }
+.agent-band-cta .agent-cta-slot { min-height: 118px; }
+@container band-cta (max-width: 439.98px) { .agent-band-cta .agent-cta-slot { min-height: 134px; } }
+@media (min-width: 981px) and (max-width: 1200px) {
+  main:has(> .agent-band) { grid-template-rows: auto minmax(330px, .82fr) minmax(0, 1.18fr); }
+}
+@media (max-width: 980px) {
+  main:has(> .agent-band) { grid-template-areas: "intro" "band" "machine" "creator"; grid-template-rows: auto; }
+  .agent-band { grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--line); }
+}
+@media (max-width: 560px) { .agent-band { padding: 26px 20px; } }
+@media (scripting: none) { .agent-band { display: none; } }

@@ -33,6 +33,9 @@ if(footer){
     const separator=document.createElement('span');separator.className='sf-sep';separator.innerHTML=star;
     word.append(separator);track.append(word);
   }
+  // The agent prompt button sits under the intro line, in a slot the markup reserves so the page does
+  // not grow when it mounts; agent-cta.mjs adds its own stylesheet on pages that do not link it.
+  if(footer.querySelector('[data-agent-cta]'))import('./agent-cta.mjs').then(m=>m.mountAll(footer)).catch(error=>console.warn(error));
   const floor=mountFloor(footer);
   const preference=matchMedia('(prefers-reduced-motion: reduce)');
   let visible=false;
