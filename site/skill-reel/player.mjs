@@ -3,7 +3,7 @@
 // scripts/skill-reel-posters.mjs) and this file is all that has loaded: ./reel.mjs, the kit and the
 // nine scenes load on first play, or ahead of it when the pointer or focus reaches the play button.
 // Never autoplays and makes no sound. Pauses when less than half of it is on screen or the tab is
-// hidden, and stays paused until the visitor presses play again. While it plays (or prepares to) it
+// hidden (a play still loading is cancelled the same way), and stays paused until the visitor presses play again. While it plays (or prepares to) it
 // sends `skill-reel:busy` on document with detail true, and false once it stops, so the card loops
 // below (cards.mjs) hold their frames and the page keeps its frame rate.
 
@@ -179,14 +179,23 @@ function mount(fig) {
     return true;
   }));
 
+  // A play that waits on ensure() is pending; a pause before it resolves cancels it.
+  let pending = 0, requests = 0;
+  const endLoading = () => {
+    fig.classList.remove('is-loading');
+    fig.removeAttribute('aria-busy');
+  };
+
   const play = async () => {
-    if (playing) return;
+    if (playing || pending) return;
+    const id = pending = ++requests;
     setBusy(true);
     fig.classList.add('is-loading');
     fig.setAttribute('aria-busy', 'true');
     const ok = await ensure();
-    fig.classList.remove('is-loading');
-    fig.removeAttribute('aria-busy');
+    if (pending !== id) return; // paused while loading
+    pending = 0;
+    endLoading();
     if (!ok) { setBusy(false); return; }
     if (ended || t >= reel.total - 0.01) { t = 0; ended = false; }
     playing = true;
@@ -195,13 +204,20 @@ function mount(fig) {
     kick();
   };
   function pause() {
+    if (pending) {
+      pending = 0;
+      endLoading();
+      setBusy(false);
+      show();
+      return;
+    }
     if (!playing) return;
     playing = false;
     show();
     // frame() releases busy once it sees the pause; without a pending frame do it here
     if (!raf) setBusy(false);
   }
-  const togglePlay = () => (playing ? pause() : play());
+  const togglePlay = () => (playing || pending ? pause() : play());
 
   const seek = async (x) => {
     if (!(await ensure())) return;
