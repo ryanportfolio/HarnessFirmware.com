@@ -1,0 +1,107 @@
+/* Skills reel cards on /skills (cards.mjs draws the loops). Scoped under #skills, so the section
+   picks up the page tokens (--ss-lime, --ss-ivory, --ss-muted) and the directory's rules and type. */
+/* Same column as the gallery above and the directory below: no section padding of its own. */
+#skills .sr{margin-top:30px;padding:25px 0 0;border-top:1px solid #2b3d30}
+/* Same head as the directory's below (.ss-directory-heading and its h3 in skill-showcase.css):
+   "Skills at work" and "Explore all skills" are sibling h3s at one size. */
+#skills .sr-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+#skills .sr-head h3{margin:0;font:var(--display-weight) 25px var(--font-display);letter-spacing:var(--display-track)}
+#skills .sr-note{flex-shrink:0;font:10px/1.4 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ss-muted)}
+#skills .sr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:34px 12px;margin:0;padding:0;list-style:none}
+#skills .sr-card{min-width:0}
+/* The box has its final size before any script runs. content-box: the area inside the border is
+   exactly 16:9, the stage the scenes draw in, so the canvas is never squashed. */
+#skills .sr-media{position:relative;box-sizing:content-box;aspect-ratio:16/9;border:1px solid #516b58;background:#0f1210;overflow:hidden}
+#skills .sr-media:before,#skills .sr-media:after{content:"";position:absolute;width:8px;height:8px;border-color:var(--ss-lime);pointer-events:none;z-index:1}
+#skills .sr-media:before{top:5px;left:5px;border-top:1px solid;border-left:1px solid}
+#skills .sr-media:after{bottom:5px;right:5px;border-bottom:1px solid;border-right:1px solid}
+/* The poster is the scene's t = 0 frame (scripts/skill-reel-posters.mjs); the live canvas, the same
+   frame once painted, replaces it in one frame, so the swap does not show. */
+#skills .sr-media .sr-poster,#skills .sr-media canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#skills .sr-media canvas{opacity:0}
+#skills .sr-card.is-live .sr-media canvas{opacity:1}
+#skills .sr-card h4{display:flex;align-items:center;gap:10px;margin:16px 0 8px;font:var(--display-weight) 22px/1.05 var(--font-display);letter-spacing:var(--display-track)}
+#skills .sr-mod{font:10px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ss-muted);border:1px solid #546959;padding:4px 6px 3px}
+#skills .sr-card p{margin:0;max-width:52ch;font:var(--text-weight) 13px/1.55 var(--font-text);color:#d0d2c2;text-wrap:pretty}
+#skills .sr-card p code{font-family:var(--font-mono);font-size:.92em;color:var(--ss-lime);white-space:nowrap}
+@media(max-width:1000px){#skills .sr-grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px}}
+@media(max-width:620px){#skills .sr-head{display:block}#skills .sr-note{display:block;margin-top:8px}#skills .sr-head h3{font-size:24px}#skills .sr-grid{grid-template-columns:1fr;row-gap:30px}#skills .sr-card h4{font-size:21px}}
+/* A scene that fails keeps its poster; only the canvas goes. */
+#skills .sr-card.is-unavailable .sr-media canvas{display:none}
+
+/* The reel player above the cards (player.mjs). Same frame as a card's media box; the controls are
+   real buttons and a range input, shown only once the script has mounted them. */
+#skills .sr-reel{margin:0 0 44px}
+#skills .sr-reel [hidden]{display:none!important}
+#skills .sr-reel-stage{position:relative;box-sizing:content-box;aspect-ratio:16/9;border:1px solid #516b58;background:#0f1210;overflow:hidden}
+#skills .sr-reel-stage:before,#skills .sr-reel-stage:after{content:"";position:absolute;width:10px;height:10px;border-color:var(--ss-lime);pointer-events:none;z-index:2}
+#skills .sr-reel-stage:before{top:6px;left:6px;border-top:1px solid;border-left:1px solid}
+#skills .sr-reel-stage:after{bottom:6px;right:6px;border-bottom:1px solid;border-right:1px solid}
+#skills .sr-reel-poster,#skills .sr-reel-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#skills .sr-reel-stage canvas{opacity:0}
+#skills .sr-reel.is-live .sr-reel-stage canvas{opacity:1}
+#skills .sr-reel.is-live .sr-reel-poster{visibility:hidden}
+#skills .sr-reel.is-unavailable .sr-reel-stage canvas,#skills .sr-reel.is-unavailable .sr-reel-start,#skills .sr-reel.is-unavailable .sr-reel-bar{display:none}
+#skills .sr-reel.is-unavailable .sr-reel-poster{visibility:visible}
+/* Play over the poster, in the dark band under the bench; at the end, replay in the slate's empty top right corner */
+#skills .sr-reel-start{position:absolute;z-index:1;left:50%;top:84%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:11px;padding:13px 20px 13px 17px;border:1px solid var(--ss-lime);background:var(--ss-lime);color:#0e1b11;font:var(--text-weight) 14px/1 var(--font-text);border-radius:0;white-space:nowrap}
+#skills .sr-reel-start:hover{background:#6fe68d;border-color:#6fe68d}
+#skills .sr-reel.is-ended .sr-reel-start{left:auto;right:2.5%;top:5%;transform:none}
+#skills .sr-reel.is-live:not(.is-ended) .sr-reel-start{display:none}
+#skills .sr-reel.is-loading .sr-reel-start .sr-reel-icon{animation:sr-reel-wait .9s steps(2,jump-none) infinite alternate}
+@keyframes sr-reel-wait{to{opacity:.25}}
+#skills .sr-reel-icon{width:16px;height:16px;flex:none;fill:currentColor}
+#skills .sr-reel-icon[fill=none]{fill:none}
+#skills .sr-reel-start .i-replay,#skills .sr-reel.is-ended .sr-reel-start .i-play{display:none}
+#skills .sr-reel.is-ended .sr-reel-start .i-replay{display:block}
+/* Controls row: play, scrubber with chapter ticks, time, full screen */
+#skills .sr-reel-bar{display:flex;align-items:flex-start;gap:14px;margin-top:12px}
+#skills .sr-reel-toggle,#skills .sr-reel-fs{flex:none;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid #435c49;background:transparent;color:#dde0cb;border-radius:0}
+#skills .sr-reel-toggle:hover,#skills .sr-reel-fs:hover{border-color:var(--ss-lime);color:var(--ss-lime)}
+#skills .sr-reel-toggle .sr-reel-icon,#skills .sr-reel-fs .sr-reel-icon{display:none}
+#skills .sr-reel-toggle[data-state=play] .i-play,#skills .sr-reel-toggle[data-state=pause] .i-pause,#skills .sr-reel-toggle[data-state=replay] .i-replay,#skills .sr-reel-fs[data-state=enter] .i-fs-in,#skills .sr-reel-fs[data-state=exit] .i-fs-out{display:block}
+#skills .sr-reel-scrub{position:relative;flex:1;min-width:0;padding-bottom:34px}
+#skills .sr-reel-range{display:block;width:100%;height:40px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+#skills .sr-reel-range::-webkit-slider-runnable-track{height:2px;background:linear-gradient(90deg,var(--ss-lime) var(--p,0%),#435c49 var(--p,0%))}
+#skills .sr-reel-range::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-5px;border:0;border-radius:0;background:var(--ss-lime)}
+#skills .sr-reel-range::-moz-range-track{height:2px;background:#435c49}
+#skills .sr-reel-range::-moz-range-progress{height:2px;background:var(--ss-lime)}
+#skills .sr-reel-range::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:0;background:var(--ss-lime)}
+/* the thumb's centre runs from 6px to the width less 6px; the ticks use the same span */
+#skills .sr-reel-ticks{position:absolute;left:6px;right:6px;top:25px;height:36px}
+#skills .sr-reel-tick{position:absolute;top:0;width:24px;height:34px;margin-left:-12px;padding:0;border:0;background:none;color:var(--ss-muted);font:10px/1 var(--font-mono);letter-spacing:.04em}
+#skills .sr-reel-tick:before{content:"";position:absolute;left:11.5px;top:0;width:1px;height:7px;background:#6b8a72}
+#skills .sr-reel-tick span{position:absolute;left:11px;top:11px;white-space:nowrap}
+#skills .sr-reel-tick.is-odd span{top:24px}
+#skills .sr-reel-tick.is-odd{height:36px}
+#skills .sr-reel-tick:hover,#skills .sr-reel-tick.is-current{color:var(--ss-ivory)}
+#skills .sr-reel-tick.is-current:before{background:var(--ss-lime)}
+#skills .sr-reel-tick:focus-visible{outline:none}
+#skills .sr-reel-tick:focus-visible span{outline:2px solid #58e07b;outline-offset:3px}
+#skills .sr-reel-tick:focus-visible:before{background:var(--ss-lime)}
+#skills .sr-reel-time{flex:none;min-width:88px;padding-top:13px;font:12px/1 var(--font-mono);letter-spacing:.04em;color:var(--ss-ivory);font-variant-numeric:tabular-nums;text-align:right}
+#skills .sr-reel-now{display:none}
+#skills .sr-reel-caption{margin-top:2px;font:10px/1.4 var(--font-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ss-muted)}
+#skills .sr-reel.is-ready .sr-reel-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(scripting:none){#skills .sr-reel-caption{margin-top:10px}}
+/* Full screen: the figure fills the screen, stage and controls at the largest 16:9 that fits */
+#skills .sr-reel[data-fullscreen]{display:flex;flex-direction:column;justify-content:center;margin:0;padding:24px 32px 8px;box-sizing:border-box;background:#09100b}
+#skills .sr-reel[data-fullscreen] .sr-reel-stage,#skills .sr-reel[data-fullscreen] .sr-reel-bar{width:min(100%,calc((100vh - 120px) * 16 / 9));margin-inline:auto}
+/* Narrow: tick marks without names; the current chapter shows beside the time instead */
+@media(max-width:760px){
+#skills .sr-reel{margin-bottom:36px}
+#skills .sr-reel-bar{flex-wrap:wrap;gap:6px 12px}
+#skills .sr-reel-scrub{order:1;flex-basis:calc(100% - 104px);padding-bottom:4px}
+#skills .sr-reel-toggle{order:0}
+#skills .sr-reel-fs{order:2}
+#skills .sr-reel-time{order:3;min-width:0;padding-top:0;text-align:left}
+#skills .sr-reel-now{order:4;display:block;font:12px/1 var(--font-mono);letter-spacing:.04em;color:var(--ss-muted)}
+#skills .sr-reel-ticks{top:25px;height:12px}
+#skills .sr-reel-tick{width:14px;height:12px;margin-left:-7px}
+#skills .sr-reel-tick:before{left:6.5px}
+#skills .sr-reel-tick span{display:none}
+#skills .sr-reel-tick:focus-visible{outline:2px solid #58e07b;outline-offset:1px}
+#skills .sr-reel-start{padding:10px 15px 10px 13px;font-size:13px;gap:9px;top:86%}
+#skills .sr-reel.is-ended .sr-reel-start{padding:9px}
+#skills .sr-reel.is-ended .sr-reel-start span{display:none}
+}

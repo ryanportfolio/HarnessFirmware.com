@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skills reel</title>
+<style>
+/* Site faces and metric-matched fallbacks, same files and values as site/fonts.css lines 15-18 and 27-31.
+   Paths are rooted at the repo root (serve.mjs). font-display is block here, not optional: reel.mjs
+   awaits document.fonts.load for every face before the first paint, and the canvas must never set a
+   frame in a fallback face because the face arrived late. */
+@font-face{font-family:"Lineal";src:url("/site/assets/fonts/lineal/Lineal-VF.woff2") format("woff2");font-weight:1 1000;font-style:normal;font-display:block}
+@font-face{font-family:"Fraunces";src:url("/site/assets/fonts/fraunces/Fraunces-Italic.woff2") format("woff2");font-weight:600;font-style:italic;font-display:block}
+@font-face{font-family:"Harness Text";src:url("/site/assets/fonts/harness-text/HarnessText-VF.woff2") format("woff2");font-weight:200 900;font-style:normal;font-display:block}
+@font-face{font-family:"Departure Mono";src:url("/site/assets/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:"Lineal fallback";src:local("Arial Black"),local("Arial-Black");font-weight:1 1000;size-adjust:78.47%;ascent-override:101.95%;descent-override:25.49%;line-gap-override:25.49%}
+@font-face{font-family:"Fraunces fallback";src:local("Georgia Bold Italic"),local("Georgia-BoldItalic");font-weight:600;font-style:italic;size-adjust:76.51%;ascent-override:128.09%;descent-override:33.98%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial"),local("ArialMT");font-weight:200 549;size-adjust:102.7%;ascent-override:106.14%;descent-override:31.16%;line-gap-override:0%}
+@font-face{font-family:"Harness Text fallback";src:local("Arial Bold"),local("Arial-BoldMT");font-weight:550 900;size-adjust:99.37%;ascent-override:109.69%;descent-override:32.2%;line-gap-override:0%}
+@font-face{font-family:"Departure Mono fallback";src:local("Consolas");font-weight:400;size-adjust:115.74%;ascent-override:86.4%;descent-override:23.33%;line-gap-override:0%}
+
+html,body{margin:0;height:100%;background:#060806;color:#b9c4ba;font:12px/1.4 "Departure Mono","Departure Mono fallback",Consolas,monospace}
+body{display:flex;flex-direction:column;box-sizing:border-box;padding:10px 14px;gap:8px}
+a{color:#72f28c}
+#head{display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+#title{color:#f2efdf}
+#nav{display:flex;gap:10px;flex-wrap:wrap;opacity:.8}
+#main{flex:1;min-height:0;display:grid;place-items:center;overflow:auto}
+canvas{display:block;background:#0f1210}
+#transport{display:flex;gap:10px;align-items:center}
+#transport[hidden]{display:none}
+#time{min-width:300px;white-space:pre;color:#f2efdf}
+#scrub{flex:1;position:relative;padding-bottom:30px}
+#range{width:100%;margin:0;display:block}
+#ticks{position:absolute;left:8px;right:8px;top:18px;height:30px;pointer-events:none}
+.tick{position:absolute;top:0;width:1px;height:8px;background:#53db76}
+.tick span{position:absolute;left:3px;white-space:nowrap;color:#8fa592;font-size:11px}
+.tick.lo span{top:14px}.tick.hi span{top:2px}
+button{background:#101712;color:#cfe;border:1px solid #2a3a2d;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}
+button[hidden]{display:none}
+.grid{display:grid;gap:14px 14px;align-content:start;justify-content:center;padding:6px}
+.grid figure{margin:0}
+.grid figcaption{padding-top:4px;color:#8fa592}
+.sheet{display:grid;grid-template-columns:auto repeat(4,480px);gap:10px 10px;align-items:center;padding:6px}
+.sheet .rowhead{color:#f2efdf;text-align:right;padding-right:6px;max-width:150px}
+.sheet .colhead{color:#8fa592;text-align:center}
+.err{color:#efc87e;white-space:pre-wrap}
+#note{color:#8fa592;min-height:1.4em}
+/* ?export=1: the canvas alone at 1920x1080 CSS px, page chrome hidden (export.mjs sets a 1920x1080 viewport) */
+html.export,html.export body{padding:0;gap:0;overflow:hidden;background:#0f1210}
+html.export #head,html.export #transport,html.export #note{display:none}
+html.export #main{display:block}
+</style>
+</head>
+<body>
+<header id="head">
+  <span id="title">Skills reel</span>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<div id="note"></div>
+<div id="transport">
+  <button id="play" title="Play or pause (Space)">Pause</button>
+  <button id="prev" title="Previous frame (,)">&lsaquo;</button>
+  <button id="next" title="Next frame (.)">&rsaquo;</button>
+  <span id="time">loading</span>
+  <div id="scrub"><input id="range" type="range" min="0" max="1" step="any" value="0" aria-label="Scrub"><div id="ticks"></div></div>
+  <button id="view" title="Toggle card size and full size (F)" hidden>Full size</button>
+</div>
+<script type="module" src="./reel.mjs"></script>
+</body>
+</html>
