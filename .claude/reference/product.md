@@ -4,7 +4,7 @@
 
 This is the identity source for Harness Firmware: what it is, why it helps, how its parts fit, and what not to claim. Read it before you change site copy, the `/new` creator, the skill catalog, or any text that explains the firmware. The skill catalog lives in `product-skills.md`; this website repo lives in `product-site.md`.
 
-- **Pinned sources.** Template facts come from `ryanportfolio/Harness-Firmware` at commit `bbd0b5f39565c518ecf5176b44425df2e7c642d6`, read on 2026-10-01. Skill counts, the skill list, and the review and merge rules were re-read at `05034a38dca86a8febea909a18d8d933c4c0da55` on 2026-10-08; other facts still date from `bbd0b5f`. Template paths are written "template `path`"; other paths belong to this repo, `ryanportfolio/HarnessFirmware.com`, at `main` `2969a4a`.
+- **Pinned sources.** Template facts come from `ryanportfolio/Harness-Firmware` at commit `bbd0b5f39565c518ecf5176b44425df2e7c642d6`, read on 2026-10-01. Skill counts, the skill list, and the review and merge rules were re-read at `05034a38dca86a8febea909a18d8d933c4c0da55` on 2026-10-08, and the counts again at `9e82139c613d3a421238abc331b9c01844117923` on 2026-10-10 (`apply-firmware` added); other facts still date from `bbd0b5f`. Template paths are written "template `path`"; other paths belong to this repo, `ryanportfolio/HarnessFirmware.com`, at `main` `2969a4a`.
 - **Freshness.** The template changes often. Check every count, version and model id against template `main` before you repeat it. `node scripts/refresh-upstream-skills.mjs --check` covers the skill list.
 - **Labels.** "Inference" marks a conclusion the sources imply but do not state. "Unverified" marks a fact nobody confirmed against a source.
 
@@ -16,7 +16,7 @@ This is the identity source for Harness Firmware: what it is, why it helps, how 
 
 - a thin always-loaded kernel: `CLAUDE.md` for Claude and `AGENTS.md` for Codex;
 - committed project memory in six `.claude/reference/` files, read and written through the `recall` skill;
-- 41 Claude skills and 38 Codex skills that load on demand (template `README.md`);
+- 42 Claude skills and 39 Codex skills that load on demand (template `README.md`);
 - one SessionStart hook, a caveman output style and a permission allow/deny list (template `.claude/settings.json`);
 - an isolated Playwright MCP server, one browser per session shared by its subagents, plus `launchPlacedChrome()` so each parallel subagent gets its own Chrome (template `.mcp.json`, `scripts/lib/launch-chrome.mjs`);
 - health, sync and context-measurement scripts in `.claude/scripts/`;
@@ -109,8 +109,8 @@ Inference: this is a closed loop; merged lessons rewrite the kernel, skills and 
 ### Layer 3: skill library
 
 - Skills live in template `.claude/skills/<name>/SKILL.md` (canonical) and `.agents/skills/<name>/` (Codex). Only the name and description load every turn.
-- Every Claude skill is registered in template `.agents/skill-modes.json` as `native` (hand-maintained Codex port) or `disabled` (Claude only): 43 entries, 38 native and 5 disabled (`astra-fullreview`, `codex-fullreview`, `codex-image-gen`, `long-horizon-workflows`, `merge`). Template `.agents/skill-sources.json` holds a SHA-256 hash of each covered Claude skill folder (36 entries); editing any file in that folder is drift until the port is updated and re-baselined.
-- The manifest groups 43 skills as core, discipline and specialist: 9, 17 and 17. The README lists its 41 Claude skills, leaving out the Codex-only `external-review` and `opus-fullreview` (template `.agents/template-manifest.json`, `README.md`).
+- Every Claude skill is registered in template `.agents/skill-modes.json` as `native` (hand-maintained Codex port) or `disabled` (Claude only): 44 entries, 39 native and 5 disabled (`astra-fullreview`, `codex-fullreview`, `codex-image-gen`, `long-horizon-workflows`, `merge`). Template `.agents/skill-sources.json` holds a SHA-256 hash of each covered Claude skill folder (37 entries); editing any file in that folder is drift until the port is updated and re-baselined.
+- The manifest groups 44 skills as core, discipline and specialist: 10, 17 and 17. The README lists its 42 Claude skills, leaving out the Codex-only `external-review` and `opus-fullreview` (template `.agents/template-manifest.json`, `README.md`).
 - Descriptions are capped at 240 characters and the Codex catalog at 7,000 characters (template `.claude/scripts/test-codex-contract.mjs`). Full catalog: `product-skills.md`.
 
 ### Layer 4: the loop and its supervisor
@@ -232,7 +232,7 @@ Helpers: `bootstrap/retarget-fork.sh <owner>/<repo>` repoints a fork's template 
 
 ## Claims to avoid or qualify
 
-- **Skill counts.** Say what each number counts. At `05034a3`, template `.claude/skills/` holds 43 directories: 41 skills with a `SKILL.md`, the retired `writing-skills` (reference files only), and `smart-compact`, a Claude Code plugin mod with no `SKILL.md` that replaced the `compact-review` skill (template #208); it is a mod, not a skill. README: 41 Claude, 38 Codex. Site About page: 36 (a measurement from an older catalog). `site/new.html` and `site/skills.html`: 43, which is those 41 plus the Codex-only `external-review` and `opus-fullreview` (consistent with `skill-modes.json`: 38 native + 5 disabled = 43, and with the manifest's 43). Template `.agents/skills/` holds 40 directories: 38 with a `SKILL.md`, plus `writing-skills` and `humanizer` (a leftover `patterns.md` with no `SKILL.md` and no registry entry, kept from the `humanizer` skill folded into `writing`; template `.claude/skills/PROVENANCE.md`). None of the leftovers counts toward 41, 38 or 43.
+- **Skill counts.** Say what each number counts. At `9e82139`, template `.claude/skills/` holds 43 directories: 42 skills with a `SKILL.md` and `smart-compact`, a Claude Code plugin mod with no `SKILL.md` that replaced the `compact-review` skill (template #208); it is a mod, not a skill. README: 42 Claude, 39 Codex. Site About page: 36 (a measurement from an older catalog). `site/new.html` and `site/skills.html`: 44, which is those 42 plus the Codex-only `external-review` and `opus-fullreview` (consistent with `skill-modes.json`: 39 native + 5 disabled = 44, and with the manifest's 44). Template `.agents/skills/` holds 39 directories, each with a `SKILL.md`. The retired `writing-skills` and `humanizer` leftover folders were deleted from the template (#221); `apply-firmware` treats copies left in older projects as RETIRED.
 - **Token savings.** 87,000 / 3,400 / about 9,700 are site estimates without the template's caveat. Template `GUIDE.md` calls its measure "a source-file trend measure, not runtime billing"; `context-weight.sh` says "an approximation for trend lines, not billing". MCP tools, marketplace descriptions and auto-memory are excluded. `optimize-context` forbids extrapolating local byte cuts into per-turn savings. RTK's "up to 90%" covers bash output only (`rtk-ai/rtk` README). STK's `stk gain` is an upper bound, and STK is unverified on macOS and Linux (`ryanportfolio/STK` README). Caveman's "about 50% shorter" is an estimate with no log (`ryanportfolio/savetokens` README).
 - **"Self-improving."** Improvements are proposed, reviewed and merged by a person, never applied automatically. The `refine` evaluation record's effect on future tasks "remains unmeasured" (template `docs/research/2026-09-13-rsi-harness.md`). Structural checks do not prove behavior.
 - **Field log** numbers come from one project, seven sessions over three days. **Illustrative demos** (hero, explainer, arena, long-horizon) are not measurements.
@@ -241,7 +241,7 @@ Helpers: `bootstrap/retarget-fork.sh <owner>/<repo>` repoints a fork's template 
 - **Model ids** (`gpt-6.1-sol`, `gpt-6-astra`, `fable`, `opus`) are pins, not proof of availability. Skills confirm locally and never substitute silently.
 - **RTK and STK** are external. Say "supported" or "pairs with", not "includes".
 - **Diagram.** `harness-loop` labels are hard-coded; no check regenerates or diffs it, and the README generator does not embed it.
-- **Snapshot lag.** `site/new/upstream-skills.json` records template commit `05034a3`, newer than the `bbd0b5f` pin; re-run `--check` before trusting either.
+- **Snapshot lag.** `site/new/upstream-skills.json` records template commit `9e82139`, newer than the `bbd0b5f` pin; re-run `--check` before trusting either.
 - **Unshipped work.** The eval-flywheel plan's replay scenarios (`.claude/evals/`) are absent at `bbd0b5f` and not in the CHANGELOG, so treat them as not shipped. Plan item P1 (`memory-audit.mjs` with `test-memory-audit.mjs`) is present. Whether its other items shipped was not checked (template `docs/superpowers/plans/2026-09-26-eval-flywheel.md`).
 - **Retired names.** `unslop` and `writing-skills` are retired in both runtimes; cleanup routes to `caveman` and `writing`, authoring to `addskill`. Do not revive them (template `docs/codex-skills.md`).
 - **Model floor.** This site's `CLAUDE.md` forbids Sonnet and Haiku subagents; the template's says omit `model` unless the user names one. An explicit user instruction in the session decides; flag the conflict rather than choose silently.

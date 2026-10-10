@@ -1,10 +1,11 @@
 {
   "repository": "ryanportfolio/Harness-Firmware",
-  "commit": "05034a38dca86a8febea909a18d8d933c4c0da55",
+  "commit": "9e82139c613d3a421238abc331b9c01844117923",
   "claude": [
     "addskill",
     "adopt-repo",
     "advocate",
+    "apply-firmware",
     "arena",
     "astra-fullreview",
     "astra-review",
@@ -48,6 +49,7 @@
     "addskill",
     "adopt-repo",
     "advocate",
+    "apply-firmware",
     "arena",
     "astra-review",
     "babysit-ci",
@@ -92,6 +94,7 @@
       "skills": [
         "addskill",
         "adopt-repo",
+        "apply-firmware",
         "init-project",
         "optimize-context",
         "recall",

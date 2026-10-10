@@ -2,7 +2,7 @@
 
 What this repository (`ryanportfolio/HarnessFirmware.com`) is, what its pages claim, how it builds and deploys, how the `/new` creator works, and how to keep it in step with the template. Product facts: `product.md`. Skill catalog: `product-skills.md`.
 
-**Sources.** Site facts come from `main` at `2969a4a`, checked 2026-10-01. Page claims were first read from the `lab-threejs-scene` worktree and then rechecked on main for `about.html`, `new.html`, `skills.html`, `index.html`, `memory.html` and `long-horizon.html`; `arena.html` was not rechecked. Template facts come from `ryanportfolio/Harness-Firmware` at `bbd0b5f`; the skill catalog and its counts were updated to `05034a3` on 2026-10-08.
+**Sources.** Site facts come from `main` at `2969a4a`, checked 2026-10-01. Page claims were first read from the `lab-threejs-scene` worktree and then rechecked on main for `about.html`, `new.html`, `skills.html`, `index.html`, `memory.html` and `long-horizon.html`; `arena.html` was not rechecked. Template facts come from `ryanportfolio/Harness-Firmware` at `bbd0b5f`; the skill catalog and its counts were updated to `9e82139` on 2026-10-10.
 
 ## What the website is for
 
@@ -15,10 +15,10 @@ Homepage headline: "Better outcomes, every round", lede "Memory, workflows and r
 | Page | Purpose | Claims and numbers (source) |
 |---|---|---|
 | `/` (`site/index.html`) | Hero, 9-beat explainer (about 103.8 s, `site/explainer.mjs`, `site/README.md`), skill groups, 7-question FAQ, install CTAs (GitHub template, web creator, Claude Code plugin) | Example pitfall "per pitfalls.md (2026-03-14): reset the test database first", marked illustrative. FAQ: memory is project files and retention depends on workflow; improvements are not auto-applied to every project; the plugin needs Claude Code on an existing repo, while new projects or Codex need the full template |
-| `/skills` (`site/skills.html`) | Filterable directory (plan, build, audit, improve, project) linking each skill's source on GitHub | 43 entries (`<h4>` count), "12 shown" by default. `codex-review`: `gpt-6.1-sol`, high. Astra skills: `gpt-6-astra`, medium. `merge`: starts only when you type /merge, at most three reruns, squash-merges once the review round and CI pass on the same commit. Babysit CI stops to ask after three fix pushes. Caveats: Opus Full Review "Requires a Claude CLI signed in with a Claude Max plan. Codex only"; Claude Review needs an authenticated Claude CLI; Impartial Review needs exposed agents or an authenticated Codex CLI; Codex Full Review uses more Codex plan |
+| `/skills` (`site/skills.html`) | Filterable directory (plan, build, audit, improve, project) linking each skill's source on GitHub | 44 entries (`.ss-entry` count), "12 shown" by default. `codex-review`: `gpt-6.1-sol`, high. Astra skills: `gpt-6-astra`, medium. `merge`: starts only when you type /merge, at most three reruns, squash-merges once the review round and CI pass on the same commit. Babysit CI stops to ask after three fix pushes. Caveats: Opus Full Review "Requires a Claude CLI signed in with a Claude Max plan. Codex only"; Claude Review needs an authenticated Claude CLI; Impartial Review needs exposed agents or an authenticated Codex CLI; Codex Full Review uses more Codex plan |
 | `/memory` (`site/memory.html`) | How `CLAUDE.md`, `AGENTS.md` and the six reference topics route; three save tests; lifecycle Find, Save, Reuse, Amend | "Saving grants no permission to commit, push, or share across repos." Read-audit "Coverage is partial; Codex is excluded." `secrets.md` holds names, never values |
 | `/about` (`site/about.html`) | "The 77-second film" (`site/about-film.mjs`: chapters 14+10+11+10+14+10+8 = 77 s) and the field log (`site/field-log.mjs`) | 7 sessions, 3 days, 1 production site; 80 rounds; 575-file PR, 6 PRs; 6 same-model audits; 10 real bugs; 23 of 24 rounds; perf-loop 6.01 to 0.06 ms, 4.10 to 2.43 MB, 50.8 to 64.9 fps; 87,000 / 3,400 / 4,100 / 2,160 / about 9,700 tokens (3,400 + 4,100 + 2,160 = 9,660); "36 skills"; recall timestamps 16:52, 22:40, 22:51, 23:49 |
-| `/new` (`site/new.html`) | Hosted creator ("Start warm") | "43 enabled"; `init-project` and `external-review` always included |
+| `/new` (`site/new.html`) | Hosted creator ("Start warm") | "44 enabled"; `init-project` and `external-review` always included |
 | `/arena`, `/long-horizon` | Skill demo pages driven by `site/skill-pages.mjs` | Illustrative only. Arena: 3 candidates, blind judge, B as base with A and C ideas grafted, candidates in `.tmp/arena/`. Long Horizon: a failed audit "does not quietly weaken the acceptance checks"; "Saved state does not schedule a future run, and the skill does not authorize publishing or merging" |
 | `404.html` | Fallback | none |
 
@@ -56,10 +56,10 @@ If setup fails, the repo is kept and the visitor sees a warning that template-on
 
 **Catalog files.**
 
-- `site/new/skill-catalog.js` is hand-written: 43 entries in 3 groups (core, discipline, specialist), each with name, label, group, description and a `runtime` only when the skill ships in one runtime. It must match the template; `site/github-creator.test.mjs` fails when it drifts from `upstream-skills.json`.
+- `site/new/skill-catalog.js` is hand-written: 44 entries in 3 groups (core, discipline, specialist), each with name, label, group, description and a `runtime` only when the skill ships in one runtime. It must match the template; `site/github-creator.test.mjs` fails when it drifts from `upstream-skills.json`.
 - `site/new/upstream-skills.json` (template snapshot: repository, commit, Claude and Codex folders, groups, removal rules) and `site/new/skill-rules.js` (required skills and dependencies) are generated by `scripts/refresh-upstream-skills.mjs`. The script reads template main (or `--ref`) through the GitHub API, uses `GITHUB_TOKEN` if set, never edits the catalog, and lists what the catalog still gets wrong. `--check` writes nothing and exits 1 on drift.
-- The snapshot records template commit `05034a3` (refreshed 2026-10-08), newer than the `bbd0b5f` pin.
-- `site/new.html` ships the static text "43 enabled"; `site/new/new-project.js` then recomputes the count from the catalog.
+- The snapshot records template commit `9e82139` (refreshed 2026-10-10), newer than the `bbd0b5f` pin.
+- `site/new.html` ships the static text "44 enabled"; `site/new/new-project.js` then recomputes the count from the catalog.
 
 ## How this repo's `.claude` differs from the template
 
@@ -90,10 +90,10 @@ Spawned from the template on 2026-09-22 (initial commit `5f44e39`; `68ae91b` str
 
 When the template releases, a skill changes, or a claim changes, check every place the fact is hard-coded. Start with `node scripts/refresh-upstream-skills.mjs --check`.
 
-1. `site/new/skill-catalog.js`: hand-edit entries, groups, runtimes, descriptions (43 entries).
+1. `site/new/skill-catalog.js`: hand-edit entries, groups, runtimes, descriptions (44 entries).
 2. `node scripts/refresh-upstream-skills.mjs` to regenerate `site/new/upstream-skills.json` and `site/new/skill-rules.js`; never hand-edit them. Run `node --test site/github-creator.test.mjs`.
-3. `site/skills.html`: 43 entries, "12 shown", categories, model pins (`gpt-6.1-sol` high, `gpt-6-astra` medium), "three reruns", "three fix pushes", runtime caveats (Claude Max, Codex only).
-4. `site/new.html`: static "43 enabled" text and the matching `aria-label`.
+3. `site/skills.html`: 44 entries, "12 shown", categories, model pins (`gpt-6.1-sol` high, `gpt-6-astra` medium), "three reruns", "three fix pushes", runtime caveats (Claude Max, Codex only).
+4. `site/new.html`: static "44 enabled" text and the matching `aria-label`.
 5. `site/about.html` and `site/field-log.mjs`: "36 skills", the 87,000 / 3,400 / 4,100 / 2,160 / 9,700 token figures, every field-log number. `site/about-film.mjs`: captions and the 77 s chapter timings (the page title says "77-second film").
 6. `site/index.html`: skill groups, FAQ answers (plugin vs template, auto-apply), install CTAs, the illustrative pitfall. `site/explainer.mjs`: beat captions and timings.
 7. `site/memory.html`: the six topics, save tests, audit-coverage caveat.
