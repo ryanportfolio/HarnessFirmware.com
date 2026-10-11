@@ -468,11 +468,15 @@ Practices the firmware runs that none of the 14 talks recommended. Each links to
 
 ### `/merge`: review, fix and merge on its own
 
-- What we do: once started, every pull request in the session gets a full review by several fresh Codex reviewers, the confirmed findings are fixed and reviewed again, and the pull request is squash-merged only after a clean review and passing CI, at the exact commit that was reviewed. [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md).
+- What we do: once you start it with `/merge`, every pull request in the session gets a full review by several fresh Codex reviewers, the confirmed findings are fixed and reviewed again, and the pull request is squash-merged only after a clean review and passing CI, at the exact commit that was reviewed. [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md).
 
 ### Skills work in two different agent tools, checked in CI
 
 - What we do: each skill has a Codex version beside its Claude Code version, or is registered as needing Claude-only tools, and CI reports any version that drifts or registration that is missing ([`sync-codex-skills.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs), run in [`validate-template.yml`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.github/workflows/validate-template.yml)).
+
+### `/coordinate`: two sessions review each other and agree before acting
+
+- What we do: one session reads another session's work, checks its claims at the source (the pull request diff, its checks, `main`), sends a verdict on each recommendation, and the two go back and forth until they agree on who does what; the user hears from them only when a step needs the user. Messages between sessions never count as the user's approval. [`coordinate`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/coordinate/SKILL.md).
 
 ### `/why`: a fresh reviewer for any recommendation
 
@@ -486,12 +490,12 @@ Practices the firmware runs that none of the 14 talks recommended. Each links to
 
 - What we do: each conference talk the owner watches is turned into a comparison table against the firmware, with timestamps, and adopted ideas are built the same week. This file is one result of that. Not part of the public template.
 
-## Checkable results
+## Results
 
-Figures from the firmware's own public history. Use only these on screen; each can be opened on GitHub.
+Figures from the firmware's own history. "On GitHub" means anyone can check it on the pull request page; "owner's review logs" means it comes from the Codex session records on the owner's machine, which are not public.
 
-| Figure | Where to check |
+| Figure | Source |
 |---|---|
-| A pull request that added an unattended weekly mode to the `refine` skill went through 3 Codex review rounds before merging: 2 findings, then 4, then none; every finding was fixed | [#211](https://github.com/ryanportfolio/Harness-Firmware/pull/211) |
-| A later pull request passed a full review by 3 independent Codex reviewers with no findings, and CI passed on Ubuntu and Windows | [#212](https://github.com/ryanportfolio/Harness-Firmware/pull/212) |
-| Review by the other vendor's model became the rule for every pull request, from both tools | [#214](https://github.com/ryanportfolio/Harness-Firmware/pull/214) |
+| A pull request that added an unattended weekly mode to the `refine` skill went through 3 Codex review rounds before merging: 2 findings, then 4, then none; every finding was fixed | fix commits ("Address Codex review of refine weekly mode", "Fix round 1 findings in refine weekly mode") on GitHub: [#211](https://github.com/ryanportfolio/Harness-Firmware/pull/211); round counts and findings: owner's review logs |
+| A later pull request passed a full review by 3 independent Codex reviewers with no findings, and CI passed on Ubuntu and Windows | CI results on GitHub: [#212](https://github.com/ryanportfolio/Harness-Firmware/pull/212); reviewer count and findings: owner's review logs |
+| Review by the other vendor's model became the rule for every pull request, from both tools | on GitHub: [#214](https://github.com/ryanportfolio/Harness-Firmware/pull/214) |
