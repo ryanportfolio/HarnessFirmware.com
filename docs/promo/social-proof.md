@@ -15,7 +15,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Write the project's context down once, so you stop re-prompting
 
-- What we do: kernel [`CLAUDE.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/CLAUDE.md), [`AGENTS.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/AGENTS.md), [`.claude/reference/`](https://github.com/ryanportfolio/Harness-Firmware/tree/main/.claude/reference), global rules files, SessionStart hook
+- What we do: kernel [`CLAUDE.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/CLAUDE.md), [`AGENTS.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/AGENTS.md), [`.claude/reference/`](https://github.com/ryanportfolio/Harness-Firmware/tree/main/.claude/reference), the owner's global rules files (owner's setup), SessionStart hook
 - Verdict: matches
 - Recommended by:
   - Nick Saraev, YouTube educator: "Because you only ever need to create it once it saves you the time from having to continuously reprompt." ([AI Harnesses Explained in 24 Minutes For Normal People, YouTube, 6:24](https://www.youtube.com/watch?v=lNum1UFDYn0&t=384s))
@@ -55,7 +55,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Keep agent output short; never expand a light brief into a long artifact for someone else to read
 
-- What we do: global token guard (result, not route; no closing summary); [`writing`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/writing/SKILL.md) skill cuts filler
+- What we do: the owner's global token guard (owner's setup: result, not route; no closing summary); [`writing`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/writing/SKILL.md) skill cuts filler
 - Verdict: matches
 - Recommended by:
   - Gabriel Martinez, G2i: "In code, a vague task becomes a large PR. A small feature becomes a pile of files." ([Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer, 9:46](https://www.youtube.com/watch?v=6qkzlT962es&t=586s))
@@ -95,7 +95,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Write the playbook down after cracking a hard problem; keep the rituals nobody should rediscover
 
-- What we do: kernel: a quirk that cost a retry, a backed-out change or a correction goes into [`pitfalls.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/reference/pitfalls.md) without asking; skills such as [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) and `main` hold the release sequence
+- What we do: kernel: a quirk that cost a retry, a backed-out change or a correction goes into [`pitfalls.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/reference/pitfalls.md) without asking; skills such as [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) and `main` (owner's setup) hold the release sequence
 - Verdict: matches
 - Recommended by:
   - Rafal Wilinski, Runlayer: "If agents would try to figure out that from scratch, they are likely going to fail." ([From 36% to 100%: How Self-Improving Agents Write Their Own Skills, AI Engineer, 4:38](https://www.youtube.com/watch?v=u-o0sW9nwmk&t=278s))
@@ -116,7 +116,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Cut cost without cutting usage (caching)
 
-- What we do: global token guard: never compact to save cost (it rewrites the cached prefix); choose effort at launch
+- What we do: the owner's global token guard (owner's setup): never compact to save cost (it rewrites the cached prefix); choose effort at launch
 - Verdict: matches
 - Recommended by:
   - Tereza Tížková, Factory: "They continue growing and token maxing but they stopped spending so much money." ([What It Actually Takes to Build a Software Factory, AI Engineer, 6:00](https://www.youtube.com/watch?v=vGCJ7diEtrw&t=360s))
@@ -130,7 +130,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Permissions, sandboxes and least privilege for every action
 
-- What we do: each skill states what invoking it authorizes and what it does not; Codex reviewers run read-only; sessions work in their own worktrees; global rule to ask before destructive or paid actions
+- What we do: each skill states what invoking it authorizes and what it does not; Codex reviewers run read-only; sessions work in their own worktrees; the owner's global rule to ask before destructive or paid actions (owner's setup)
 - Verdict: matches
 - Recommended by:
   - Nick Saraev, YouTube educator: "Here is where the harness will actually check through additionally every single tool call that is made." ([AI Harnesses Explained in 24 Minutes For Normal People, YouTube, 14:23](https://www.youtube.com/watch?v=lNum1UFDYn0&t=863s))
@@ -190,9 +190,9 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 - Recommended by:
   - Ryan Cooke, WorkOS: "It can automatically pick up the next ticket in a cycle." ([No, That's Not a Software Factory, AI Engineer, 5:38](https://www.youtube.com/watch?v=HvboD89DyQ8&t=338s))
 
-### Approval of the plan starts the work, with no shepherding of each step
+### Once the work starts, nobody shepherds each step
 
-- What we do: [`deep-plan`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/deep-plan/SKILL.md) ends at an explicit Go; [`long-horizon`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/long-horizon/SKILL.md) runs rounds unattended; [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) mode merges every clean pull request
+- What we do: [`deep-plan`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/deep-plan/SKILL.md) ends at an explicit Go and hands off; once the user starts [`long-horizon`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/long-horizon/SKILL.md), its rounds run unattended; in [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) mode, which the user starts once per session, every clean pull request merges without a further prompt
 - Verdict: matches
 - Recommended by:
   - Ryan Cooke, WorkOS: "We don't need a human to be shepherding this agent through every single step of the life cycle." ([No, That's Not a Software Factory, AI Engineer, 8:03](https://www.youtube.com/watch?v=HvboD89DyQ8&t=483s))
@@ -252,13 +252,12 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 - Recommended by:
   - Nick Saraev, YouTube educator: "We're going to have ways to try many versions of things at once." ([AI Harnesses Explained in 24 Minutes For Normal People, YouTube, 22:09](https://www.youtube.com/watch?v=lNum1UFDYn0&t=1329s))
 
-### Try several versions, compare them side by side, let a human pick
+### Try several versions and compare them side by side
 
-- What we do: [`arena`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/arena/SKILL.md): parallel attempts, blind judging, best ideas grafted onto the strongest
+- What we do: [`arena`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/arena/SKILL.md): parallel attempts judged blind against the same criteria; the strongest becomes the base and the best ideas from the others are grafted onto it
 - Verdict: matches
 - Recommended by:
   - Hussein, Braintrust: "Being able to do this type of side-by-side comparison becomes the next evolution of the eval cycle that we see." ([Why Building an Eval Platform Is Harder Than It Looks, AI Engineer, 9:52](https://www.youtube.com/watch?v=mUQoVz7THu0&t=592s))
-  - Hussein, Braintrust: "Make the decision of which version of it is the best for what I want to ship to production." ([Why Building an Eval Platform Is Harder Than It Looks, AI Engineer, 16:43](https://www.youtube.com/watch?v=mUQoVz7THu0&t=1003s))
 
 ### Per-task criteria: grade only what was asked, keep criteria separate, and set aside failures the agent could not control
 
@@ -272,7 +271,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Notice when the agent is stuck repeating a failing approach, and change angle
 
-- What we do: [`long-horizon`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/long-horizon/SKILL.md): three rounds without progress counts as drift and the run rebuilds from the real workspace; [`fable-mode`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/fable-mode/SKILL.md) for repeated failures; [`why`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/why/SKILL.md) sends the stuck decision to a fresh reviewer
+- What we do: [`long-horizon`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/long-horizon/SKILL.md) keeps a list of dead ends (approaches that failed their audit) and does not retry them without new evidence; [`fable-mode`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/fable-mode/SKILL.md) for repeated failures; [`why`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/why/SKILL.md) sends the stuck decision to a fresh reviewer
 - Verdict: matches
 - Recommended by:
   - Matt Gibiec, Dynatrace: "You will change your approach. You approach it from a different angle." ([Your AI Agent Has No Nervous System, AI Engineer, 2:06](https://www.youtube.com/watch?v=YNT7Plf9KIg&t=126s))
@@ -288,7 +287,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Expensive checks once per pull request
 
-- What we do: a second vendor's model (Codex) reviews every pull request before merge; [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) runs a multi-reviewer pass, up to three reruns, CI on Ubuntu and Windows, and a guarded squash-merge
+- What we do: a second vendor's model (Codex) reviews every pull request before merge; [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) runs a multi-reviewer pass, fixes and re-reviews, checks CI, and squash-merges at the exact commit reviewed
 - Verdict: goes beyond the recommendation
 - Recommended by:
   - Dru Knox, Tessl: "This is for expensive things you want to run once when the PR goes up." ([Harness Engineering: How to Build a Software Factory, AI Engineer, 7:23](https://www.youtube.com/watch?v=X6l4lpA0_NY&t=443s))
@@ -323,7 +322,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Start narrow and earn trust before letting a loop run
 
-- What we do: the weekly review ran three scored, report-only dry runs before it was trusted; its pull requests wait for [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md)
+- What we do: the owner's weekly review ran three scored, report-only dry runs before it was trusted (owner's setup); its pull requests wait for [`/merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md)
 - Verdict: matches
 - Recommended by:
   - Davis Palmie, Factory: "Each step in the software factory needs careful ownership and monitoring before you even think about letting the the pipeline loop." ([The Software Factory: From Bug Report to Production Code, AI Engineer, 7:35](https://www.youtube.com/watch?v=exiwa9QbQXI&t=455s))
@@ -364,7 +363,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Learn from feedback the user gives anyway: corrections, review comments, repeated requests
 
-- What we do: [`/refine weekly`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/refine/SKILL.md) counts corrections and pull request comments; repeated corrections become proposed global rules
+- What we do: [`/refine weekly`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/refine/SKILL.md) counts corrections and pull request comments; repeated corrections become proposed rules (global ones through the owner's weekly review)
 - Verdict: matches
 - Recommended by:
   - Marc Klingen, Langfuse: "There's like a lot of like implicit signal that can feed into your process without you as the agent developer needing to do this manually." ([The Self-Improving OSS Agent Stack, AI Engineer, 9:42](https://www.youtube.com/watch?v=TeErpYBUIeM&t=582s))
@@ -410,7 +409,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Measure outcomes, not output; token and line counts invite gaming
 
-- What we do: weekly metrics count corrections, review comments and reviewer false alarms; never tokens, lines or pull requests
+- What we do: weekly metrics count corrections and review comments (the reviewer false-alarm rate is added in the owner's setup); never tokens, lines or pull requests
 - Verdict: matches
 - Recommended by:
   - Ryan Cooke, WorkOS: "It's very hard to distinguish whether the output is actually driving outcomes." ([No, That's Not a Software Factory, AI Engineer, 1:47](https://www.youtube.com/watch?v=HvboD89DyQ8&t=107s))
@@ -446,14 +445,14 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### When one agent hits an outage, tell the others
 
-- What we do: [`session-hub`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/session-hub/SKILL.md); machine quirks go into the global rules every session loads
+- What we do: [`session-hub`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/session-hub/SKILL.md); machine quirks go into the owner's global rules, which every session loads (owner's setup)
 - Verdict: matches
 - Recommended by:
   - Karthik Ranganathan, Yugabyte: "The first agent would hit it and then tell everybody that it happened and all the other agents would know that it already happened." ([Agent Memory Is Solved. Agent Learning Isn't., AI Engineer, 17:14](https://www.youtube.com/watch?v=9_oy4owGtPI&t=1034s))
 
 ### Group runs, distill, check for injection and personal data, then publish
 
-- What we do: `weekly-review` (owner's setup) groups a week's sessions, redacts secrets, writes no quoted chat, and proposes changes that reach every repo through the template once applied
+- What we do: `weekly-review` (owner's setup) groups a week's sessions, redacts secrets, writes no quoted chat, and proposes changes; applied to the template, they are in every new repo
 - Verdict: matches
 - Recommended by:
   - Rafal Wilinski, Runlayer: "Once it's good, it's landing in our skill library and thanks to our [MCP] gateway, it's being served to each and every client." ([From 36% to 100%: How Self-Improving Agents Write Their Own Skills, AI Engineer, 15:44](https://www.youtube.com/watch?v=u-o0sW9nwmk&t=944s))
@@ -481,7 +480,7 @@ Practices the firmware runs that none of the 14 talks recommended. Each links to
 
 ### Visual checks on the real GPU, never headless
 
-- What we do: browser checks run in a real, visible Chrome on the machine's GPU, placed off screen so it never covers the user's work; headless mode is not accepted for visual or motion claims. Kernel "Verification" section in [`CLAUDE.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/CLAUDE.md), launcher [`launch-chrome.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/scripts/lib/launch-chrome.mjs).
+- What we do: browser checks run in a real, visible Chrome on the machine's GPU, placed away from the user's work; headless mode is not accepted for visual or motion claims. Kernel "Verification" section in [`CLAUDE.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/CLAUDE.md), launcher [`launch-chrome.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/scripts/lib/launch-chrome.mjs).
 
 ### Every talk is compared against the setup (owner's setup)
 
