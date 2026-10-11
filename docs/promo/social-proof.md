@@ -70,14 +70,14 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Give the harness an interface people actually use
 
-- What we do: Harness Console, a local Node app: clone and update repos, create projects from the template, sync skills, track Claude Code and Codex usage
+- What we do: [Harness Console](https://github.com/ryanportfolio/Harness-Console), a local Node app: clone and update repos, create projects from the template, sync skills, track Claude Code and Codex usage
 - Verdict: matches
 - Recommended by:
   - Austin Marchese, YouTube educator: "At the end of the day, who cares if you have an amazing tool set if it's just hard and complicated to use it." ([The Smartest People Aren't Prompting Claude. They're Harness Engineering, YouTube, 12:43](https://www.youtube.com/watch?v=bIYWxYm5cOY&t=763s))
 
 ### Give every agent tool the same context; don't bet on one model
 
-- What we do: Claude Code and Codex read the same reference files; every skill has a Codex version, and CI checks they match ([`sync-codex-skills.mjs --check`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs))
+- What we do: Claude Code and Codex read the same reference files; every skill has a Codex version or is registered as needing Claude-only tools, and CI checks they match ([`sync-codex-skills.mjs --check`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs))
 - Verdict: matches
 - Recommended by:
   - Ryan Cooke, WorkOS: "They can point Devin to these tickets and the same documentation to give Devin the context it needs." ([No, That's Not a Software Factory, AI Engineer, 11:14](https://www.youtube.com/watch?v=HvboD89DyQ8&t=674s))
@@ -317,7 +317,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 ### Keep the answer key away from the system being tested
 
 - What we do: was partial; closed 2026-10-06 by [#212](https://github.com/ryanportfolio/Harness-Firmware/pull/212) (all copies of [`evaluation.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/addskill/references/evaluation.md)) and the `weekly-review` (owner's setup) dry mode, which also withholds text that mentions the key
-- Verdict: done (built after the talk, 2026-10-06)
+- Verdict: done (built after the talk)
 - Recommended by:
   - Miguel (Browserbase) and Corby (Microsoft), Browserbase and Microsoft: "For the other hundred trajectories, they were basically held out to us." ([Your LLM Judge Is a Confident Liar: Building Better Verifiers, AI Engineer, 19:03](https://www.youtube.com/watch?v=xLxhT2ZI7UM&t=1143s))
 
@@ -331,14 +331,14 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 ### Diagrams as a compressed review surface for structural changes
 
 - What we do: was a gap; closed 2026-10-09 by [#218](https://github.com/ryanportfolio/Harness-Firmware/pull/218): the [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md) skill puts a short Mermaid diagram in the description of every pull request that changes flows, boundaries, data model or state, and the same diagram in [`architecture.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/reference/architecture.md) when the project keeps one
-- Verdict: done (built after the talk, 2026-10-06)
+- Verdict: done (built after the talk)
 - Recommended by:
   - Gabriel Martinez, G2i: "A good diagram lets us see the shape of the system in a way code often obscures." ([Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer, 12:46](https://www.youtube.com/watch?v=6qkzlT962es&t=766s))
 
 ### A person understands the main flows, boundaries and data model of what merged
 
 - What we do: was partial; closed 2026-10-09 by the same change: the owner reads the diagram instead of the diff, alongside [`architecture.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/reference/architecture.md), pull request descriptions and the merge recap
-- Verdict: done (built after the talk, 2026-10-06)
+- Verdict: done (built after the talk)
 - Recommended by:
   - Gabriel Martinez, G2i: "Main flows, the boundaries, the data model and product behaviors have to be understood." ([Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer, 3:36](https://www.youtube.com/watch?v=6qkzlT962es&t=216s))
 
@@ -397,7 +397,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 ### Record what the human declines, as a signal of taste
 
 - What we do: was partial; closed 2026-10-06: `weekly-review` (owner's setup) keeps declined proposals with a reason and checks them before proposing again
-- Verdict: done (built after the talk, 2026-10-06)
+- Verdict: done (built after the talk)
 - Recommended by:
   - Karthik Ranganathan, Yugabyte: "You can actually start training maybe in the future an agent that's trained on your taste and your preferences long term." ([Agent Memory Is Solved. Agent Learning Isn't., AI Engineer, 16:48](https://www.youtube.com/watch?v=9_oy4owGtPI&t=1008s))
 
@@ -465,15 +465,15 @@ Practices the firmware runs that none of the 14 talks recommended. Each links to
 ### A second vendor's model reviews every pull request, in both directions
 
 - What we do: work done in Claude Code is reviewed by OpenAI's Codex before it merges; work done in Codex is reviewed by Claude. Merged in [#214](https://github.com/ryanportfolio/Harness-Firmware/pull/214) ("Review every PR: Codex from Claude Code, Opus from Codex"). Skills: [`codex-review`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/codex-review/SKILL.md), [`codex-fullreview`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/codex-fullreview/SKILL.md), [`claude-review`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/claude-review/SKILL.md).
-- Why it matters: the talks recommend checking an agent's work with another agent; here the checker is a different company's model, so it does not share the author's blind spots.
+- Why it matters: the talks recommend checking an agent's work with another agent; here the checker is trained by a different company, so it can catch mistakes the author's model misses.
 
 ### `/merge`: review, fix and merge on its own
 
-- What we do: once started, every pull request in the session gets a full review by several fresh Codex reviewers, the confirmed findings are fixed, the review runs again until it comes back clean, CI is checked, and the pull request is squash-merged only at the exact commit that was reviewed. [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md).
+- What we do: once started, every pull request in the session gets a full review by several fresh Codex reviewers, the confirmed findings are fixed and reviewed again, and the pull request is squash-merged only after a clean review and passing CI, at the exact commit that was reviewed. [`merge`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/merge/SKILL.md).
 
-### Every skill works in two different agent tools, checked in CI
+### Skills work in two different agent tools, checked in CI
 
-- What we do: each skill has a Codex version beside its Claude Code version, and CI fails when one drifts from the other ([`sync-codex-skills.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs), run in [`validate-template.yml`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.github/workflows/validate-template.yml)).
+- What we do: each skill has a Codex version beside its Claude Code version, or is registered as needing Claude-only tools, and CI fails when a version drifts or a registration is missing ([`sync-codex-skills.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs), run in [`validate-template.yml`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.github/workflows/validate-template.yml)).
 
 ### `/why`: a fresh reviewer for any recommendation
 
