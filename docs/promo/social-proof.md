@@ -77,7 +77,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Give every agent tool the same context; don't bet on one model
 
-- What we do: Claude Code and Codex read the same reference files; every skill has a Codex version or is registered as needing Claude-only tools, and CI checks they match ([`sync-codex-skills.mjs --check`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs))
+- What we do: Claude Code and Codex read the same reference files; every skill has a Codex version or is registered as needing Claude-only tools, and CI reports any version that drifts ([`sync-codex-skills.mjs --check`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs))
 - Verdict: matches
 - Recommended by:
   - Ryan Cooke, WorkOS: "They can point Devin to these tickets and the same documentation to give Devin the context it needs." ([No, That's Not a Software Factory, AI Engineer, 11:14](https://www.youtube.com/watch?v=HvboD89DyQ8&t=674s))
@@ -87,7 +87,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Keep one governed set of skills and rules, defined once and applied everywhere
 
-- What we do: the template repo itself; [`sync-starter`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/sync-starter/SKILL.md) and `sync-claude-md` push changes to every repo made from it
+- What we do: the template repo itself: new repos start from it, and [`sync-starter`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/skills/sync-starter/SKILL.md) pulls chosen template improvements into an existing repo
 - Verdict: matches
 - Recommended by:
   - Dru Knox, Tessl: "Typically, that ends up being something like a skills registry or a shared GitHub repo where you push skills that improve agent quality." ([Harness Engineering: How to Build a Software Factory, AI Engineer, 12:36](https://www.youtube.com/watch?v=X6l4lpA0_NY&t=756s))
@@ -372,7 +372,7 @@ Talks drawn on (14): Dru Knox (Tessl), Marc Klingen (Langfuse), Hussein (Braintr
 
 ### Treat failures as the richest signal
 
-- What we do: pitfalls rule; recurring review-finding kinds; a hook records failed tool calls and permission denials
+- What we do: pitfalls rule (a quirk that cost a retry or a correction goes into [`pitfalls.md`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/reference/pitfalls.md)); recurring review-finding kinds and a hook that records failed tool calls (owner's setup)
 - Verdict: matches
 - Recommended by:
   - Rafal Wilinski, Runlayer: "It exposes the missing guardrail, the missing library, some kind of edge case that you haven't thought about up front." ([From 36% to 100%: How Self-Improving Agents Write Their Own Skills, AI Engineer, 12:19](https://www.youtube.com/watch?v=u-o0sW9nwmk&t=739s))
@@ -473,7 +473,7 @@ Practices the firmware runs that none of the 14 talks recommended. Each links to
 
 ### Skills work in two different agent tools, checked in CI
 
-- What we do: each skill has a Codex version beside its Claude Code version, or is registered as needing Claude-only tools, and CI fails when a version drifts or a registration is missing ([`sync-codex-skills.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs), run in [`validate-template.yml`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.github/workflows/validate-template.yml)).
+- What we do: each skill has a Codex version beside its Claude Code version, or is registered as needing Claude-only tools, and CI reports any version that drifts or registration that is missing ([`sync-codex-skills.mjs`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.claude/scripts/sync-codex-skills.mjs), run in [`validate-template.yml`](https://github.com/ryanportfolio/Harness-Firmware/blob/main/.github/workflows/validate-template.yml)).
 
 ### `/why`: a fresh reviewer for any recommendation
 
