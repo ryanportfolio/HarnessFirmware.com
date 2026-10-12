@@ -13,6 +13,12 @@ Everything under `site/` is written for this project unless listed below.
 
 The subsets keep Basic Latin, Latin-1, general punctuation and the arrows and symbols the pages use (U+0020-007E, U+00A0-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212, U+2318, U+25A0-25FF, U+2713) with every OpenType layout feature, made with fontTools 4.66 (`pyftsubset --layout-features='*' --flavor=woff2`; the Mona Sans width axis fixed first and the Fraunces axes pinned first, both with `fontTools.varLib.instancer`; the Mona Sans optical-size axis was later fixed at 16 on the shipped file with the same instancer). `fonts.css` declares all four and sets the role tokens. Change `--accent-weight` or `--accent-vs` and the Fraunces instance has to be cut again from the upstream file.
 
+## Third-party code shipped here
+
+| Files | Code | Source | License |
+|---|---|---|---|
+| `iso-kit.mjs` | Isometric geometry (camera, extruded solids with four-tone side shading, lines on faces, ticks, coils): the geometry half of the anatomy skill's kit, used by `promo-film.mjs` | [wheresryan22/anatomy](https://github.com/wheresryan22/anatomy) `kit/iso-kit.mjs` at commit `e28bc3f`, lines before the SVG string helpers, unmodified below a provenance header | MIT License, Copyright (c) 2026 Ryan |
+
 ## Project assets that are not hand-written code
 
 | Files | What it is |

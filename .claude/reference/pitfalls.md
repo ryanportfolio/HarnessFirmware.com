@@ -253,3 +253,13 @@ commit, the rebase linearizes it, so after a container restart the local branch 
 its remote with the same tree, and a plain push is rejected. Do not force-push. Confirm the tree
 matches (`git rev-parse HEAD^{tree} origin/<branch>^{tree}`) and that `origin/main` is already an
 ancestor of the remote branch, then reset the local branch to `origin/<branch>` and carry on.
+
+## Marketing copy that claims stock Claude Code or Codex features as the firmware's edge (2026-10-12)
+
+The owner rejected promo-film lines that sold defaults every user already has: "Project rules written
+once, loaded every chat" (CLAUDE.md and AGENTS.md load in every stock session), "skills load only when
+a task needs one" (stock skill behaviour), "Nothing builds until you pick Go" (stock plan mode), and
+bare "Other company's model reviews every PR" (Codex automatic review and Claude Code Review exist).
+Before writing copy that says what Harness Firmware does better, check the audited stock baseline
+`docs/specs/2026-10-12-promo-film-stock-baseline.md`. Claim a named mechanism, framed as built in and
+switched on where a stock user would have to wire it up, and never say stock tools cannot do it.
