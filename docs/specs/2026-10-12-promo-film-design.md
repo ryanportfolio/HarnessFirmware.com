@@ -36,11 +36,11 @@ Stations along the bench, left to right, with a gantry rail behind carrying two 
 
 ## Beat sheet
 
-Times in seconds; total 121.5. Each quote beat shows: chapter index, the quote (Fraunces), the speaker (mono), then the answer (Lineal, the last word in green Fraunces) with the skill or "Harness Firmware" above it, and a live readout bottom right.
+Times in seconds; total 123.5. Beats after the opening start 2 s later than the times below, which were set before the opening grew to 11 s. Each quote beat shows: chapter index, the quote (Fraunces), the speaker (mono), then the answer (Lineal, the last word in green Fraunces) with the skill or "Harness Firmware" above it, and a live readout bottom right.
 
 | # | Time | Practice (source heading) | Speaker and exact quote | Picture | On-screen words |
 |---|---|---|---|---|---|
-| Open | 0–9 | | | Dust, then the machine fades up in full view | "Coding agents forget, grade their own work and get lost in long *jobs*" · "Harness Firmware adds memory, skills and review to your *repository*" · FOR CLAUDE CODE AND CODEX · WHAT THE TALKS RECOMMEND · WHAT HARNESS FIRMWARE ALREADY DOES |
+| Open | 0–11 | | | Dust; the problem line alone, then the machine fades up and each answer row lights its station (drawers, gate, line) | "Coding agents forget, grade their own work and get lost in long *jobs*" · HARNESS FIRMWARE · FOR CLAUDE CODE AND CODEX · three rows, the problem struck through in mono beside its answer: FORGETS → "Lessons committed to the repository, read when a task needs *them*"; GRADES ITS OWN WORK → "Another company's model reviews every pull *request*"; GETS LOST IN LONG JOBS → "Long jobs run in rounds a fresh Auditor *checks*" · WHAT THE TALKS RECOMMEND · WHAT HARNESS FIRMWARE ALREADY DOES |
 | 01 | 9–15.5 | Write the project's context down once | Nick Saraev, YouTube educator: "Because you only ever need to create it once it saves you the time from having to continuously reprompt." ([6:24](https://www.youtube.com/watch?v=lNum1UFDYn0&t=384s)) | Claude Code's head reads the `CLAUDE.md` plate three times, one session each; the plate lights as it reads | "CLAUDE.md and AGENTS.md load in every *session*" · readout SESSION n · CLAUDE.md LOADED |
 | 02 | 15.5–21.5 | Load details only when needed (progressive disclosure) | Tereza Tížková, Factory: "We just progressively disclose what's in the context and what tools to use." ([16:14](https://www.youtube.com/watch?v=vGCJ7diEtrw&t=974s)) | The rack sits dark with only spines showing; one cartridge lifts and its playbook unfolds as a sheet, then it drops back | "A skill's full playbook loads only when a task calls *it*" |
 | 03 | 21.5–28.5 | Write the playbook down after cracking a hard problem | Rafal Wilinski, Runlayer: "If agents would try to figure out that from scratch, they are likely going to fail." ([4:38](https://www.youtube.com/watch?v=u-o0sW9nwmk&t=278s)) | Session one snags on its third block (amber); a lesson card files into the `pitfalls.md` drawer; the next session opens that drawer first and builds all four | "A quirk that cost a retry goes into pitfalls.md, without *asking*" |
@@ -71,5 +71,5 @@ Candidates left out for length, each with a quote in the source file: keep alway
 ## Open questions for the owner
 
 1. Keep the small endorsement line in the close, or rely on the sources list under the film?
-2. Length is about 2:01. Trim to 1:45 by dropping beat 13 and shortening the opening, or keep?
+2. Length is about 2:04. Trim to 1:45 by dropping beat 13 and shortening the opening, or keep?
 3. Results: the #211 round counts and the #212 reviewer count come from the owner's review logs, not GitHub. Show them as is (the source file allows it), or show only what GitHub shows?

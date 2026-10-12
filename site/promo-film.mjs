@@ -25,7 +25,7 @@ const LW = 1.15;
 
 // ---- beats. Times in seconds. Quotes are verbatim from docs/promo/social-proof.md.
 const BEATS = [
-  {id: 'open', dur: 9},
+  {id: 'open', dur: 11},
   {id: 'f1', dur: 6.5, n: '01', ch: 'Foundations', who: 'Nick Saraev · YouTube educator',
     q: 'Because you only ever need to create it once it saves you the time from having to continuously reprompt.',
     a: 'CLAUDE.md and AGENTS.md load in every <em>session</em>', ansAt: 4.2},
@@ -75,7 +75,7 @@ const ST = {kernel: [85, 95, 50], rack: [305, 100, 60], drawers: [520, 120, 70],
   arena: [1284, 120, 50], gate: [1530, 130, 60], back: [1520, -20, 30]};
 const camAt = (s, z = 1.8, fx = 1260, fy = 620) => [...ST[s], z, fx, fy];
 const CAM = [
-  [0, ...FULL], [at('open', 8.8), 820, 90, 40, .86, 1040, 690],
+  [0, 820, 90, 40, .74, 1060, 790], [at('open', 9.2), 820, 90, 40, .74, 1060, 790], [at('open', 10.8), 820, 90, 40, .84, 1040, 700],
   [at('f1', .2), ...camAt('kernel', 1.95)], [at('f2', .2), ...camAt('rack')], [at('f3', .2), ...camAt('drawers', 1.75, 1260, 580)],
   [at('f4', .2), 330, 90, 60, 1.2, 1240, 640], [at('p1', .2), ...camAt('plan', 1.85)], [at('p2', .2), 960, 120, 50, 1.55, 1270, 620],
   [at('c1', .2), ...camAt('line', 1.8)], [at('c3', .2), ...camAt('arena', 1.9)], [at('g1', .2), ...camAt('gate', 1.8)],
@@ -161,10 +161,20 @@ const dcyl = (x, y, r, z, h, steps = 20) => k.cylinder(x, y, r, z, h, P, steps);
 const Z0 = 22;
 
 // ---- emphasis: which stations a beat lights
+// The opening answers the three problems one row at a time, each lighting its station.
+const OPEN_ROWS = [['Forgets', 'Lessons committed to the repository, read when a task needs <em>them</em>'],
+  ['Grades its own work', 'Another company\'s model reviews every pull <em>request</em>'],
+  ['Gets lost in long jobs', 'Long jobs run in rounds a fresh Auditor <em>checks</em>']];
+const OPEN_FOCUS = [['drawers', 'kernel'], ['gate', 'cx'], ['line', 'cc']];
 const FOCUS = {open: null, f1: ['kernel', 'cc'], f2: ['rack', 'cc'], f3: ['drawers', 'cc'], f4: ['kernel', 'rack', 'drawers', 'cc', 'cx'], p1: ['plan', 'cc'],
   p2: ['line', 'plan', 'cc'], c1: ['line', 'cc'], c3: ['arena', 'cc'], g1: ['gate', 'cc', 'cx'], i1: ['back', 'drawers', 'gate'], x0: null, x1: ['gate', 'cc', 'cx'],
   x2: ['plan', 'line', 'cc', 'cc2'], x3: ['rack', 'cx'], res: ['gate', 'cx'], close: null};
 function emphasis(t, name) {
+  if (t < B.open.start + B.open.dur) {
+    const u = t - B.open.start; let v = 1;
+    OPEN_FOCUS.forEach((list, j) => { const a = 4.6 + j * 1.6, on = sm((u - a) / .4) * (1 - sm((u - a - 1.6) / .4)) * (j === 2 ? 1 : 1); if (on > 0) v = Math.min(v, lerp(1, list.includes(name) ? 1 : .4, on)); });
+    const all = sm((u - 9.4) / .6); return lerp(v, 1, all);
+  }
   const b = beatAt(t), f = FOCUS[b.id], prev = BEATS[BEATS.indexOf(b) - 1], pf = prev ? FOCUS[prev.id] : null;
   const val = list => !list || list.includes(name) ? 1 : .45;
   return lerp(val(pf), val(f), sm((t - b.start) / .9));
@@ -658,9 +668,9 @@ function captionHTML() {
     } else if (b.a && b.n) h += `<div class="pf-copy"><p class="pf-eye" data-at=".1"><b>${b.n}</b> ${b.ch}</p></div>`;
     if (b.a) h += `<div class="pf-answer"><p class="pf-tag" data-at="${b.ansAt}">${b.tag || 'Harness Firmware'}</p>${b.a.split('|').map((l, j) => `<p class="pf-ans" data-at="${b.ansAt + .15 + j * 1.6}" data-words>${words(l)}</p>`).join('')}</div>`;
     if (b.id === 'open') h += `<div class="pf-stmt pf-open1"><p class="pf-big" data-at=".4" data-until="3.9" data-words>${words('Coding agents forget, grade their own work and get lost in long <em>jobs</em>')}</p></div>
-      <div class="pf-stmt"><p class="pf-big pf-big-s" data-at="4.2" data-words>${words('Harness Firmware adds memory, skills and review to your <em>repository</em>')}</p>
-      <p class="pf-sub" data-at="5.4">For Claude Code and Codex</p></div>
-      <p class="pf-cue" data-at="7.2">What the talks recommend · what Harness Firmware already does</p>`;
+      <div class="pf-fix"><p class="pf-sub" data-at="4.1">Harness Firmware · for Claude Code and Codex</p>
+      ${OPEN_ROWS.map(([p, a], j) => `<div class="pf-fixrow"><p class="pf-was" data-at="${4.4 + j * 1.6}">${p}</p><p class="pf-now" data-at="${4.6 + j * 1.6}" data-words>${words(a)}</p></div>`).join('')}</div>
+      <p class="pf-cue" data-at="9.6">What the talks recommend · what Harness Firmware already does</p>`;
     if (b.id === 'x0') h += `<div class="pf-stmt pf-mid"><p class="pf-sub" data-at=".2">No talk recommended these</p><p class="pf-big" data-at=".4" data-words>${words('Beyond what the talks <em>covered</em>')}</p></div>`;
     if (b.id === 'res') h += `<div class="pf-copy pf-res"><p class="pf-eye" data-at=".1">Results</p>
       <div class="pf-row" data-at=".3"><p class="pf-pr">Harness-Firmware #211</p><p class="pf-fig"><span data-at=".5">2 findings</span><span data-at="1.4">then 4</span><span data-at="2.3">then <em>none</em></span></p><p class="pf-note" data-at="2.8">Three Codex review rounds · every finding fixed</p></div>
