@@ -89,6 +89,7 @@ main{display:block;padding-top:var(--hh)}
 .pf-sources ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
 .pf-sources li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 5vw;padding:26px 0;border-bottom:1px solid var(--line)}
 .pf-sources blockquote{margin:0;font:var(--accent-style) var(--accent-weight) 21px/1.35 var(--font-accent);font-variation-settings:var(--accent-vs)}
+.pf-sources .pf-item{margin:0;font:var(--display-weight) 24px/1.25 var(--font-display);letter-spacing:var(--display-track);color:var(--paper)}
 .pf-sources cite{display:block;margin-top:10px;font:13px/1.5 var(--font-mono);font-style:normal;letter-spacing:.04em;color:var(--muted)}
 .pf-sources cite a{border-bottom:1px solid #53db7666}
 .pf-sources cite a:hover{color:var(--green)}
