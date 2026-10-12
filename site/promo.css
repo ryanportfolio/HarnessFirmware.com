@@ -15,7 +15,7 @@ main{display:block;padding-top:var(--hh)}
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 /* ---- the film: a 16:9 stage that fits the screen below the header */
-.pf{position:relative;width:min(100vw,calc((100svh - var(--hh) - 64px)*16/9));margin:0 auto}
+.pf{position:relative;width:min(100%,calc((100svh - var(--hh) - 64px)*16/9));margin:0 auto}
 .pf-stage{position:relative;aspect-ratio:16/9;background:var(--ink);overflow:hidden;cursor:pointer}
 .pf-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .pf-ov{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;pointer-events:none}
@@ -23,50 +23,51 @@ main{display:block;padding-top:var(--hh)}
 .pf-beat [data-at]{opacity:0}
 .pf-beat .w{display:inline-block;opacity:0}
 
-/* Left column: chapter, quote, speaker. Bottom left: what Harness Firmware does. */
-.pf-copy{position:absolute;left:120px;top:150px;width:700px;display:grid;gap:22px;align-content:start}
-.pf-eye{margin:0;font:20px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:rgba(243,243,236,.62)}
-.pf-eye b{font-weight:400;color:var(--green);margin-right:14px}
-.pf-q{margin:0;font:var(--accent-style) var(--accent-weight) 46px/1.16 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--paper);letter-spacing:0;text-wrap:pretty}
-.pf-q2{font-size:38px;margin-top:10px;color:rgba(243,243,236,.9)}
-.pf-who{margin:0;font:21px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.pf-beyond{justify-self:start;margin:6px 0 0;padding:10px 16px;border:1px solid #53db76a8;border-radius:999px;font:17px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--green);box-shadow:0 0 22px #53db7633}
-.pf-answer{position:absolute;left:120px;bottom:132px;width:820px;display:grid;gap:14px}
-.pf-tag{margin:0;font:20px/1 var(--font-mono);letter-spacing:.1em;color:var(--green)}
-.pf-ans{margin:0;font:var(--display-weight) 56px/1.04 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);text-wrap:balance}
-.pf-ans em,.pf-big em,.pf-fig em{font:var(--accent-style) var(--accent-weight) 1.08em/1 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
-.pf-readout{position:absolute;right:120px;bottom:70px;margin:0;font:19px/1 var(--font-mono);letter-spacing:.1em;color:rgba(243,243,236,.6);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Quote beats, two groups. Top left: what industry speakers recommend (label, the practice, the quote, the
+   speaker). Bottom left: Harness Firmware's version (label, tag, answer, how, why). Readout bottom right. */
+.pf-grp{display:grid;gap:14px;align-content:start;padding-left:28px;border-left:3px solid}
+.pf-grp-rec{border-color:rgba(243,243,236,calc(.28*var(--ga,1)))}
+.pf-grp-hf{border-color:rgba(83,219,118,calc(.7*var(--ga,1)))}
+.pf-copy{position:absolute;left:110px;top:92px;width:800px}
+.pf-answer{position:absolute;left:110px;bottom:96px;width:860px}
+.pf-answer-x{bottom:auto;top:250px}
+.pf-lab{margin:0 0 2px;font:22px/1.1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:rgba(243,243,236,.66)}
+.pf-lab-h{color:var(--green)}
+.pf-rec{margin:0;font:var(--display-weight) 42px/1.08 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);text-wrap:balance}
+.pf-q{margin:4px 0 0;font:var(--accent-style) var(--accent-weight) 34px/1.2 var(--font-accent);font-variation-settings:var(--accent-vs);color:rgba(243,243,236,.86);letter-spacing:0;text-wrap:pretty}
+.pf-who{margin:0;font:22px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pf-tag{margin:2px 0 0;font:32px/1.1 var(--font-mono);letter-spacing:.04em;color:var(--green)}
+.pf-ans{margin:0;font:var(--display-weight) 54px/1.05 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);text-wrap:balance}
+.pf-ans em,.pf-big em,.pf-fig em,.pf-rec em{font:var(--accent-style) var(--accent-weight) 1.08em/1 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
+.pf-how,.pf-why{margin:0;font:28px/1.3 var(--font-text);color:rgba(243,243,236,.9);text-wrap:pretty}
+.pf-why{color:#bfe9c9}
+.pf-readout{position:absolute;right:110px;bottom:60px;margin:0;font:24px/1 var(--font-mono);letter-spacing:.08em;color:rgba(243,243,236,.82);font-variant-numeric:tabular-nums;white-space:nowrap}
 
-/* Statements: the opening, the turn to what no talk covered, the close */
-.pf-stmt{position:absolute;left:120px;top:96px;width:1600px;display:grid;gap:20px}
-.pf-stmt .pf-big{grid-area:1/1}
-.pf-big{margin:0;font:var(--display-weight) 76px/1.02 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);max-width:1500px;text-wrap:balance}
-.pf-sub{margin:0;font:24px/1.3 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:rgba(243,243,236,.75)}
-.pf-stmt .pf-sub{margin-top:0}
-.pf-open1{top:390px}
-.pf-fix{position:absolute;left:120px;top:92px;width:1680px;display:grid;gap:14px}
-.pf-fix .pf-sub{color:var(--green);margin-bottom:6px}
-.pf-fixrow{display:grid;grid-template-columns:400px 1fr;align-items:baseline;gap:28px}
-.pf-was{margin:0;font:21px/1 var(--font-mono);white-space:nowrap;letter-spacing:.1em;text-transform:uppercase;color:rgba(243,243,236,.5);text-decoration:line-through;text-decoration-color:#efc87e99}
-.pf-now{margin:0;font:var(--display-weight) 50px/1.08 var(--font-display);letter-spacing:var(--display-track);color:var(--paper)}
-.pf-now em{font:var(--accent-style) var(--accent-weight) 1.08em/1 var(--font-accent);font-variation-settings:var(--accent-vs);color:var(--green);letter-spacing:0}
-.pf-cue{position:absolute;left:120px;bottom:96px;margin:0;font:22px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
-.pf-mid{top:300px;justify-items:center;left:160px;text-align:center}
-.pf-mid .pf-sub{margin:0;grid-area:auto;color:var(--green)}
-.pf-mid .pf-big{grid-area:auto;font-size:96px}
-.pf-close{top:96px;justify-items:center;text-align:center;left:160px}
-.pf-close .pf-big{grid-area:auto;font-size:96px}
-.pf-close .pf-sub{grid-area:auto;margin:0;font-size:22px}
-.pf-url{margin:6px 0 0;font:32px/1 var(--font-mono);letter-spacing:.04em;color:var(--green)}
-.pf-fine{margin:4px 0 0;font:16px/1.3 var(--font-mono);letter-spacing:.06em;color:rgba(243,243,236,.5)}
+/* The opening: what it is, three problems with their answers, your yes, the comparison the film makes */
+.pf-open{position:absolute;left:110px;top:86px;width:1700px;display:grid;gap:26px;align-content:start}
+.pf-rows{display:grid;grid-template-columns:420px 1fr;align-items:baseline;gap:18px 30px}
+.pf-was{margin:0;font:28px/1.1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+.pf-now{margin:0;font:var(--display-weight) 54px/1.08 var(--font-display);letter-spacing:var(--display-track);color:var(--paper)}
+.pf-open .pf-big{margin-top:10px;font-size:84px}
+.pf-sub{margin:0;font:28px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.pf-cue{margin:0;font:30px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:rgba(243,243,236,.85)}
+.pf-fine{position:absolute;left:110px;bottom:64px;margin:0;font:22px/1.3 var(--font-mono);letter-spacing:.06em;color:rgba(243,243,236,.62)}
+.pf-big{margin:0;font:var(--display-weight) 76px/1.04 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);text-wrap:balance}
+
+/* Centred statements: the turn to what no talk covered, the close */
+.pf-stmt{position:absolute;left:160px;width:1600px;display:grid;gap:26px;justify-items:center;text-align:center}
+.pf-mid{top:330px}
+.pf-mid .pf-big{font-size:96px}
+.pf-close{top:150px}
+.pf-close .pf-big{font-size:72px;max-width:1500px}
+.pf-close .pf-fine{position:static;margin-top:40px}
+.pf-url{margin:0;font:32px/1.2 var(--font-mono);letter-spacing:.04em;color:rgba(243,243,236,.85)}
+.pf-url span{color:var(--green)}
 
 /* Results */
-.pf-res{gap:34px;width:760px}
-.pf-row{display:grid;gap:10px;padding-top:22px;border-top:1px solid rgba(243,243,236,.18)}
-.pf-pr{margin:0;font:19px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}
-.pf-fig{margin:0;display:flex;flex-wrap:wrap;gap:0 22px;font:var(--display-weight) 52px/1.06 var(--font-display);letter-spacing:var(--display-track)}
-.pf-fig-s{font-size:40px}
-.pf-note{margin:0;font:19px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.pf-res{left:110px;top:120px;width:860px;justify-items:start;text-align:left;gap:30px}
+.pf-res .pf-eye{margin:0;font:26px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+.pf-fig{margin:0;padding-top:24px;border-top:1px solid rgba(243,243,236,.18);font:var(--display-weight) 46px/1.12 var(--font-display);letter-spacing:var(--display-track);color:var(--paper);text-wrap:balance}
 
 /* Transport */
 .pf-transport{height:64px;padding:0 24px;display:flex;align-items:center;gap:20px;font:12px/1 var(--font-mono);letter-spacing:.08em;color:var(--muted)}

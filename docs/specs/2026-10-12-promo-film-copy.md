@@ -168,7 +168,7 @@ Line: #214 · cross-company review became rule for every PR
 Sources: docs/promo/social-proof.md § Results
 
 ## close
-Line: Lessons kept · other company's model reviews · your final *yes*
+Line: Lessons kept · other company's model reviews every PR · your final *yes*
 Line: Harness Firmware · Claude Code + Codex repo template
 Line: harnessfirmware.com/new creates your repo
 Line: No speaker reviewed or endorsed Harness Firmware

@@ -23,50 +23,120 @@ const mix = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a.toFixed(3)})`;
 const LW = 1.15;
 
-// ---- beats. Times in seconds. Quotes are verbatim from docs/promo/social-proof.md.
+// ---- beats. Every caption is verbatim from docs/specs/2026-10-12-promo-film-copy.md (asterisk word -> <em>).
+// Quote beats compare two groups: what industry speakers recommend (label, Recommends, quote, speaker) and
+// Harness Firmware's version (tag, answer, how, why). Readouts are the deck's, in deck order.
+// Reveal times and each beat's length come from the word counts (the reading rule): an element revealed at
+// `at` stays until the beat ends, and the beat lasts long enough to read it and everything revealed after it
+// at 3 words a second, plus 1 s. `od` is the length of the machine's original choreography for the beat;
+// `warp` maps beat time onto that choreography so each machine state lands on its caption or readout.
+const REC_LABEL = 'Industry speakers recommend', HF_LABEL = 'Harness Firmware’s version';
+const QORDER = ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'why', 'ro0', 'ro1'];
+const quote = o => ({kind: 'quote', ...o});
+const extra = o => ({kind: 'x', order: ['xl', 'tag', 'ans', 'how', 'why', 'ro0'], ...o});
 const BEATS = [
-  {id: 'open', dur: 11},
-  {id: 'f1', dur: 6.5, n: '01', ch: 'Foundations', who: 'Nick Saraev · YouTube educator',
-    q: 'Because you only ever need to create it once it saves you the time from having to continuously reprompt.',
-    a: 'CLAUDE.md and AGENTS.md load in every <em>session</em>', ansAt: 4.2},
-  {id: 'f2', dur: 6, n: '02', ch: 'Foundations', who: 'Tereza Tížková · Factory',
-    q: 'We just progressively disclose what’s in the context and what tools to use.',
-    a: 'A skill’s full playbook loads only when a task calls <em>it</em>', ansAt: 3.4},
-  {id: 'f3', dur: 7, n: '03', ch: 'Foundations', who: 'Rafal Wilinski · Runlayer',
-    q: 'If agents would try to figure out that from scratch, they are likely going to fail.',
-    a: 'A quirk that cost a retry goes into pitfalls.md, without <em>asking</em>', ansAt: 4},
-  {id: 'f4', dur: 6.5, n: '04', ch: 'Foundations', who: 'Davis Palmie · Factory',
-    q: 'Even though humans and agents may use different services, everything should share the same underlying harness and context.',
-    a: 'Claude Code and Codex read the same <em>files</em>', ansAt: 4.3},
-  {id: 'p1', dur: 8, n: '05', ch: 'Plan', who: 'Tereza Tížková · Factory', q: 'Deciding what to build in the software not how to build it.',
-    who2: 'Gabriel Martinez · G2i', q2: 'The danger is that the engineer never noticed that there was a choice to make.', q2At: 3.6,
-    a: 'Every open choice comes to you as a <em>decision</em>', ansAt: 5.4, tag: '/deep-plan'},
-  {id: 'p2', dur: 7, n: '06', ch: 'Plan', who: 'Ryan Cooke · WorkOS',
-    q: 'We don’t need a human to be shepherding this agent through every single step of the life cycle.',
-    a: 'You say go once. Ready steps run in <em>rounds</em>', ansAt: 4.2, tag: '/long-horizon'},
-  {id: 'c1', dur: 8, n: '07', ch: 'Check the work', who: 'Miguel · Browserbase  ·  Corby · Microsoft',
-    q: 'The agents will often overconfidently claim that they did something when in fact they did not do it.',
-    a: 'A fresh Auditor checks each step against a brief written <em>first</em>', ansAt: 4.6, tag: '/long-horizon'},
-  {id: 'c3', dur: 7, n: '08', ch: 'Check the work', who: 'Hussein · Braintrust',
-    q: 'Being able to do this type of side-by-side comparison becomes the next evolution of the eval cycle that we see.',
-    a: 'Several attempts, judged blind, the best ideas <em>grafted</em>', ansAt: 4.2, tag: '/arena'},
-  {id: 'g1', dur: 10.5, n: '09', ch: 'Gate the pull request', who: 'Dru Knox · Tessl', beyond: true,
-    q: 'This is for expensive things you want to run once when the PR goes up.',
-    a: 'Codex reviews every pull request before it <em>merges</em>', ansAt: 3.4, tag: '/merge'},
-  {id: 'i1', dur: 9.5, n: '10', ch: 'Improve over time', who: 'Ryan Cooke · WorkOS', beyond: true,
-    q: 'We can actually point agents at sessions and see where are the gaps and how people are using our factory.',
-    a: 'Repeated corrections become proposed rules. You <em>apply</em> them', ansAt: 4.8, tag: '/refine weekly'},
-  {id: 'x0', dur: 2.5},
-  {id: 'x1', dur: 7, n: '11', ch: 'Beyond the talks', a: 'Work from Claude Code, reviewed by Codex|Work from Codex, reviewed by <em>Claude</em>', ansAt: .6, tag: 'Every pull request'},
-  {id: 'x2', dur: 6, n: '12', ch: 'Beyond the talks', a: 'Two sessions check each other and agree before <em>acting</em>', ansAt: .6, tag: '/coordinate'},
-  {id: 'x3', dur: 5, n: '13', ch: 'Beyond the talks', a: 'CI flags any skill whose Codex version <em>drifts</em>', ansAt: .6, tag: 'Two tools, one skill set'},
-  {id: 'res', dur: 9.5},
-  {id: 'close', dur: 6.5},
+  {id: 'open', od: 11, kind: 'open', lead: .6, lines: [
+    ['o0', 'pf-sub', 'Harness Firmware · Claude Code + Codex repo template'],
+    ['o1p', 'pf-was', 'Agent forgets'], ['o1a', 'pf-now', 'Repo keeps lessons', 1],
+    ['o2p', 'pf-was', 'Agent grades itself'], ['o2a', 'pf-now', 'Other company’s model reviews every PR', 1],
+    ['o3p', 'pf-was', 'Agent loses long jobs'], ['o3a', 'pf-now', 'Plan on disk', 1],
+    ['o4', 'pf-big', 'You give final <em>yes</em>', 1],
+    ['o5', 'pf-cue', 'Industry speakers recommend → Harness Firmware’s version'],
+    ['o6', 'pf-fine', 'No speaker reviewed or endorsed Harness Firmware']],
+    warp: S => [[0, 2], [S.o1p, 4.5], [S.o2p, 6.1], [S.o3p, 7.7], [S.o4, 9.3]]},
+  quote({id: 'f1', od: 6.5, rec: 'Define agent rules and policies once',
+    q: '“Define your guardrails, your agents, your docs, testing policies, really governance just one time”', who: 'Davis Palmie · Factory',
+    tag: 'CLAUDE.md and AGENTS.md', ans: 'Project rules written once, loaded every <em>chat</em>', how: 'Claude Code reads CLAUDE.md; Codex reads AGENTS.md',
+    why: 'You stop re-explaining your project', ro: ['CHAT 3 · SAME RULES LOADED'], warp: S => [[0, 0], [S.ro0, 5.05]]}),
+  quote({id: 'f2', od: 4.5, rec: 'Give agent only what task needs', q: '“Don’t pass everything to the agent.”', who: 'Elizabeth Fuentes Leone · AWS',
+    tag: 'Skills', ans: 'Skills: step-by-step guides, loaded only when <em>needed</em>', how: 'Each turn sees name + description; full guide loads when used',
+    why: 'Many guides, context stays small', ro: ['IDLE · ONE LINE EACH', 'CALLED · FULL GUIDE LOADED'],
+    order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ro0', 'ans', 'how', 'ro1', 'why'], warp: S => [[0, 0], [S.ro0, .9], [S.ro1 - .5, 1.5], [S.ro1 + .3, 2.4]]}),
+  quote({id: 'f3', od: 7, rec: 'Write down unwritten project rules',
+    q: '“When you join a new company there are a lot of rules that are not really codified anywhere.”', who: 'Tereza Tížková · Factory',
+    tag: '/recall and pitfalls.md', ans: 'Agent writes project <em>lessons</em> into repo', how: 'Mistake you correct → pitfalls.md; /recall save → reference files',
+    why: 'Later chats read lessons, avoid known mistakes', warp: S => [[0, 0], [S.tag, 1.2], [S.ans, 2.3], [S.how, 3.6], [S.why, 4.6]]}),
+  quote({id: 'f4', od: 6.5, rec: 'Don’t bet on one AI model', q: '“It’s best to be agnostic for everyone.”', who: 'Tereza Tížková · Factory',
+    tag: 'Claude Code + Codex', ans: 'Claude Code and Codex share project <em>notes</em>', how: 'Both read .claude/reference; most skills have Codex versions',
+    why: 'Switch tools; rules and lessons stay', ro: ['CODEX JOINS · READS AGENTS.md'],
+    order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ro0', 'ans', 'how', 'why'], warp: S => [[0, 0], [S.ro0 - .3, 1.1], [S.ans, 3], [S.how, 3.8], [S.why, 5]]}),
+  quote({id: 'p1', od: 8, rec: 'Show engineers every choice to make',
+    q: '“The danger is that the engineer never noticed that there was a choice to make.”', who: 'Gabriel Martinez · G2i',
+    tag: '/deep-plan', ans: 'Agent finds facts, you make <em>choices</em>', how: 'Each choice comes with recommendation; build waits for Go',
+    why: 'Open choices reach you before build', ro: ['GO · PICKED BY YOU'], warp: S => [[0, 0], [S.ans, 1], [S.how, 4.3], [S.why, 5.8], [S.ro0, 7.1]]}),
+  quote({id: 'p2', od: 7, rec: 'Let agents run long jobs alone',
+    q: '“We don’t need a human to be shepherding this agent through every single step”', who: 'Ryan Cooke · WorkOS',
+    tag: '/long-horizon', ans: 'You start it; plan saved to <em>disk</em>', how: 'Fresh agent per step, another runs prewritten checks',
+    why: 'Only passed steps count; resumes from file', ro: ['CHAT FULL → RESUMED FROM FILE']}),
+  quote({id: 'c1', od: 5.6, rec: 'Check agent work against real state',
+    q: '“The agents will often overconfidently claim that they did something when in fact they did not do it.”', who: 'Miguel · Browserbase and Corby · Microsoft',
+    tag: '/long-horizon', ans: 'Separate agent checks each <em>step</em>', how: 'Checks written first; checker never reads worker’s report',
+    why: 'DONE counts only when checks pass', ro: ['CHECKER · FAIL · NOT COUNTED'], warp: S => [[0, 0], [S.how, .9], [S.why, 2.3], [S.ro0, 3.95]]}),
+  quote({id: 'c3', od: 7, rec: 'Compare several versions side by side', q: '“Side-by-side comparison becomes the next evolution of the eval cycle”',
+    who: 'Hussein · Braintrust', tag: '/arena', ans: 'Agents build several versions <em>separately</em>', how: 'Judge scores them blind against same criteria',
+    why: 'Strongest kept, plus others’ best ideas', warp: (S, d) => [[0, 0], [S.ans, .5], [S.how, 2.6], [S.why, 4.9], [d - .5, 6.6]]}),
+  quote({id: 'g1', od: 10.5, rec: 'Run expensive checks once per PR', q: '“Expensive things you want to run once when the PR goes up.”', who: 'Dru Knox · Tessl',
+    tag: '/merge', ans: 'Codex reviews every PR before <em>merge</em>', how: 'You type /merge → confirmed findings fixed, whole diff re-reviewed',
+    why: 'Merges only after clean review, passing CI', ro: ['MERGED AT REVIEWED COMMIT'], warp: S => [[0, 0], [S.ans, 1.4], [S.how, 2.3], [S.why, 7], [S.ro0, 9.45]]}),
+  quote({id: 'i1', od: 8, rec: 'Find requests users keep repeating', q: '“Prompting my agent for the same request over and over again”', who: 'Hussein · Braintrust',
+    tag: '/refine weekly', ans: 'Repeated corrections → rule edits in one <em>PR</em>', how: 'Counts corrections across week of chats, PR comments',
+    why: 'Rules change only when you merge it', ro: ['ONE PR · WAITING FOR YOU'], warp: S => [[0, 0], [S.ans, .3], [S.how, .9], [S.why, 3.2], [S.ro0, 6.45]]}),
+  {id: 'x0', od: 2.5, kind: 'mid', lines: [['x0a', 'pf-sub', 'No talk covered these'], ['x0b', 'pf-big', 'Three more things Harness Firmware <em>does</em>', 1]]},
+  extra({id: 'x1', od: 7.6, xl: 'More · 1 of 3', tag: 'Cross-company review', ans: 'Other company’s AI reviews every <em>PR</em>',
+    how: 'OpenAI’s Codex reviews Claude Code PRs; Anthropic’s Claude reviews Codex’s', why: 'Can catch what author’s model misses', ro: ['YOU MERGE OR TYPE /merge'],
+    warp: S => [[0, 0], [S.ans, .4], [S.why, 4.2], [S.ro0, 6.9]]}),
+  extra({id: 'x2', od: 5.6, xl: 'More · 2 of 3', tag: '/coordinate', ans: 'You name second Claude Code <em>chat</em>',
+    how: 'They check each other’s claims against PR, CI, main', why: 'Other chat never approves for you', ro: ['AGREED · WHO DOES WHAT'],
+    warp: S => [[0, 0], [S.ans, .2], [S.how, 1.1], [S.ro0, 4.2]]}),
+  extra({id: 'x3', od: 4.6, xl: 'More · 3 of 3', tag: 'Codex skill sync', ans: 'CI flags Codex skills lagging <em>behind</em>',
+    how: 'Each skill: Codex version or marked Claude-only; checked every push', why: 'Fixes can’t silently skip Codex', ro: ['CI · ONE CODEX SKILL BEHIND'],
+    warp: S => [[0, 0], [S.how, 1], [S.why, 1.5], [S.ro0, 2.4]]}),
+  {id: 'res', od: 9.5, kind: 'res', lines: [['r0', 'pf-eye', 'Results'],
+    ['r1', 'pf-fig', 'Harness-Firmware #211 · 3 Codex reviews: 2 findings → 4 → <em>none</em>, all fixed', 1],
+    ['r2', 'pf-fig', '#212 · 3 Codex reviewers, zero findings, CI passed', 1], ['r3', 'pf-fig', '#214 · cross-company review became rule for every PR', 1]],
+    warp: S => [[0, 0], [S.r1, .3], [S.r2, 3.9], [S.r3, 6]]},
+  {id: 'close', od: 6.5, kind: 'close', lines: [['c0', 'pf-big', 'Lessons kept · other company’s model reviews every PR · your final <em>yes</em>', 1],
+    ['c1', 'pf-sub', 'Harness Firmware · Claude Code + Codex repo template'], ['c2', 'pf-url', '<span>harnessfirmware.com/new</span> creates your repo'],
+    ['c3', 'pf-fine', 'No speaker reviewed or endorsed Harness Firmware']]},
 ];
+// Words: whitespace-separated tokens holding a letter or digit (the done-check counts the same way).
+const nw = s => s.replace(/<[^>]+>|\*|\|/g, ' ').split(/\s+/).filter(w => /\w/.test(w)).length;
+const up2 = x => Math.ceil(x * 100 - 1e-6) / 100;
+const ITEM = {rl: ['pf-lab', 'p', 1], hl: ['pf-lab pf-lab-h', 'p', 1], xl: ['pf-lab pf-lab-h', 'p', 1], rec: ['pf-rec', 'p', 0, 1], q: ['pf-q', 'blockquote', 0, 1],
+  who: ['pf-who', 'p'], tag: ['pf-tag', 'p'], ans: ['pf-ans', 'p', 0, 1], how: ['pf-how', 'p'], why: ['pf-why', 'p']};
 let TOTAL = 0; const B = {};
-for (const b of BEATS) { b.start = TOTAL; TOTAL += b.dur; B[b.id] = b; }
-const at = (id, u) => B[id].start + u;
-const local = (id, t) => t - B[id].start;
+for (const b of BEATS) {
+  // Items in reading order: {k, cls, tag, html, label, words, ro}
+  if (b.lines) b.items = b.lines.map(([k, cls, html, words]) => ({k, cls, tag: 'p', html, words: !!words}));
+  else b.items = (b.order || QORDER).filter(k => k.startsWith('ro') ? b.ro && b.ro[+k[2]] : true).map(k => {
+    if (k.startsWith('ro')) return {k, ro: true, html: b.ro[+k[2]]};
+    const [cls, tag, label, words] = ITEM[k], html = k === 'rl' ? REC_LABEL : k === 'hl' ? HF_LABEL : b[k];
+    return {k, cls, tag, html, label: !!label, words: !!words};
+  });
+  // Reveal schedule. A readout replaced by the next one needs its own reading time plus 1 s (and slack for sampling).
+  let a = b.lead ?? .4, ros = 0; b.S = {};
+  for (const it of b.items) { if (it.ro && ros++) a = up2(a + 1.3); it.at = a; b.S[it.k] = a; a = up2(a + nw(it.html) / 3); }
+  b.dur = up2(a + 1 + .55);
+  b.start = TOTAL; TOTAL += b.dur; B[b.id] = b;
+  // Beat time -> choreography time, piecewise linear and strictly increasing in both.
+  const w = [...(b.warp ? b.warp(b.S, b.dur) : [[0, 0]]), [b.dur, b.od]], W = [];
+  for (const p of w) if (!W.length || (p[0] > W.at(-1)[0] && p[1] > W.at(-1)[1])) W.push(p);
+  b.W = W;
+}
+function wmap(W, u) { // beat seconds -> choreography seconds; slope 1 outside the anchors
+  if (u <= W[0][0]) return W[0][1] + u - W[0][0];
+  for (let j = 1; j < W.length; j++) if (u < W[j][0]) return lerp(W[j - 1][1], W[j][1], (u - W[j - 1][0]) / (W[j][0] - W[j - 1][0]));
+  return W.at(-1)[1] + u - W.at(-1)[0];
+}
+function winv(W, v) {
+  if (v <= W[0][1]) return W[0][0] + v - W[0][1];
+  for (let j = 1; j < W.length; j++) if (v < W[j][1]) return lerp(W[j - 1][0], W[j][0], (v - W[j - 1][1]) / (W[j][1] - W[j - 1][1]));
+  return W.at(-1)[0] + v - W.at(-1)[1];
+}
+const at = (id, u) => B[id].start + winv(B[id].W, u); // choreography time -> film time
+const at0 = (id, u) => B[id].start + u; // beat seconds -> film time
+const local = (id, t) => wmap(B[id].W, t - B[id].start); // film time -> choreography time
+const nloc = (id, t) => t - B[id].start; // film time -> beat seconds
 const beatAt = t => { let r = BEATS[0]; for (const b of BEATS) if (t >= b.start) r = b; return r; };
 
 // ---- camera: [time, centre x, y, z, zoom, focus screen x, y]; eased between keys
@@ -76,12 +146,12 @@ const ST = {kernel: [85, 95, 50], rack: [305, 100, 60], drawers: [520, 120, 70],
 const camAt = (s, z = 1.8, fx = 1260, fy = 620) => [...ST[s], z, fx, fy];
 const CAM = [
   [0, 820, 90, 40, .74, 1060, 790], [at('open', 9.2), 820, 90, 40, .74, 1060, 790], [at('open', 10.8), 820, 90, 40, .84, 1040, 700],
-  [at('f1', .2), ...camAt('kernel', 1.95)], [at('f2', .2), ...camAt('rack')], [at('f3', .2), ...camAt('drawers', 1.75, 1260, 580)],
-  [at('f4', .2), 330, 90, 60, 1.2, 1240, 640], [at('p1', .2), ...camAt('plan', 1.85)], [at('p2', .2), 960, 120, 50, 1.55, 1270, 620],
-  [at('c1', .2), ...camAt('line', 1.8)], [at('c3', .2), ...camAt('arena', 1.9)], [at('g1', .2), ...camAt('gate', 1.8)],
-  [at('i1', .2), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 2.6), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 6.4), 680, 80, 40, 1.5, 1260, 600],
-  [at('x0', .2), ...FULL], [at('x1', .3), ...camAt('gate', 1.8)], [at('x2', .2), 1000, 80, 80, 1.7, 1270, 600],
-  [at('x3', .2), ...camAt('rack', 1.9)], [at('res', .2), 1560, 130, 60, 1.8, 1340, 600], [at('close', .3), ...FULL],
+  [at0('f1', 1), ...camAt('kernel', 1.95)], [at0('f2', 1), ...camAt('rack')], [at0('f3', 1), ...camAt('drawers', 1.75, 1260, 580)],
+  [at0('f4', 1), 330, 90, 60, 1.2, 1240, 640], [at0('p1', 1), ...camAt('plan', 1.85)], [at0('p2', 1), 960, 120, 50, 1.55, 1270, 620],
+  [at0('c1', 1), ...camAt('line', 1.8)], [at0('c3', 1), ...camAt('arena', 1.9)], [at0('g1', 1), ...camAt('gate', 1.8)],
+  [at0('i1', 1), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 2.6), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 6.4), 680, 80, 40, 1.5, 1260, 600],
+  [at0('x0', .6), ...FULL], [at0('x1', 1), ...camAt('gate', 1.8)], [at0('x2', 1), 1000, 80, 80, 1.7, 1400, 620],
+  [at0('x3', 1), ...camAt('rack', 1.9)], [at0('res', 1), 1560, 130, 60, 1.8, 1340, 600], [at0('close', 1), ...FULL],
 ];
 const TRAVEL = 1.3;
 function camera(t) {
@@ -162,17 +232,14 @@ const Z0 = 22;
 
 // ---- emphasis: which stations a beat lights
 // The opening answers the three problems one row at a time, each lighting its station.
-const OPEN_ROWS = [['Forgets', 'Lessons committed to the repository, read when a task needs <em>them</em>'],
-  ['Grades its own work', 'Another company\'s model reviews every pull <em>request</em>'],
-  ['Gets lost in long jobs', 'Long jobs run in rounds a fresh Auditor <em>checks</em>']];
 const OPEN_FOCUS = [['drawers', 'kernel'], ['gate', 'cx'], ['line', 'cc']];
 const FOCUS = {open: null, f1: ['kernel', 'cc'], f2: ['rack', 'cc'], f3: ['drawers', 'cc'], f4: ['kernel', 'rack', 'drawers', 'cc', 'cx'], p1: ['plan', 'cc'],
   p2: ['line', 'plan', 'cc'], c1: ['line', 'cc'], c3: ['arena', 'cc'], g1: ['gate', 'cc', 'cx'], i1: ['back', 'drawers', 'gate'], x0: null, x1: ['gate', 'cc', 'cx'],
   x2: ['plan', 'line', 'cc', 'cc2'], x3: ['rack', 'cx'], res: ['gate', 'cx'], close: null};
 function emphasis(t, name) {
   if (t < B.open.start + B.open.dur) {
-    const u = t - B.open.start; let v = 1;
-    OPEN_FOCUS.forEach((list, j) => { const a = 4.6 + j * 1.6, on = sm((u - a) / .4) * (1 - sm((u - a - 1.6) / .4)) * (j === 2 ? 1 : 1); if (on > 0) v = Math.min(v, lerp(1, list.includes(name) ? 1 : .4, on)); });
+    const u = local('open', t); let v = 1;
+    OPEN_FOCUS.forEach((list, j) => { const a = 4.6 + j * 1.6, on = sm((u - a) / .4) * (1 - sm((u - a - 1.6) / .4)) ; if (on > 0) v = Math.min(v, lerp(1, list.includes(name) ? 1 : .4, on)); });
     const all = sm((u - 9.4) / .6); return lerp(v, 1, all);
   }
   const b = beatAt(t), f = FOCUS[b.id], prev = BEATS[BEATS.indexOf(b) - 1], pf = prev ? FOCUS[prev.id] : null;
@@ -210,7 +277,7 @@ function drawRailBack(t) {
   line(k.sideSeam({x: -34, y: -70, w: 1740, d: 14, r: 2}, 178, P, 3), {e, tone: 'faint'});
 }
 // Return pipe: from the reader behind the gate, along the back of the bench, then forward beside the
-// drawers to the apply slot.
+// drawers to the PR slot.
 const PIPE = [[1650, -44], [618, -44], [618, 214]];
 function drawPipe(t) {
   const e = emphasis(t, 'back');
@@ -231,23 +298,23 @@ function headKeys() {
   // Claude Code
   park('cc', 'open', 0, -10); K('cc', 'open', 4, 400, 60, 150); K('cc', 'open', 8, 60, 90, 140);
   // f1: three sessions read the kernel
-  for (let s = 0; s < 3; s++) { K('cc', 'f1', .8 + s * 1.9, 85, 90, 120); K('cc', 'f1', 1.3 + s * 1.9, 85, 90, 60); K('cc', 'f1', 2.1 + s * 1.9, 85, 90, 120); }
+  for (let s = 0; s < 3; s++) { K('cc', 'f1', .8 + s * 1.9, 85, 90, 120); K('cc', 'f1', 1.3 + s * 1.9, 85, 90, 60); K('cc', 'f1', s < 2 ? 2.1 + s * 1.9 : 6.6, 85, 90, s < 2 ? 120 : 60); }
   // f2: to the rack, over the cartridge that lifts
-  K('cc', 'f2', .9, 300, 110, 140); K('cc', 'f2', 1.6, 300, 110, 140); K('cc', 'f2', 5.4, 300, 110, 140);
+  K('cc', 'f2', .9, 300, 110, 140); K('cc', 'f2', 1.6, 300, 110, 140); K('cc', 'f2', 4.4, 300, 110, 140);
   // f3: build four blocks, snag, save, next session reads pitfalls first and builds all four
   K('cc', 'f3', .4, 470, 212, 70); for (let j = 0; j < 3; j++) { K('cc', 'f3', .7 + j * .45, 466 + j * 36, 212, 52); K('cc', 'f3', .9 + j * .45, 466 + j * 36, 212, 70); }
   K('cc', 'f3', 2.3, 540, 212, 62); K('cc', 'f3', 3.4, 540, 212, 80);
   K('cc', 'f3', 4.6, 556, 150, 110); K('cc', 'f3', 5.1, 556, 165, 100);
   for (let j = 0; j < 4; j++) { K('cc', 'f3', 5.6 + j * .35, 466 + j * 36, 212, 52); K('cc', 'f3', 5.75 + j * .35, 466 + j * 36, 212, 70); }
   // f4: read the kernel and the drawers, beside Codex
-  K('cc', 'f4', 1, 70, 70, 80); K('cc', 'f4', 2.5, 70, 70, 80); K('cc', 'f4', 3.4, 500, 100, 170); K('cc', 'f4', 5.5, 500, 100, 170);
+  K('cc', 'f4', 1, 70, 70, 80); K('cc', 'f4', 2.5, 70, 70, 80); K('cc', 'f4', 3.4, 540, 100, 170); K('cc', 'f4', 5.5, 540, 100, 170);
   // p1: drop facts in the tray, then wait while you decide
   K('cc', 'p1', .6, 700, 80, 90); for (let j = 0; j < 3; j++) { K('cc', 'p1', 1 + j * .55, 692 + (j % 2) * 12, 74 + j * 8, 72); K('cc', 'p1', 1.25 + j * .55, 692, 80, 92); }
   K('cc', 'p1', 3.2, 640, 40, 150); K('cc', 'p1', 7.6, 640, 40, 150);
-  // p2: after Go, run the line
-  K('cc', 'p2', 1.2, 1006, 118, 120); K('cc', 'p2', 6.5, 1006, 118, 120);
+  // p2: over the line while it runs
+  K('cc', 'p2', 1.2, 1006, 118, 140); K('cc', 'p2', 6.5, 1006, 118, 140);
   // c1: executor at the press
-  K('cc', 'c1', .6, 1006, 118, 120); K('cc', 'c1', 8, 1006, 118, 120);
+  K('cc', 'c1', .6, 1006, 118, 120); K('cc', 'c1', 5.6, 1006, 118, 120);
   // c3: build the three candidates
   for (let j = 0; j < 3; j++) { K('cc', 'c3', .5 + j * .7, 1226 + j * 58, 140, 90); K('cc', 'c3', .85 + j * .7, 1226 + j * 58, 140, 70); }
   K('cc', 'c3', 3, 1200, 40, 150); K('cc', 'c3', 6.5, 1200, 40, 150);
@@ -263,8 +330,8 @@ function headKeys() {
   park('cc', 'x3', .6, 160); park('cc', 'close', .5, 700); K('cc', 'close', 3.5, 1006, 118, 120); K('cc', 'close', 6.5, 1430, 140, 90);
   // Codex: arrives in f4, reviews at the gate, writes in x1, sits by the rack in x3
   K('cx', 'open', 0, -60, -20, 140, 0); K('cx', 'f4', 0, -60, -20, 140, 0); K('cx', 'f4', 1.2, 30, 70, 140, 1); K('cx', 'f4', 2.2, 30, 70, 80);
-  K('cx', 'f4', 3, 30, 70, 80); K('cx', 'f4', 3.8, 300, 100, 140); K('cx', 'f4', 5.5, 300, 100, 140);
-  K('cx', 'p1', .5, 200, -20, 140); K('cx', 'g1', 0, 1660, -20, 140); K('cx', 'x1', 2.6, 1600, -20, 140);
+  K('cx', 'f4', 3, 30, 70, 80); K('cx', 'f4', 3.6, 470, 100, 170); K('cx', 'f4', 4.4, 470, 100, 170); K('cx', 'f4', 5.1, 300, 100, 140); K('cx', 'f4', 5.8, 300, 100, 140);
+  K('cx', 'p1', .5, 200, -20, 140); K('cx', 'c3', 6.6, 200, -20, 140); K('cx', 'g1', 0, 1660, -20, 140); K('cx', 'x1', 2.6, 1600, -20, 140);
   K('cx', 'x1', 3.2, 1430, 140, 70); K('cx', 'x1', 4, 1430, 140, 70); K('cx', 'x1', 4.4, 1620, 30, 150);
   K('cx', 'x3', .3, 300, 60, 140); K('cx', 'x3', 5, 300, 60, 140); K('cx', 'close', 1, 1660, -20, 140);
   // A second Claude Code session for /coordinate
@@ -279,15 +346,15 @@ function headAt(h, t) {
   return ks[ks.length - 1].slice(1);
 }
 function drawCarriage(h, t) {
-  const s = headAt(h, t); if (!s || s[4] < .01) return;
+  const s = headAt(h, t); if (!s || s[3] < .01) return;
   const [x, , , on] = s, e = emphasis(t, h), c = HEADS[h].col;
   paint(dyn(x - 16, -74, 32, 22, 166, 22, 3, .6), {e, tone: 'hi', acc: c, g: .55, alpha: on});
 }
 function drawArm(h, t) {
-  const s = headAt(h, t); if (!s || s[4] < .01) return;
+  const s = headAt(h, t); if (!s || s[3] < .01) return;
   const [x, y, z, on] = s, e = emphasis(t, h), c = HEADS[h].col;
   paint(dyn(x - 5, -56, 10, y + 56 + 5, 176, 6, 2), {e, tone: 'mid', alpha: on});
-  faceText(HEADS[h].name, [x - 3, -48, 182], {size: 5.2, a: .55, e, col: c});
+  faceText(HEADS[h].name, [x - 3, -48, 182], {size: 5.2, a: .55 * on, e, col: c});
   paint(dcyl(x, y, 3.2, z + 6, 176 - z - 6, 14), {e, tone: 'mid', alpha: on});
   paint(dcyl(x, y, 6, z, 6, 18), {e, tone: 'hi', acc: c, g: 1, alpha: on});
   spark([x, y, z - 1], 26 * on, c, .55 * on * (.4 + .6 * e));
@@ -297,12 +364,14 @@ function drawArm(h, t) {
 // Kernel: CLAUDE.md and AGENTS.md as two engraved plates on a plinth.
 function drawKernel(t) {
   const e = emphasis(t, 'kernel'), u = local('f1', t);
-  let read = 0; for (let s = 0; s < 3; s++) read = Math.max(read, sm((u - 1.2 - s * 1.9) / .25) * (1 - sm((u - 1.9 - s * 1.9) / .3)));
+  // Three chats read the kernel; the third read holds to the end of the beat under its readout.
+  let read = 0; for (let s = 0; s < 3; s++) read = Math.max(read, sm((u - 1.2 - s * 1.9) / .25) * (1 - sm((u - (s < 2 ? 1.9 + s * 1.9 : 6.4)) / .3)));
   const u4 = local('f4', t); read = Math.max(read, sm((u4 - 1.2) / .3) * (1 - sm((u4 - 3.2) / .4)));
   paint(box(0, 20, 170, 150, Z0, 22, 6, 1.4, 6), {e, tone: 'mid'});
   for (const [x, y] of k.corners({x: 0, y: 20, w: 170, d: 150}, 7)) dot([x, y, Z0 + 22], 1.4, CREAM, .4 * e);
   paint(box(12, 32, 146, 74, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: GREEN, g: read * .9});
-  paint(box(12, 114, 146, 44, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: AMBER, g: sm((u4 - 2) / .3) * (1 - sm((u4 - 3.4) / .4)) * .9});
+  const n1 = nloc('f1', t) - B.f1.S.how - 1.2, agents = Math.max(sm((u4 - 2) / .3) * (1 - sm((u4 - 3.4) / .4)), sm(n1 / .3) * (1 - sm((n1 - 1.6) / .4)));
+  paint(box(12, 114, 146, 44, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: AMBER, g: agents * .9});
   faceText('CLAUDE.md', [20, 42, Z0 + 26], {size: 8, a: .75, e});
   faceText('AGENTS.md', [20, 124, Z0 + 26], {size: 8, a: .75, e});
   for (let r = 0; r < 6; r++) line(k.lineOnTop([20, 54 + r * 8], [20 + 60 + ((r * 37) % 60), 54 + r * 8], Z0 + 26, P), {e, tone: 'lo'});
@@ -344,8 +413,8 @@ function drawRack(t) {
 // Reference drawers: six files in a cabinet; pitfalls is the middle right drawer.
 const DRAWERS = ['architecture', 'commands', 'deployment', 'pitfalls', 'secrets', 'tech-stack'];
 function drawerOpen(t) {
-  const u = local('f3', t), u4 = local('f4', t), ui = local('i1', t);
-  return Math.max(sm((u - 3.1) / .4) * (1 - sm((u - 3.9) / .4)), sm((u - 4.6) / .4) * (1 - sm((u - 5.4) / .4)), sm((u4 - 3.8) / .4) * (1 - sm((u4 - 5.6) / .4)), sm((ui - 7.4) / .4) * (1 - sm((ui - 8.6) / .4)));
+  const u = local('f3', t), u4 = local('f4', t);
+  return Math.max(sm((u - 3.1) / .4) * (1 - sm((u - 3.9) / .4)), sm((u - 4.6) / .4) * (1 - sm((u - 5.4) / .4)), sm((u4 - 3.8) / .4) * (1 - sm((u4 - 5.6) / .4)));
 }
 function drawDrawers(t) {
   const e = emphasis(t, 'drawers'), u = local('f3', t), open = drawerOpen(t) * 46;
@@ -363,7 +432,7 @@ function drawDrawers(t) {
   // Work blocks on the bench in front: the first session snags on the third, the second clears it.
   const s1 = u < 5.4, n = s1 ? 3 : 4;
   for (let j = 0; j < 4; j++) {
-    const tb = s1 ? .8 + j * .45 : 5.75 + j * .35; if (u < tb || (s1 && j > 2) || u > B.f3.dur + .5) continue;
+    const tb = s1 ? .8 + j * .45 : 5.75 + j * .35; if (u < tb || (s1 && j > 2) || u > B.f3.od + .5) continue;
     const snag = s1 && j === 2, g = snag ? sm((u - 2.2) / .2) : 0;
     const fade = s1 ? 1 - sm((u - 4.4) / .5) : sm((u - tb) / .2);
     paint(dyn(454 + j * 36, 200, 26, 26, Z0, 16, 2), {e, tone: 'hi', acc: snag ? AMBER : GREEN, g: snag ? g : (s1 ? .15 : .5), alpha: Math.max(0, fade)});
@@ -394,72 +463,97 @@ function drawPlan(t) {
     ctx.lineWidth = 2.4 / ZOOM; ctx.strokeStyle = css(flip > .5 ? GREEN : AMBER, .9 * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
     dot([x + lerp(-6, 6, flip), 128, Z0 + 42 + 14 * rise], 3, CREAM, .8 * e);
   }
-  // Go lever
-  const go = up > 0 ? sm(up / .6) : 0;
+  // Go lever: you pull it at the end of p1, once every open choice is yours
+  const go = sm((u - 6.8) / .4);
   paint(box(822, 112, 12, 26, Z0 + 39, 4, 2), {e, tone: 'mid'});
   const [bx, by] = iso([828, 125, Z0 + 43]), [tx, ty] = iso([828 + lerp(-10, 12, go), 125, Z0 + 43 + 30]);
   ctx.lineWidth = 3 / ZOOM; ctx.strokeStyle = css(go > .5 ? GREEN : CREAM, (.5 + .5 * go) * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
   dot([828 + lerp(-10, 12, go), 125, Z0 + 73], 4.5, go > .5 ? GREEN : CREAM, .9 * e);
   faceText('GO', [820, 146, Z0 + 39], {size: 6, a: .6, e});
 }
-// Long-horizon line: Manager with the state file, Executor press, Auditor with a dial; steps wait on
-// a dependency rack in front and run through the line once their dependencies pass.
-const STEPS = [[0, []], [1, [0]], [2, [0]], [3, [1, 2]], [4, [2]], [5, [3, 4]]];
-const STEP_POS = [[900, 196], [940, 180], [940, 214], [980, 196], [1000, 222], [1030, 200]];
-function stepRun(i) { const r = [0, 1, 1, 2, 2, 3][i], lane = [0, 0, 1, 0, 1, 0][i]; return {t0: at('p2', 1.4 + r * 1.2), lane}; }
+// Long-horizon line: the chat (a column that fills as context grows) with the plan file state.md beside it,
+// the worker press and the checker dial. In p2 the steps wait in a queue in front and run one at a time: onto
+// the belt, pressed by a fresh worker, checked, then set down in the passed row. The chat fills, empties and
+// reads state.md back, and the next step runs. In c1 one step is pressed, claims DONE and fails its check.
+const QUEUE = [0, 1, 2, 3].map(i => [896 + i * 26, 206]), PASSED = [0, 1, 2, 3].map(i => [1062 + i * 26, 206]);
+let LINE = null;
+function lineScript() { // p2 times in beat seconds, from the caption schedule
+  if (LINE) return LINE;
+  const S = B.p2.S, D = 2.6, t0 = Math.max(2.5, S.ans - 1), sp = Math.max(D, (S.ro0 - .9 - D - t0) / 2);
+  return (LINE = {D, run: [t0, t0 + sp, t0 + 2 * sp, S.ro0 + 1.1], save: t0 - 1.2, ro: S.ro0});
+}
+function stepAt(i, n) {
+  const L = lineScript(), [qx, qy] = QUEUE[i], [dx, dy] = PASSED[i], v = n - L.run[i], top = Z0 + 14;
+  if (v < 0) return {x: qx, y: qy, z: Z0, g: 0, v};
+  if (v >= L.D) return {x: dx, y: dy, z: Z0, g: .9, v};
+  if (v < .5) { const f = eio(v / .5); return {x: lerp(qx, 900, f), y: lerp(qy, 120, f), z: lerp(Z0, top, f), g: .4, v}; }
+  if (v < 1.4) return {x: lerp(900, 1006, eio((v - .5) / .6)), y: 120, z: top, g: .4, v};
+  if (v < 2.3) return {x: lerp(1006, 1110, eio((v - 1.4) / .6)), y: 120, z: top, g: .4 + .5 * sm((v - 2) / .2), v};
+  const f = eio((v - 2.3) / .3); return {x: lerp(1110, dx, f), y: lerp(120, dy, f), z: lerp(top, Z0, f), g: .9, v};
+}
+function chatFill(t) {
+  const n = nloc('p2', t), L = lineScript(); if (n < 0) return 0;
+  let f = [0, 1, 2].reduce((s, i) => s + sm((n - L.run[i] - L.D + .3) / .4), 0) / 3;
+  f *= 1 - sm((n - L.ro) / .5);
+  f += sm((n - L.run[3] - L.D + .3) / .4) / 3;
+  return f * (1 - sm((n - B.p2.dur) / .6));
+}
 function drawLine(t) {
-  const e = emphasis(t, 'line'), uc = local('c1', t);
+  const e = emphasis(t, 'line'), uc = local('c1', t), n = nloc('p2', t), L = lineScript(), inP2 = n >= 0 && t < B.c1.start;
+  // The plan file, beside the chat: saved at the start of the run, read back when the chat restarts.
+  const saved = sm((n - L.save) / .3) * (1 - sm((n - L.save - 1.6) / .5)), reread = sm((n - L.ro - .2) / .3) * (1 - sm((n - L.ro - 2) / .5));
+  paint(box(846, 30, 30, 46, Z0, 5, 2, .6), {e, tone: 'mid', acc: GREEN, g: Math.max(saved, reread) * .9});
+  faceText('state.md', [849, 56, Z0 + 5], {size: 5, a: .7, e});
+  // The chat: pedestal and a column that fills as the run uses context; amber when full.
   paint(box(884, 24, 58, 58, Z0, 40, 3, 1), {e, tone: 'mid'});
-  paint(cyl(913, 53, 19, Z0 + 40, 16, 32), {e, tone: 'hi', acc: GREEN, g: sm((uc - .4) / .3) * (1 - sm((uc - 1.6) / .3)) * .8});
-  for (let r = 1; r < 4; r++) line(k.sideArc(913, 53, 19, Z0 + 40 + r * 4, P, 20), {e, tone: 'faint'});
-  faceText('MANAGER', [888, 84, Z0 + 32], {size: 5, face: 'front', a: .5, e});
-  faceText('state.md', [900, 46, Z0 + 56], {size: 4.6, a: .55, e});
+  faceText('CHAT', [888, 84, Z0 + 32], {size: 5, face: 'front', a: .5, e});
+  const fill = chatFill(t), full = sm((n - L.ro + .5) / .2) * (1 - sm((n - L.ro) / .3));
+  const brief = sm((uc - .4) / .3) * (1 - sm((uc - 1.6) / .3));
+  paint(cyl(913, 53, 19, Z0 + 40, 34, 32), {e, tone: 'hi', acc: GREEN, g: brief * .8});
+  for (let r = 1; r < 6; r++) line(k.sideArc(913, 53, 19, Z0 + 40 + r * 6, P, 20), {e, tone: 'faint'});
+  if (fill > .01) paint(dcyl(913, 53, 19.6, Z0 + 40, 34 * Math.min(1, fill), 32), {e, tone: 'hi', acc: full > .1 ? AMBER : GREEN, g: .5 + .5 * full});
+  // Plan saved: a spark from the desk to the file. Resume: sparks from the file back up into the chat.
+  if (saved > 0 && n < L.save + 1.2) { const f = eio(clamp((n - L.save) / 1)); spark([lerp(760, 861, f), lerp(100, 53, f), Z0 + 40 + Math.sin(Math.PI * f) * 40], 18, GREEN, .9); }
+  for (let j = 0; j < 3; j++) { const f = clamp((n - L.ro - .3 - j * .3) / .8); if (f > 0 && f < 1) spark([lerp(861, 913, f), 53, lerp(Z0 + 5, Z0 + 74, f) + Math.sin(Math.PI * f) * 20], 16, GREEN, .9); }
   // Belt with moving cleats
   paint(box(880, 98, 286, 44, Z0, 14, 6, .8), {e, tone: 'mid'});
   for (let j = 0; j < 14; j++) { const x = 888 + ((j * 20 + (t * 22) % 20)); if (x < 1160) line(k.lineOnTop([x, 102], [x, 138], Z0 + 14, P), {e, tone: 'faint'}); }
-  // Auditor pedestal and dial (behind the belt)
+  // Checker pedestal and dial (behind the belt)
   paint(box(1086, 24, 64, 58, Z0, 30, 3, 1), {e, tone: 'mid'});
-  faceText('AUDITOR', [1090, 84, Z0 + 22], {size: 5, face: 'front', a: .5, e});
+  faceText('CHECKER', [1090, 84, Z0 + 22], {size: 5, face: 'front', a: .5, e});
   paint(cyl(1118, 52, 23, Z0 + 30, 7, 48), {e, tone: 'hi'});
   const tk = k.radialTicks(1118, 52, 21, 30, 5, Z0 + 37, [2, 4], P, -2.2, 4.4); line(tk.minor, {e, tone: 'lo'}); line(tk.major, {e, tone: 'mid'});
   const needle = auditNeedle(t), na = -2.2 + 4.4 * needle;
   line(k.lineOnTop([1118, 52], [1118 + Math.sin(na) * 18, 52 - Math.cos(na) * 18], Z0 + 37.4, P), {e, col: needle > .7 ? GREEN : needle > .05 ? AMBER : CREAM, a: .95, w: 1.6});
-  // The sealed brief: written by the Manager and slid to the Auditor before the Executor starts.
+  // c1: the checks, written first, slide from the chat to the checker before the worker starts.
   const fb = sm((uc - 1.1) / 1.1);
-  if (uc > .9 && uc < 8.5) paint(dyn(lerp(906, 1104, fb), lerp(86, 86, fb), 18, 12, Z0 + lerp(56, 30, fb) + Math.sin(Math.PI * fb) * 26, 2, 1), {e, tone: 'hi', acc: AMBER, g: .9});
-  // Executor press over the belt
+  if (uc > .9 && uc < B.c1.od + .3) paint(dyn(lerp(906, 1104, fb), 86, 18, 12, Z0 + lerp(74, 30, fb) + Math.sin(Math.PI * fb) * 26, 2, 1), {e, tone: 'hi', acc: AMBER, g: .9});
+  // Worker press over the belt
   for (const y of [92, 148]) paint(cyl(1006, y, 4.5, Z0 + 14, 82, 16), {e, tone: 'mid'});
   paint(box(1000, 88, 12, 64, Z0 + 96, 9, 2, .5), {e, tone: 'mid'});
-  faceText('EXECUTOR', [990, 150, Z0 + 108], {size: 5, face: 'front', a: .5, e});
-  // Steps
-  const up = local('p2', t);
-  for (const [i, deps] of STEPS) {
-    const [px, py] = STEP_POS[i], r = stepRun(i), u = t - r.t0, ready = up > 0 && deps.every(d => t > stepRun(d).t0 + 1);
-    if (up < 0 || t > at('c1', 0)) { if (t < at('c1', 0)) paint(dyn(px - 9, py - 9, 18, 18, Z0, 12, 2), {e, tone: 'mid'}); continue; }
-    if (u < 0) { paint(dyn(px - 9, py - 9, 18, 18, Z0, 12, 2), {e, tone: ready ? 'hi' : 'mid', acc: GREEN, g: ready ? .5 : 0}); continue; }
-    const f = clamp(u / 1.1), x = lerp(px, 900 + f * 250, eio(f)), y = lerp(py, 112 + r.lane * 16, sm(u / .3));
-    paint(dyn(x - 9, y - 9, 18, 18, Z0 + 14 * sm(u / .3), 12, 2), {e, tone: 'hi', acc: GREEN, g: f >= 1 ? .9 : .4});
+  faceText('WORKER', [992, 150, Z0 + 108], {size: 5, face: 'front', a: .5, e});
+  let press = 0;
+  // p2: the queue, the step on the belt, the passed row
+  if (t < B.c1.start) for (let i = 0; i < 4; i++) {
+    const s = inP2 ? stepAt(i, n) : {x: QUEUE[i][0], y: QUEUE[i][1], z: Z0, g: 0, v: -1};
+    paint(dyn(s.x - 9, s.y - 9, 18, 18, s.z, 12, 2), {e, tone: s.v >= 0 ? 'hi' : 'mid', acc: GREEN, g: s.g});
+    if (s.v > 1.05 && s.v < 1.5) press = Math.max(press, sm((s.v - 1.05) / .12) * (1 - sm((s.v - 1.25) / .12)));
   }
-  for (const [i, deps] of STEPS) for (const d of deps) {
-    const [ax, ay] = STEP_POS[d], [bx, by] = STEP_POS[i], done = up > 0 && t > stepRun(d).t0 + 1;
-    if (t < at('c1', 0)) line(k.lineOnTop([ax, ay], [bx, by], Z0 + .5, P), {e, col: done ? GREEN : CREAM, a: done ? .7 : .25});
+  // c1: one step pressed, stamped DONE, failed by the checker, sent back; it does not count.
+  if (uc > 0 && uc < B.c1.od) {
+    const u0 = uc - 2.2; let x = 900, acc = GREEN, g = .4;
+    if (uc > 2.2) { x = lerp(900, 1006, eio(clamp(u0 / .7))); if (u0 > 1) x = lerp(1006, 1110, eio(clamp((u0 - 1) / .7))); if (u0 > 2.4) x = lerp(1110, 900, eio(clamp((u0 - 2.4) / .8))); if (u0 > 1.7) { acc = AMBER; g = .9; } }
+    paint(dyn(x - 10, 110, 20, 20, Z0 + 14, 14, 2), {e, tone: 'hi', acc, g});
+    if (u0 > .8 && u0 < 2.4) faceText('DONE', [x - 8, 120, Z0 + 28.2], {size: 5, a: .9 * sm((u0 - .8) / .2), e, col: u0 > 1.7 ? AMBER : GREEN});
+    press = Math.max(press, sm((u0 - .7) / .15) * (1 - sm((u0 - .95) / .15)));
   }
-  // c1: one step through the line twice. The Executor says DONE; the Auditor fails it; it goes back;
-  // the second pass verifies.
-  if (uc > 0 && uc < B.c1.dur) {
-    const pass = uc < 5.2 ? 0 : 1, u0 = pass ? uc - 5.2 : uc - 2.2;
-    let x = 900, z = Z0 + 14, acc = GREEN, g = .4;
-    if (pass === 0 && uc > 2.2) { x = lerp(900, 1006, eio(clamp(u0 / .7))); if (u0 > 1) x = lerp(1006, 1110, eio(clamp((u0 - 1) / .7))); if (u0 > 2.2) x = lerp(1110, 900, eio(clamp((u0 - 2.2) / .8))); if (u0 > 1.7 && u0 < 3) { acc = AMBER; g = .9; } }
-    if (pass === 1) { x = lerp(900, 1006, eio(clamp(u0 / .5))); if (u0 > .7) x = lerp(1006, 1150, eio(clamp((u0 - .7) / .9))); if (u0 > 1.5) g = 1; }
-    paint(dyn(x - 10, 110, 20, 20, z, 14, 2), {e, tone: 'hi', acc, g});
-    const press = Math.max(sm((u0 - .7) / .15) * (1 - sm((u0 - .95) / .15)), 0);
-    paint(dcyl(1006, 120, 9, Z0 + 96 - 30 - press * 22, 30, 18), {e, tone: 'hi', acc: GREEN, g: press});
-  } else paint(dcyl(1006, 120, 9, Z0 + 66, 30, 18), {e, tone: 'mid'});
+  paint(dcyl(1006, 120, 9, Z0 + 96 - 30 - press * 22, 30, 18), {e, tone: press > .05 ? 'hi' : 'mid', acc: GREEN, g: press});
 }
 function auditNeedle(t) {
-  const uc = local('c1', t);
-  if (uc < 0 || uc > B.c1.dur) return 0;
-  return Math.max(sm((uc - 3.4) / .3) * .45 * (1 - sm((uc - 4.4) / .3)), sm((uc - 6.6) / .4) * .92);
+  const uc = local('c1', t), n = nloc('p2', t);
+  if (t < B.c1.start && n > 0) { const L = lineScript(); let m = 0; for (let i = 0; i < 4; i++) { const v = n - L.run[i]; m = Math.max(m, sm((v - 2) / .2) * (1 - sm((v - 2.4) / .2)) * .92); } return m; }
+  if (uc < 0 || uc > B.c1.od) return 0;
+  return sm((uc - 3.85) / .25) * .45 * (1 - sm((uc - 4.6) / .3));
 }
 // Arena: three turntables; a blind judge lamp sweeps them; B is the base and takes one idea from A and C.
 function drawArena(t) {
@@ -471,7 +565,7 @@ function drawArena(t) {
     paint(cyl(cx, cy, 24, Z0 + 8, 6, 40), {e, tone: 'mid', acc: GREEN, g: j === 1 ? win * .8 : 0});
     const tk = k.radialTicks(cx, cy, 23, 24, 6, Z0 + 14, [1.5, 3], P, rot % 6.283); line(tk.minor, {e, tone: 'faint'});
     const built = sm((u - .7 - j * .7) / .3) + (u > 5 ? 0 : 0);
-    if (built > 0 || u > B.c3.dur) {
+    if (built > 0 || u > B.c3.od) {
       const hts = [[12, 10], [16, 8, 10], [8, 14]][j]; let z = Z0 + 14;
       hts.forEach((h, q) => { paint(dyn(cx - 8 + q * 2, cy - 8, 14 - q * 2, 14, z, h * built, 1.5), {e, tone: 'hi', acc: GREEN, g: j === 1 ? win * .7 : .15}); z += h * built; });
       // Grafted ideas fly from A and C onto B.
@@ -504,15 +598,15 @@ function gateScript(t) {
   // returns {key, card: [{x, col, findings: [{state}], scan, lensCol}], ci}
   const ug = local('g1', t), ux = local('x1', t), ur = local('res', t);
   const o = {key: 0, cards: [], ci: [0, 0], lens: AMBER, scan: 0};
-  if (ug >= 0 && ug < B.g1.dur + .5) {
-    o.key = sm((ug - .2) / .4);
+  if (ug >= 0 && ug < B.g1.od + .5) {
+    o.key = sm((ug - 2) / .3);
     const x = ug < 2 ? lerp(1404, 1440, sm(ug / 1.2)) : ug < 2.6 ? lerp(1440, 1500, eio((ug - 2) / .6)) : ug < 7.8 ? 1500 : lerp(1500, 1676, eio((ug - 8.6) / .8));
     o.scan = Math.max(sm((ug - 2.6) / .3) * (1 - sm((ug - 3.8) / .3)), sm((ug - 6.4) / .3) * (1 - sm((ug - 7.6) / .3)));
     const fs = [0, 1, 2].map(j => ({show: sm((ug - 3 - j * .2) / .2), drop: j === 1 ? sm((ug - 4.3) / .4) : 0, fixed: j !== 1 ? sm((ug - 5.6 - j * .2) / .3) : 0}));
     o.cards.push({x, col: GREEN, fs, merged: ug > 9.4, stack: 0});
     o.ci = [sm((ug - 7.9) / .3), sm((ug - 8.1) / .3)];
   }
-  if (ux >= 0 && ux < B.x1.dur + .3) {
+  if (ux >= 0 && ux < B.x1.od + .3) {
     const x1 = ux < .4 ? 1404 : ux < 1.6 ? lerp(1404, 1500, eio((ux - .4) / 1.2)) : ux < 2.7 ? 1500 : lerp(1500, 1676, eio((ux - 2.7) / .7));
     o.cards.push({x: x1, col: GREEN, fs: [], merged: ux > 3.3, stack: 1});
     o.scan = Math.max(sm((ux - 1.6) / .2) * (1 - sm((ux - 2.5) / .2)), sm((ux - 4.7) / .2) * (1 - sm((ux - 6.2) / .2)));
@@ -578,8 +672,8 @@ function mergedCount(t) {
   if (t > at('x1', 7)) n++;
   return n;
 }
-// Reader behind the gate: session strips feed a drum; corrections tally in three jars; at three the
-// proposal prints and rides the pipe to the apply slot beside the drawers.
+// Reader behind the gate: session strips feed a drum; corrections tally in three jars; at three one pull
+// request of rule edits prints and rides the pipe to the PR slot beside the drawers, where it waits for you.
 function drawBack(t) {
   const e = emphasis(t, 'back'), u = local('i1', t);
   paint(box(1560, -38, 90, 52, Z0, 30, 4, 1), {e, tone: 'mid'});
@@ -591,16 +685,14 @@ function drawBack(t) {
     const x = 1470 + j * 30; paint(cyl(x, -16, 10, Z0, 6, 20), {e, tone: 'mid'});
     let z = Z0 + 6; ts.forEach(tt => { if (u > tt) { paint(dcyl(x, -16, 8, z, 3, 18), {e, tone: 'hi', acc: AMBER, g: j === 0 && ts.length === 3 && u > 2.4 ? 1 : .4}); z += 3.6; } });
   });
-  // Proposal card along the pipe, then the apply slot and you
+  // The one pull request rides the pipe to the PR slot beside the drawers and waits there for you.
   paint(box(604, 206, 30, 26, Z0, 20, 2, .6), {e: emphasis(t, 'drawers'), tone: 'mid'});
-  faceText('apply', [606, 232, Z0 + 12], {size: 4.8, face: 'front', a: .6, e: emphasis(t, 'drawers')});
-  if (u > 2.8 && u < 9.8) {
+  faceText('PR', [612, 232, Z0 + 12], {size: 5.4, face: 'front', a: .65, e: emphasis(t, 'drawers')});
+  if (u > 2.8 && u < B.i1.od + .5) {
     const f = clamp((u - 3) / 3.4), seg = 1032 + 258, d = eio(f) * seg;
     let x, y; if (d < 1032) { x = 1650 - d; y = -44; } else { x = 618; y = -44 + (d - 1032); }
-    let z = Z0 + 12;
-    const applied = sm((u - 6.9) / .3);
-    if (u > 7.1) { const g2 = eio(clamp((u - 7.3) / .9)); x = lerp(618, 600 - 70 + 36, g2); y = lerp(214, 175, g2); z = lerp(Z0 + 22, Z0 + 6 + 39 + 30, g2) + Math.sin(Math.PI * g2) * 24 - (u > 8.2 ? (u - 8.2) * 40 : 0); }
-    if (u < 8.8) paint(dyn(x - 11, y - 7, 22, 14, z, 1.5, 1), {e: 1, tone: 'hi', acc: applied > .5 ? GREEN : AMBER, g: .9});
+    const wait = sm((u - 6.3) / .3), z = lerp(Z0 + 12, Z0 + 21, wait);
+    paint(dyn(x - 11, y - 7, 22, 14, z, 1.5, 1), {e: 1, tone: 'hi', acc: AMBER, g: .7 + .3 * wait * (.5 + .5 * Math.sin(t * 3))});
   }
 }
 
@@ -619,7 +711,6 @@ function drawCorners() {
 }
 
 // ---- one frame
-function assemble(t) { return local('open', t) < 0 ? 1 : 1; }
 function frame(t, view) {
   const {w, h, d} = view; DPR = d;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = css(INK); ctx.fillRect(0, 0, w, h);
@@ -628,82 +719,62 @@ function frame(t, view) {
   drawDust(t, 1);
   const [cx, cy, cz, z, fx, fy] = camera(t), c = iso([cx, cy, cz]); ZOOM = z * s;
   // Assembly in the opening: the machine fades up from the dust over the first seconds.
-  const up = sm((t - 3.7) / 1.8);
+  const up = sm((local('open', t) - 3.7) / 1.8);
   ctx.save(); ctx.globalAlpha = 1; ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-c[0], -c[1]);
   ZOOM = z * s;
   GA = up; ctx.globalAlpha = up;
   drawBench(t); drawRailBack(t); for (const h of ['cx', 'cc2', 'cc']) drawCarriage(h, t);
   drawPipe(t);
   drawKernel(t); drawRack(t); drawDrawers(t); drawBack(t); drawPlan(t); drawLine(t); drawArena(t); drawGate(t);
-  person([744, 300, 0], {e: emphasis(t, 'plan'), lit: Math.max(sm((local('p1', t) - 4.2) / .3) * (1 - sm((local('p2', t) - 1) / .4)), 0)});
-  person([1452, 300, 0], {e: emphasis(t, 'gate'), lit: sm((local('g1', t) - .1) / .3) * (1 - sm((local('g1', t) - 2.4) / .4))});
-  person([660, 290, 0], {e: emphasis(t, 'drawers'), lit: sm((local('i1', t) - 6.6) / .3) * (1 - sm((local('i1', t) - 8.2) / .4))});
+  // You: at the desk (choices, Go, starting the run, naming the second chat), at the gate (/merge, merging,
+  // the final yes) and by the drawers (correcting a mistake).
+  const pulse = (u, a, b) => sm((u - a) / .3) * (1 - sm((u - b) / .4)), n2 = nloc('p2', t), ux = local('x1', t);
+  person([744, 300, 0], {e: emphasis(t, 'plan'), lit: Math.max(sm((local('p1', t) - 4.2) / .3) * (1 - sm((n2 - .6) / .4)), pulse(n2, lineScript().save - .4, lineScript().save + 1.6), pulse(local('x2', t), .1, 1.1))});
+  person([1452, 300, 0], {e: emphasis(t, 'gate'), lit: Math.max(pulse(local('g1', t), 1.8, 3.6), pulse(local('open', t), 9.4, 11.3), pulse(ux, 2.5, 3.5), pulse(ux, 6.2, 7.9))});
+  person([660, 290, 0], {e: emphasis(t, 'drawers'), lit: pulse(local('f3', t), 2.2, 3.3)});
   for (const h of ['cx', 'cc2', 'cc']) drawArm(h, t);
   ctx.restore();
   GA = 1; ctx.globalAlpha = 1;
-  // Scrim under the left column while a beat carries copy there.
-  const sb = beatAt(t), copy = id => !!(B[id] && (B[id].q || B[id].n || id === 'res'));
-  const prevB = BEATS[BEATS.indexOf(sb) - 1], sc = lerp(prevB && copy(prevB.id) ? 1 : 0, copy(sb.id) ? 1 : 0, sm((t - sb.start) / .8));
-  if (sc > 0) { const lg = ctx.createLinearGradient(0, 0, 1100, 0); lg.addColorStop(0, css(INK, .88 * sc)); lg.addColorStop(.62, css(INK, .62 * sc)); lg.addColorStop(1, css(INK, 0)); ctx.fillStyle = lg; ctx.fillRect(0, 0, 1100, H); }
+  // Scrim under the copy: the left column in quote, extra and results beats, wider in the opening, an even
+  // dim behind the centred statements.
+  const sb = beatAt(t), prevB = BEATS[BEATS.indexOf(sb) - 1], f = sm((t - sb.start) / .8);
+  const kind = b => !b ? null : b.kind === 'open' ? 'wide' : b.kind === 'mid' || b.kind === 'close' ? 'mid' : 'left';
+  for (const [kb, a] of [[kind(prevB), 1 - f], [kind(sb), f]]) {
+    if (!kb || a <= 0) continue;
+    if (kb === 'mid') { ctx.fillStyle = css(INK, .55 * a); ctx.fillRect(0, 0, W, H); continue; }
+    const wd = kb === 'wide' ? 1700 : 1150, lg = ctx.createLinearGradient(0, 0, wd, 0);
+    lg.addColorStop(0, css(INK, .9 * a)); lg.addColorStop(.62, css(INK, .66 * a)); lg.addColorStop(1, css(INK, 0)); ctx.fillStyle = lg; ctx.fillRect(0, 0, wd, H);
+  }
   drawCorners();
   // vignette
   const vg = ctx.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, H * 1.05); vg.addColorStop(0, 'rgba(15,18,16,0)'); vg.addColorStop(1, 'rgba(8,10,9,.75)');
   ctx.fillStyle = vg; ctx.fillRect(-200, -200, W + 400, H + 400);
-  void assemble;
 }
 
-// ---- captions: one layer per beat, built from the beat table; each child has data-at (seconds into the beat)
+// ---- captions: one layer per beat, built from the beat table; each element has data-at (seconds into the beat)
 function captionHTML() {
-  const out = [];
   const words = s => s.split(/(\s+)/).map(w => /\s+/.test(w) ? w : `<span class="w">${w}</span>`).join('');
+  const el = it => it && !it.ro ? `<${it.tag} class="${it.cls}" data-at="${it.at.toFixed(2)}"${it.label ? ' data-label' : ''}${it.words ? ' data-words' : ''}>${it.words ? words(it.html) : it.html}</${it.tag}>` : '';
+  const out = [];
   for (const b of BEATS) {
+    const I = Object.fromEntries(b.items.map(it => [it.k, it])), E = k => el(I[k]);
     let h = '';
-    if (b.q) {
-      h += `<div class="pf-copy"><p class="pf-eye" data-at=".2"><b>${b.n}</b> ${b.ch}</p>`;
-      h += `<blockquote class="pf-q" data-at=".45" data-words>${words('“' + b.q + '”')}</blockquote>`;
-      h += `<p class="pf-who" data-at="1.3">${b.who}</p>`;
-      if (b.beyond) h += `<p class="pf-beyond" data-at="${b.ansAt + 1}">Goes beyond the recommendation</p>`;
-      if (b.q2) h += `<blockquote class="pf-q pf-q2" data-at="${b.q2At}" data-words>${words('“' + b.q2 + '”')}</blockquote><p class="pf-who" data-at="${b.q2At + .8}">${b.who2}</p>`;
-      h += `</div>`;
-    } else if (b.a && b.n) h += `<div class="pf-copy"><p class="pf-eye" data-at=".1"><b>${b.n}</b> ${b.ch}</p></div>`;
-    if (b.a) h += `<div class="pf-answer"><p class="pf-tag" data-at="${b.ansAt}">${b.tag || 'Harness Firmware'}</p>${b.a.split('|').map((l, j) => `<p class="pf-ans" data-at="${b.ansAt + .15 + j * 1.6}" data-words>${words(l)}</p>`).join('')}</div>`;
-    if (b.id === 'open') h += `<div class="pf-stmt pf-open1"><p class="pf-big" data-at=".4" data-until="3.9" data-words>${words('Coding agents forget, grade their own work and get lost in long <em>jobs</em>')}</p></div>
-      <div class="pf-fix"><p class="pf-sub" data-at="4.1">Harness Firmware · for Claude Code and Codex</p>
-      ${OPEN_ROWS.map(([p, a], j) => `<div class="pf-fixrow"><p class="pf-was" data-at="${4.4 + j * 1.6}">${p}</p><p class="pf-now" data-at="${4.6 + j * 1.6}" data-words>${words(a)}</p></div>`).join('')}</div>
-      <p class="pf-cue" data-at="9.6">What the talks recommend · what Harness Firmware already does</p>`;
-    if (b.id === 'x0') h += `<div class="pf-stmt pf-mid"><p class="pf-sub" data-at=".2">No talk recommended these</p><p class="pf-big" data-at=".4" data-words>${words('Beyond what the talks <em>covered</em>')}</p></div>`;
-    if (b.id === 'res') h += `<div class="pf-copy pf-res"><p class="pf-eye" data-at=".1">Results</p>
-      <div class="pf-row" data-at=".3"><p class="pf-pr">Harness-Firmware #211</p><p class="pf-fig"><span data-at=".5">2 findings</span><span data-at="1.4">then 4</span><span data-at="2.3">then <em>none</em></span></p><p class="pf-note" data-at="2.8">Three Codex review rounds · every finding fixed</p></div>
-      <div class="pf-row" data-at="3.6"><p class="pf-pr">Harness-Firmware #212</p><p class="pf-fig"><span data-at="3.8">3 reviewers, no <em>findings</em></span></p><p class="pf-note" data-at="5.2">CI passed on Ubuntu and Windows</p></div>
-      <div class="pf-row" data-at="6.2"><p class="pf-pr">Harness-Firmware #214</p><p class="pf-fig pf-fig-s"><span data-at="6.4">Review by the other vendor’s model, the rule for every pull <em>request</em></span></p></div></div>`;
-    if (b.id === 'close') h += `<div class="pf-stmt pf-close"><p class="pf-big" data-at=".6" data-words>${words('Better outcomes, every <em>round</em>')}</p>
-      <p class="pf-sub" data-at="1.6">Memory, workflows and review for Claude Code and Codex, built into the repository</p>
-      <p class="pf-url" data-at="2.2">harnessfirmware.com</p>
-      <p class="pf-fine" data-at="2.8">Quotes from AI Engineer and YouTube talks · no speaker reviewed or endorsed Harness Firmware</p></div>`;
+    if (b.kind === 'quote') h += `<div class="pf-copy pf-grp pf-grp-rec">${E('rl')}${E('rec')}${E('q')}${E('who')}</div>
+      <div class="pf-answer pf-grp pf-grp-hf">${E('hl')}${E('tag')}${E('ans')}${E('how')}${E('why')}</div>`;
+    else if (b.kind === 'x') h += `<div class="pf-answer pf-answer-x pf-grp pf-grp-hf">${E('xl')}${E('tag')}${E('ans')}${E('how')}${E('why')}</div>`;
+    else if (b.kind === 'open') h += `<div class="pf-open">${E('o0')}<div class="pf-rows">${[1, 2, 3].map(j => E(`o${j}p`) + E(`o${j}a`)).join('')}</div>${E('o4')}${E('o5')}</div>${E('o6')}`;
+    else h += `<div class="pf-stmt pf-${b.kind}">${b.items.map(el).join('')}</div>`;
     h += `<p class="pf-readout" data-readout></p>`;
     out.push(`<div class="pf-beat" data-beat="${b.id}">${h}</div>`);
   }
   return out.join('');
 }
-// Live readouts, bottom right: what the station shows at this moment.
+// Live readout, bottom right: the deck's readouts for the beat, each from its reveal time, when the machine
+// shows that state.
 function readout(t) {
-  const b = beatAt(t), u = t - b.start;
-  switch (b.id) {
-    case 'f1': return `SESSION ${Math.min(3, 1 + Math.floor(Math.max(0, u - .8) / 1.9))} · CLAUDE.md LOADED`;
-    case 'f2': return u > 2 && u < 5 ? 'ONE SKILL · FULL PLAYBOOK LOADED' : 'SKILLS IDLE · NAME AND DESCRIPTION ONLY';
-    case 'f3': return u < 2.2 ? 'SESSION 1 · BUILDING' : u < 4.4 ? 'SAVED TO pitfalls.md' : u < 5.5 ? 'NEXT SESSION · READS pitfalls.md' : 'NEXT SESSION · CLEAR';
-    case 'f4': return 'SAME KERNEL · SAME REFERENCE · SAME SKILLS';
-    case 'p1': return u < 2.6 ? 'FACTS · FOUND BY THE AGENT' : u < 4.4 ? `OPEN CHOICES ${Math.min(4, 1 + Math.floor((u - 2.6) / .15))}` : `DECIDED BY YOU ${Math.min(4, Math.floor((u - 4.4) / .32) + 1)} OF 4`;
-    case 'p2': return `ROUND ${Math.min(4, 1 + Math.floor(Math.max(0, u - 1.4) / 1.2))} · READY STEPS RUN TOGETHER`;
-    case 'c1': return u < 2.2 ? 'BRIEF SEALED BEFORE THE STEP RUNS' : u < 3.4 ? 'EXECUTOR · DONE' : u < 5.2 ? 'AUDITOR · FAIL · BACK TO THE START' : u < 6.7 ? 'EXECUTOR · DONE' : 'AUDITOR · PASS · VERIFIED';
-    case 'c3': return u < 2.8 ? 'THREE ATTEMPTS' : u < 4.9 ? 'JUDGED BLIND' : 'B IS THE BASE · IDEAS FROM A AND C';
-    case 'g1': return u < 2.4 ? 'YOU TYPED /merge' : u < 4.2 ? 'CODEX REVIEWERS · FINDINGS 3' : u < 5.4 ? 'EACH FINDING CHECKED · 2 CONFIRMED' : u < 6.4 ? 'FIXED' : u < 7.8 ? 'WHOLE DIFF REVIEWED AGAIN · CLEAN' : u < 9.2 ? 'CI PASSED' : 'MERGED AT a3f9c1e · THE COMMIT REVIEWED';
-    case 'i1': return u < 2.8 ? 'READING SESSIONS · REPEATED CORRECTIONS' : u < 6.8 ? 'PROPOSAL · WAITING FOR YOU' : u < 7.4 ? 'APPLIED BY YOU' : 'SAVED · THE NEXT SESSION READS IT';
-    case 'x1': return u < 3.4 ? 'AUTHOR CLAUDE CODE · REVIEWER CODEX' : 'AUTHOR CODEX · REVIEWER CLAUDE';
-    case 'x2': return u < 4.2 ? 'VERDICTS EXCHANGED · NOT YET AGREED' : 'AGREED · EACH TAKES ITS STEP';
-    case 'x3': return u < 2.4 ? 'CI · SKILLS AND CODEX VERSIONS MATCH' : 'CI · ONE VERSION DRIFTED · FLAGGED';
-    default: return '';
-  }
+  const b = beatAt(t), u = t - b.start; let r = '';
+  for (const it of b.items) if (it.ro && u >= it.at) r = it.html;
+  return r;
 }
 // /coordinate: verdict chips arc between the two sessions until both agree.
 function drawCoordinate(t) {
@@ -723,8 +794,8 @@ function mount(root) {
   ctx = canvas.getContext('2d');
   headKeys();
   ov.innerHTML = captionHTML();
-  const layers = [...ov.querySelectorAll('.pf-beat')].map(el => ({el, b: B[el.dataset.beat], items: [...el.querySelectorAll('[data-at]')].map(n => ({n, a: +n.dataset.at, until: n.dataset.until ? +n.dataset.until : null, words: n.hasAttribute('data-words') ? [...n.querySelectorAll('.w')] : null})), ro: el.querySelector('[data-readout]')}));
-  for (const b of BEATS) if (b.n || b.id === 'res') { const i = document.createElement('i'); i.style.left = b.start / TOTAL * 100 + '%'; ticks.append(i); }
+  const layers = [...ov.querySelectorAll('.pf-beat')].map(el => ({el, b: B[el.dataset.beat], items: [...el.querySelectorAll('[data-at]')].map(n => ({n, a: +n.dataset.at, until: n.dataset.until ? +n.dataset.until : null, words: n.hasAttribute('data-words') ? [...n.querySelectorAll('.w')] : null})), ro: el.querySelector('[data-readout]'), grps: [...el.querySelectorAll('.pf-grp')].map(g => ({g, first: g.querySelector('[data-at]')}))}));
+  for (const b of BEATS) if (b.kind === 'quote' || b.kind === 'x' || b.id === 'res') { const i = document.createElement('i'); i.style.left = b.start / TOTAL * 100 + '%'; ticks.append(i); }
   const view = {w: 1, h: 1, d: 1, s: 1, ox: 0, oy: 0};
   let t = 0, state = 'idle', raf = 0, last = 0, onScreen = true, scrubbing = false;
   const fmt = x => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
@@ -736,9 +807,11 @@ function mount(root) {
       L.vis = true; const out = 1 - sm((u - (L.b.dur - .5)) / .5); L.el.style.opacity = L.b.id === 'close' ? 1 : out;
       for (const it of L.items) {
         let o = sm((u - it.a) / .5); if (it.until != null) o *= 1 - sm((u - it.until) / .4);
-        it.n.style.opacity = o; it.n.style.transform = it.words ? '' : `translateY(${(1 - eo((u - it.a) / .6)) * 10}px)`;
+        it.o = o; it.n.style.opacity = o; it.n.style.transform = it.words ? '' : `translateY(${(1 - eo((u - it.a) / .6)) * 10}px)`;
         if (it.words) it.words.forEach((w, j) => { const p = eo((u - it.a - j * .035) / .5); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 14}px)`; });
       }
+      // A group's rule fades in with its first line.
+      for (const G of L.grps) G.g.style.setProperty('--ga', (L.items.find(it => it.n === G.first)?.o ?? 1).toFixed(3));
       if (L.ro) L.ro.textContent = readout(t);
     }
     root.dataset.beat = b.id;
