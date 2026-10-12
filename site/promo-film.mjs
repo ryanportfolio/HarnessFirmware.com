@@ -35,8 +35,7 @@ const LW = 1.15;
 const REC_LABEL = 'Best practice', HF_LABEL = 'In Harness Firmware';
 const QORDER = ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'why', 'ro0', 'ro1'];
 const quote = o => ({kind: 'quote', ...o});
-// f4, c1 and x3 are choreographed directly in beat seconds from the caption schedule: an identity warp.
-const BEAT_SECONDS = (S, d) => [[0, 0], [d, d]];
+// Beats without `od` are choreographed directly in beat seconds from the caption schedule (identity warp).
 const extra = o => ({kind: 'x', order: ['xl', 'tag', 'ans', 'how', 'why', 'ro0'], ...o});
 const BEATS = [
   {id: 'open', od: 11, kind: 'open', lead: .6, lines: [
@@ -44,64 +43,61 @@ const BEATS = [
     ['s2', 'pf-say', 'Models have basically solved code. They haven’t solved reliable verification', 1],
     ['s3', 'pf-say', 'Harness Firmware is an ongoing engineering project to attack that bottleneck', 1, 1],
     ['o0', 'pf-sub', 'Harness Firmware · Claude Code + Codex repo template'],
-    ['o1p', 'pf-was', 'Agent forgets'], ['o1a', 'pf-now', 'Repo keeps lessons', 1],
-    ['o2p', 'pf-was', 'Agent grades itself'], ['o2a', 'pf-now', 'Other company’s model reviews every PR', 1],
-    ['o3p', 'pf-was', 'Agent loses long jobs'], ['o3a', 'pf-now', 'Plan on disk', 1],
+    ['o1p', 'pf-was', 'Repeated mistakes'], ['o1a', 'pf-now', 'Confirmed cause saved unasked to committed pitfalls.md', 1],
+    ['o2p', 'pf-was', 'Self-graded work'], ['o2a', 'pf-now', 'Two-way cross-company PR review, switched on', 1],
+    ['o3p', 'pf-was', 'Long jobs stall'], ['o3a', 'pf-now', '2 failed audits → new approach forced', 1],
     ['o4', 'pf-big', 'You give final <em>yes</em>', 1],
     ['o6', 'pf-fine', 'No speaker reviewed or endorsed Harness Firmware']],
     // The statement reads over the dust; the machine assembles as the tagline comes up.
     warp: S => [[0, 2], [S.o0, 3.4], [S.o1p, 4.5], [S.o2p, 6.1], [S.o3p, 7.7], [S.o4, 9.3]]},
-  quote({id: 'f1', od: 6.5, rec: 'Define agent rules and policies once',
+  quote({id: 'm1', rec: 'Define agent rules and policies once',
     q: '“Define your guardrails, your agents, your docs, testing policies, really governance just one time”', who: 'Davis Palmie · Factory',
-    tag: 'CLAUDE.md and AGENTS.md', ans: 'Project rules written once, loaded every <em>chat</em>', how: 'Claude Code reads CLAUDE.md; Codex reads AGENTS.md',
-    why: 'You stop re-explaining your project', ro: ['CHAT 3 · SAME RULES LOADED'], warp: S => [[0, 0], [S.ro0, 5.05]]}),
-  quote({id: 'f2', od: 4.5, rec: 'Give agent only what task needs', q: '“Don’t pass everything to the agent.”', who: 'Elizabeth Fuentes Leone · AWS',
-    tag: 'Skills', ans: 'Skills: step-by-step guides, loaded only when <em>needed</em>', how: 'Each turn sees name + description; full guide loads when used',
-    why: 'Many guides, context stays small', ro: ['IDLE · ONE LINE EACH', 'CALLED · FULL GUIDE LOADED'],
-    order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ro0', 'ans', 'how', 'ro1', 'why'], warp: S => [[0, 0], [S.ro0, .9], [S.ro1 - .5, 1.5], [S.ro1 + .3, 2.4]]}),
-  quote({id: 'f3', od: 7, rec: 'Write down unwritten project rules',
+    tag: 'CLAUDE.md + /init-project', ans: 'Template CLAUDE.md requires evidence before <em>done</em>', how: 'When asked, /init-project reads repo, fills verify signal, deploy policy',
+    why: 'Working agreement on from day one', ro: ['CHECK NOT RUN → RISK FLAGGED']}),
+  quote({id: 'k1', rec: 'Load details into context when needed', q: '“We just progressively disclose what’s in the context and what tools to use.”', who: 'Tereza Tížková · Factory',
+    tag: 'CLAUDE.md structure', ans: 'Ships short CLAUDE.md; detail in topic <em>files</em>', how: '/recall reads task’s topic file; rules favor pruning stale lines',
+    why: 'Less always-loaded context each turn'}),
+  quote({id: 'm2', rec: 'Write down unwritten project rules',
     q: '“When you join a new company there are a lot of rules that are not really codified anywhere.”', who: 'Tereza Tížková · Factory',
-    tag: '/recall and pitfalls.md', ans: 'Agent writes project <em>lessons</em> into repo', how: 'Mistake you correct → pitfalls.md; /recall save → reference files',
-    why: 'Later chats read lessons, avoid known mistakes', warp: S => [[0, 0], [S.tag, 1.2], [S.ans, 2.3], [S.how, 3.6], [S.why, 4.6]]}),
-  quote({id: 'f4', od: 6.5, rec: 'Don’t bet on one AI model', q: '“It’s best to be agnostic for everyone.”', who: 'Tereza Tížková · Factory',
-    tag: 'Claude Code + Codex', ans: 'Claude Code and Codex share project <em>notes</em>', how: 'Both read .claude/reference; most skills have Codex versions',
-    why: 'Switch tools; rules and lessons stay', ro: ['CODEX JOINS · READS AGENTS.md'],
-    order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ro0', 'ans', 'how', 'why'], warp: BEAT_SECONDS}),
-  quote({id: 'p1', od: 8, rec: 'Show engineers every choice to make',
+    tag: 'pitfalls.md + /recall', ans: 'Preset rule saves confirmed quirks to <em>pitfalls.md</em>', how: 'Cost retry or correction → saved unasked to repo',
+    why: 'Git carries lesson to every machine', ro: ['NEXT SESSION CITES PITFALLS.MD + DATE']}),
+  quote({id: 'm3', rec: 'Stay agnostic on which AI wins', q: '“It’s so difficult to catch up but also to predict what we’ll be winning. So it’s best to be agnostic”', who: 'Tereza Tížková · Factory',
+    tag: 'Claude Code + Codex', ans: 'Codex + Claude Code wired to share <em>lessons</em>', how: 'Both write .claude/reference; both built-in memories off',
+    why: 'Switch tools; lessons stay', ro: ['CODEX · RECALLS SAME PITFALL']}),
+  quote({id: 'p1', rec: 'Surface choices someone must own',
     q: '“The danger is that the engineer never noticed that there was a choice to make.”', who: 'Gabriel Martinez · G2i',
-    tag: '/deep-plan', ans: 'Agent finds facts, you make <em>choices</em>', how: 'Each choice comes with recommendation; build waits for Go',
-    why: 'Open choices reach you before build', ro: ['GO · PICKED BY YOU'], warp: S => [[0, 0], [S.ans, 1], [S.how, 4.3], [S.why, 5.8], [S.ro0, 7.1]]}),
-  quote({id: 'p2', od: 7, rec: 'Let agents run long jobs alone',
-    q: '“We don’t need a human to be shepherding this agent through every single step”', who: 'Ryan Cooke · WorkOS',
-    tag: '/long-horizon', ans: 'You start it; plan saved to <em>disk</em>', how: 'Fresh agent per step, another runs prewritten checks',
-    why: 'Only passed steps count; resumes from file', ro: ['CHAT FULL → RESUMED FROM FILE']}),
-  quote({id: 'c1', od: 5.6, rec: 'Check agent work against real state',
+    tag: '/deep-plan', ans: 'Built-in ledger keeps decisions in your <em>words</em>', how: 'Low-stakes guesses listed as assumptions you can veto',
+    why: 'Weightiest decisions reviewed before your go-ahead', ro: ['Q9 ASSUMED UNLESS YOU OBJECT'], order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'ro0', 'why']}),
+  quote({id: 'p2', rec: 'Change approach, try different angle', q: '“You will change your approach.”', who: 'Matt Gibiec · Dynatrace',
+    tag: '/long-horizon', ans: 'Two failed audits, same step → new <em>approach</em>', how: 'You start /long-horizon; ruled-out approaches stay logged',
+    why: 'Stuck run changes course, keeps verified work', ro: ['AUDIT FAIL ×2 → NEW APPROACH'], order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'ro0', 'why']}),
+  quote({id: 'c1', rec: 'Check agent work against real state',
     q: '“The agents will often overconfidently claim that they did something when in fact they did not do it.”', who: 'Miguel · Browserbase and Corby · Microsoft',
-    tag: '/long-horizon', ans: 'Separate agent checks each <em>step</em>', how: 'Checks written first; checker never reads worker’s report',
-    why: 'DONE counts only when checks pass', ro: ['CHECKER · FAIL · NOT COUNTED'], warp: BEAT_SECONDS}),
+    tag: '/long-horizon', ans: 'Shipped auditor never sees worker’s <em>report</em>', how: 'Checks written before step; hash diff flags edited checks',
+    why: 'Final auditor reruns every check', ro: ['AUDITOR · FAIL · NOT COUNTED']}),
   quote({id: 'c3', od: 7, rec: 'Compare several versions side by side', q: '“Side-by-side comparison becomes the next evolution of the eval cycle”',
-    who: 'Hussein · Braintrust', tag: '/arena', ans: 'Agents build several versions <em>separately</em>', how: 'Judge scores them blind against same criteria',
-    why: 'Strongest kept, plus others’ best ideas', warp: (S, d) => [[0, 0], [S.ans, .5], [S.how, 2.6], [S.why, 4.9], [d - .5, 6.6]]}),
+    who: 'Hussein · Braintrust', tag: '/arena', ans: 'Packaged blind judge checks each <em>criterion</em>', how: '3 isolated builds, names hidden; judge recommends base',
+    why: 'Base kept; best rival ideas grafted on', warp: (S, d) => [[0, 0], [S.ans, .5], [S.how, 2.6], [S.why, 4.9], [d - .5, 6.6]]}),
   quote({id: 'g1', od: 10.5, rec: 'Run expensive checks once per PR', q: '“Expensive things you want to run once when the PR goes up.”', who: 'Dru Knox · Tessl',
-    tag: '/merge', ans: 'Codex reviews every PR before <em>merge</em>', how: 'You type /merge → confirmed findings fixed, whole diff re-reviewed',
-    why: 'Merges only after clean review, passing CI', ro: ['MERGED AT REVIEWED COMMIT'], warp: S => [[0, 0], [S.ans, 1.4], [S.how, 2.3], [S.why, 7], [S.ro0, 9.45]]}),
-  quote({id: 'i1', od: 8, rec: 'Find requests users keep repeating', q: '“Prompting my agent for the same request over and over again”', who: 'Hussein · Braintrust',
-    tag: '/refine weekly', ans: 'Repeated corrections → rule edits in one <em>PR</em>', how: 'Counts corrections across week of chats, PR comments',
-    why: 'Rules change only when you merge it', ro: ['ONE PR · WAITING FOR YOU'], warp: S => [[0, 0], [S.ans, .3], [S.how, .9], [S.why, 3.2], [S.ro0, 6.45]]}),
+    tag: '/merge', ans: 'Included /merge reviews, fixes, re-reviews, <em>merges</em>', how: 'You type /merge → Codex reviewers; fixes → whole diff re-reviewed',
+    why: 'Squash-merge at reviewed commit, CI green', ro: ['MERGED AT REVIEWED COMMIT'], warp: S => [[0, 0], [S.ans, 1.4], [S.how, 2.3], [S.why, 7], [S.ro0, 9.45]]}),
+  quote({id: 'i1', rec: 'Search past sessions for poor experiences', q: '“Find me all traces in the last 24 hours where the user had a poor experience.”', who: 'Hussein · Braintrust',
+    tag: '/refine weekly', ans: 'Week of corrections → trend, one rule <em>PR</em>', how: 'Counts your corrections vs previous four runs; evidence-gated edits',
+    why: 'Never merges; you review the PR', ro: ['ONE PR · WAITING FOR YOU']}),
   {id: 'x0', od: 2.5, kind: 'mid', lines: [['x0a', 'pf-sub', 'No talk covered these'], ['x0b', 'pf-big', 'Three more things Harness Firmware <em>does</em>', 1]]},
-  extra({id: 'x1', od: 7.6, xl: 'More · 1 of 3', tag: 'Cross-company review', ans: 'Other company’s AI reviews every <em>PR</em>',
-    how: 'OpenAI’s Codex reviews Claude Code PRs; Anthropic’s Claude reviews Codex’s', why: 'Can catch what author’s model misses', ro: ['YOU MERGE OR TYPE /merge'],
+  extra({id: 'x1', od: 7.6, xl: 'More · 1 of 3', tag: 'Cross-company review', ans: 'Cross-company review switched on for every <em>PR</em>',
+    how: 'Codex reviews Claude Code PRs; Claude reviews Codex PRs', why: 'Can catch what author’s model misses', ro: ['YOU MERGE OR TYPE /merge'],
     warp: S => [[0, 0], [S.ans, .4], [S.why, 4.2], [S.ro0, 6.9]]}),
-  extra({id: 'x2', od: 5.6, xl: 'More · 2 of 3', tag: '/coordinate', ans: 'You name second Claude Code <em>chat</em>',
-    how: 'They check each other’s claims against PR, CI, main', why: 'Other chat never approves for you', ro: ['AGREED · WHO DOES WHAT'],
-    warp: S => [[0, 0], [S.ans, .2], [S.how, 1.1], [S.ro0, 4.2]]}),
-  extra({id: 'x3', od: 4.6, xl: 'More · 3 of 3', tag: 'Codex skill sync', ans: 'CI flags Codex skills lagging <em>behind</em>',
-    how: 'Each skill: Codex version or marked Claude-only; checked every push', why: 'Fixes can’t silently skip Codex', ro: ['CI · ONE CODEX SKILL BEHIND'], warp: BEAT_SECONDS}),
+  extra({id: 'x2', xl: 'More · 2 of 3', tag: '/coordinate', ans: 'Bundled protocol makes chats cross-check <em>claims</em>',
+    how: 'Read PR diff, CI, main; verdict per item until agreed', why: 'Two exchanges unresolved → you decide', ro: ['ITEM 2 · DISAGREE · PR DIFF'],
+    order: ['xl', 'tag', 'ans', 'how', 'ro0', 'why']}),
+  extra({id: 'x3', xl: 'More · 3 of 3', tag: 'Codex skill sync', ans: 'Ships hand-translated Codex skill <em>ports</em>',
+    how: 'Hash per Claude skill; CI warns when port lags', why: 'Edited skill → Codex port flagged for update', ro: ['CI · ONE CODEX SKILL BEHIND']}),
   {id: 'res', od: 9.5, kind: 'res', lines: [['r0', 'pf-eye', 'Results'],
     ['r1', 'pf-fig', 'Harness-Firmware #211 · 3 Codex reviews: 2 findings → 4 → <em>none</em>, all fixed', 1],
     ['r2', 'pf-fig', '#212 · 3 Codex reviewers, zero findings, CI passed', 1], ['r3', 'pf-fig', '#214 · cross-company review became rule for every PR', 1]],
     warp: S => [[0, 0], [S.r1, .3], [S.r2, 3.9], [S.r3, 6]]},
-  {id: 'close', od: 6.5, kind: 'close', lines: [['c0', 'pf-big', 'Lessons kept · other company’s model reviews every PR · your final <em>yes</em>', 1],
+  {id: 'close', kind: 'close', lines: [['c0', 'pf-big', 'Evidence-before-done rule, pitfall log, cross-company PR review, switched on · your final <em>yes</em>', 1],
     ['c1', 'pf-sub', 'Harness Firmware · Claude Code + Codex repo template'], ['c2', 'pf-url', '<span>harnessfirmware.com/new</span> creates your repo'],
     ['c3', 'pf-fine', 'No speaker reviewed or endorsed Harness Firmware']]},
 ];
@@ -126,6 +122,7 @@ for (const b of BEATS) {
   b.dur = up2(a + 1 + .55);
   b.start = TOTAL; TOTAL += b.dur; B[b.id] = b;
   // Beat time -> choreography time, piecewise linear and strictly increasing in both.
+  if (b.od == null) b.od = b.dur;
   const w = [...(b.warp ? b.warp(b.S, b.dur) : [[0, 0]]), [b.dur, b.od]], W = [];
   for (const p of w) if (!W.length || (p[0] > W.at(-1)[0] && p[1] > W.at(-1)[1])) W.push(p);
   b.W = W;
@@ -153,11 +150,11 @@ const ST = {kernel: [85, 95, 50], rack: [305, 100, 60], drawers: [520, 120, 70],
 const camAt = (s, z = 1.8, fx = 1260, fy = 620) => [...ST[s], z, fx, fy];
 const CAM = [
   [0, 820, 90, 40, .74, 1060, 790], [at('open', 9.2), 820, 90, 40, .74, 1060, 790], [at('open', 10.8), 820, 90, 40, .84, 1040, 700],
-  [at0('f1', 1), ...camAt('kernel', 1.95)], [at0('f2', 1), ...camAt('rack')], [at0('f3', 1), ...camAt('drawers', 1.75, 1260, 580)],
-  [at0('f4', 1), 330, 90, 60, 1.2, 1240, 640], [at0('p1', 1), ...camAt('plan', 1.85)], [at0('p2', 1), 960, 120, 50, 1.55, 1270, 620],
-  [at0('c1', 1), ...camAt('line', 1.8)], [at0('c3', 1), ...camAt('arena', 1.9)], [at0('g1', 1), ...camAt('gate', 1.8)],
-  [at0('i1', 1), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 2.6), 1560, -10, 40, 1.8, 1260, 640], [at('i1', 6.4), 680, 80, 40, 1.5, 1260, 600],
-  [at0('x0', .6), ...FULL], [at0('x1', 1), ...camAt('gate', 1.8)], [at0('x2', 1), 1000, 80, 80, 1.7, 1400, 620],
+  [at0('m1', 1), 95, 120, 50, 1.85, 1260, 600], [at0('k1', 1), 300, 110, 60, 1.25, 1250, 620], [at0('k1', B.k1.S.why + .2), 300, 110, 60, 1.25, 1250, 620], [at0('k1', B.k1.S.why + 1.5), 95, 90, 50, 1.8, 1260, 620], [at0('m2', 1), 500, 170, 60, 1.5, 1390, 560],
+  [at0('m3', 1), 545, 120, 80, 1.65, 1250, 640], [at0('p1', 1), 752, 96, 60, 2.3, 1260, 640], [at0('p2', 1), 960, 120, 50, 1.55, 1270, 620],
+  [at0('c1', 1), 1030, 90, 50, 2.05, 1340, 600], [at0('c3', 1), ...camAt('arena', 1.9)], [at0('g1', 1), ...camAt('gate', 1.8)],
+  [at0('i1', 1), 1600, -20, 60, 2, 1300, 660], [at0('i1', 15.2), 1600, -20, 60, 2, 1300, 660], [at0('i1', 17.4), 660, 170, 40, 1.8, 1260, 560],
+  [at0('x0', .6), ...FULL], [at0('x1', 1), ...camAt('gate', 1.8)], [at0('x2', 1), 1530, 150, 80, 1.95, 1330, 600],
   [at0('x3', 1), ...camAt('rack', 1.9)], [at0('res', 1), 1560, 130, 60, 1.8, 1340, 600], [at0('close', 1), ...FULL],
 ];
 const TRAVEL = 1.3;
@@ -180,7 +177,7 @@ function p2(sp) {
   cache.set(sp, o); return o;
 }
 const lineCache = new Map();
-const lp = d => { let o = lineCache.get(d); if (!o) { o = new Path2D(d); lineCache.set(d, o); } return o; };
+const lp = d => { let o = lineCache.get(d); if (!o) { if (lineCache.size > 4000) lineCache.clear(); o = new Path2D(d); lineCache.set(d, o); } return o; };
 
 // ---- painting. e is emphasis (1 focused, lower dims), acc an accent colour, g its strength 0..1
 let ctx, ZOOM = 1, DPR = 1, GA = 1;
@@ -239,10 +236,10 @@ const Z0 = 22;
 
 // ---- emphasis: which stations a beat lights
 // The opening answers the three problems one row at a time, each lighting its station.
-const OPEN_FOCUS = [['drawers', 'kernel'], ['gate', 'cx'], ['line', 'cc']];
-const FOCUS = {open: null, f1: ['kernel', 'cc'], f2: ['rack', 'cc'], f3: ['drawers', 'cc'], f4: ['kernel', 'rack', 'drawers', 'cc', 'cx'], p1: ['plan', 'cc'],
+const OPEN_FOCUS = [['drawers'], ['gate', 'cx', 'cc'], ['line', 'cc']];
+const FOCUS = {open: null, m1: ['kernel', 'cc'], k1: ['kernel', 'drawers', 'cc'], m2: ['drawers', 'cc'], m3: ['drawers', 'cc', 'cx'], p1: ['plan', 'cc'],
   p2: ['line', 'plan', 'cc'], c1: ['line', 'cc'], c3: ['arena', 'cc'], g1: ['gate', 'cc', 'cx'], i1: ['back', 'drawers', 'gate'], x0: null, x1: ['gate', 'cc', 'cx'],
-  x2: ['plan', 'line', 'cc', 'cc2'], x3: ['rack', 'cx'], res: ['gate', 'cx'], close: null};
+  x2: ['gate', 'cc', 'cc2'], x3: ['rack', 'cx'], res: ['gate', 'cx'], close: null};
 function emphasis(t, name) {
   if (t < B.open.start + B.open.dur) {
     const u = local('open', t); let v = 1;
@@ -302,28 +299,37 @@ const HEADS = {
 function headKeys() {
   const K = (h, id, u, x, y, z, on = 1) => HEADS[h].keys.push([at(id, u), x, y, z, on]);
   const K0 = (h, id, u, x, y, z, on = 1) => HEADS[h].keys.push([at0(id, u), x, y, z, on]); // u in beat seconds
-  const S4 = B.f4.S, SX = B.x2.S;
+  const dip = (h, id, u, x, y, hi, lo) => { K0(h, id, u - .22, x, y, hi); K0(h, id, u, x, y, lo); K0(h, id, u + .22, x, y, hi); };
   const park = (h, id, u, x) => K(h, id, u, x, -20, 140, 1);
+  const M1 = B.m1.S, KS = B.k1.S, M2 = B.m2.S, M3 = B.m3.S, P1 = B.p1.S, C = B.c1.S, X3 = B.x3.S, L = lineScript();
   // Claude Code
   park('cc', 'open', 0, -10); K('cc', 'open', 4, 400, 60, 150); K('cc', 'open', 8, 60, 90, 140);
-  // f1: three sessions read the kernel
-  for (let s = 0; s < 3; s++) { K('cc', 'f1', .8 + s * 1.9, 85, 90, 120); K('cc', 'f1', 1.3 + s * 1.9, 85, 90, 60); K('cc', 'f1', s < 2 ? 2.1 + s * 1.9 : 6.6, 85, 90, s < 2 ? 120 : 60); }
-  // f2: to the rack, over the cartridge that lifts
-  K('cc', 'f2', .9, 300, 110, 140); K('cc', 'f2', 1.6, 300, 110, 140); K('cc', 'f2', 4.4, 300, 110, 140);
-  // f3: build four blocks, snag, save, next session reads pitfalls first and builds all four
-  K('cc', 'f3', .4, 470, 212, 70); for (let j = 0; j < 3; j++) { K('cc', 'f3', .7 + j * .45, 466 + j * 36, 212, 52); K('cc', 'f3', .9 + j * .45, 466 + j * 36, 212, 70); }
-  K('cc', 'f3', 2.3, 540, 212, 62); K('cc', 'f3', 3.4, 540, 212, 80);
-  K('cc', 'f3', 4.6, 556, 150, 110); K('cc', 'f3', 5.1, 556, 165, 100);
-  for (let j = 0; j < 4; j++) { K('cc', 'f3', 5.6 + j * .35, 466 + j * 36, 212, 52); K('cc', 'f3', 5.75 + j * .35, 466 + j * 36, 212, 70); }
-  // f4: read CLAUDE.md, then .claude/reference once Codex has joined
-  K0('cc', 'f4', 1.2, 70, 70, 80); K0('cc', 'f4', S4.ans + .4, 70, 70, 80); K0('cc', 'f4', S4.how - .3, 540, 110, 170); K0('cc', 'f4', B.f4.dur, 540, 110, 170);
-  // p1: drop facts in the tray, then wait while you decide
-  K('cc', 'p1', .6, 700, 80, 90); for (let j = 0; j < 3; j++) { K('cc', 'p1', 1 + j * .55, 692 + (j % 2) * 12, 74 + j * 8, 72); K('cc', 'p1', 1.25 + j * .55, 692, 80, 92); }
-  K('cc', 'p1', 3.2, 640, 40, 150); K('cc', 'p1', 7.6, 640, 40, 150);
-  // p2: over the line while it runs
-  K('cc', 'p2', 1.2, 1006, 118, 140); K('cc', 'p2', 6.5, 1006, 118, 140);
-  // c1: the worker at the press, dipping for each of its two presses
-  K0('cc', 'c1', .6, 1006, 118, 120); for (const p of C1.press) { K0('cc', 'c1', p - .3, 1006, 118, 120); K0('cc', 'c1', p + .1, 1006, 118, 100); K0('cc', 'c1', p + .5, 1006, 118, 120); } K0('cc', 'c1', B.c1.dur, 1006, 118, 120);
+  // m1: reads the plate; checks step 1 before DONE; /init-project reads the repo files and fills two sections; step 2: DONE, no check
+  K0('cc', 'm1', .9, 85, 70, 72); K0('cc', 'm1', M1.ans - .5, 85, 70, 72); K0('cc', 'm1', M1.ans, 33, 183, 62); K0('cc', 'm1', M1.ans + 1, 33, 183, 62); dip('cc', 'm1', M1.ans + 1.3, 33, 183, 62, 44);
+  K0('cc', 'm1', M1.how + .3, 165, 206, 52); K0('cc', 'm1', M1.how + 1.7, 165, 206, 52); K0('cc', 'm1', M1.how + 2.1, 110, 82, 50); K0('cc', 'm1', M1.why + .1, 110, 82, 50);
+  K0('cc', 'm1', M1.why + .7, 85, 70, 72); K0('cc', 'm1', M1.ro0 - 1.3, 85, 70, 72); K0('cc', 'm1', M1.ro0 - .9, 33, 183, 62); dip('cc', 'm1', M1.ro0 - .55, 33, 183, 62, 44); K0('cc', 'm1', B.m1.dur, 33, 183, 62);
+  // k1: reads the short plate; /recall opens the deployment drawer for the task; back to the plate each turn
+  K0('cc', 'k1', .9, 85, 70, 80); K0('cc', 'k1', KS.how, 85, 70, 80); K0('cc', 'k1', KS.how + .5, 482, 196, 96); K0('cc', 'k1', KS.how + 2.6, 482, 196, 96);
+  K0('cc', 'k1', KS.why + .3, 85, 70, 80); K0('cc', 'k1', B.k1.dur, 85, 70, 80);
+  // m2: builds four blocks; the third fails twice, its cause is confirmed, it passes; the next session reads pitfalls.md first
+  const bx = j => 467 + j * 36, M2T = m2Times();
+  K0('cc', 'm2', .6, bx(0), 213, 70); for (const [j, u] of M2T.s1) dip('cc', 'm2', u, bx(j), 213, 70, 52);
+  K0('cc', 'm2', 4.5, bx(2), 213, 84); K0('cc', 'm2', 6.4, bx(2), 213, 84);
+  K0('cc', 'm2', M2T.s1.at(-1)[1] + .8, 560, 188, 112); K0('cc', 'm2', M2.ro0 - 1, 560, 188, 112); K0('cc', 'm2', M2.ro0 - .6, 560, 196, 100); K0('cc', 'm2', M2.ro0 + .6, 560, 196, 100);
+  for (const [j, u] of M2T.s2) dip('cc', 'm2', u, bx(j), 213, 70, 52); K0('cc', 'm2', B.m2.dur, bx(3), 213, 70);
+  // m3: files a lesson into pitfalls.md, then leaves (switch tools)
+  K0('cc', 'm3', .6, 530, 186, 112); dip('cc', 'm3', 2.1, 530, 186, 112, 94); K0('cc', 'm3', M3.why, 530, 186, 112); K0('cc', 'm3', M3.why + 1.1, 200, -20, 140); K0('cc', 'm3', B.m3.dur, 200, -20, 140);
+  // p1: asks each question over the desk; drops the two assumptions into ASSUMED
+  K0('cc', 'p1', .6, 712, 92, 104); K0('cc', 'p1', P1.how, 712, 92, 104);
+  K0('cc', 'p1', P1.how + .3, 787, 76, 92); K0('cc', 'p1', P1.how + .6, 787, 76, 76); K0('cc', 'p1', P1.how + .9, 787, 94, 90); K0('cc', 'p1', P1.how + 1.25, 787, 94, 76);
+  K0('cc', 'p1', P1.how + 1.8, 760, 40, 150); K0('cc', 'p1', B.p1.dur, 760, 40, 150);
+  // p2 and c1: the worker over the press, dipping for each press
+  K0('cc', 'p2', .8, 1006, 118, 120); for (const r of L.p2.runs) dip('cc', 'p2', r.press + .1, 1006, 118, 120, 100); K0('cc', 'p2', B.p2.dur, 1006, 118, 120);
+  K0('cc', 'c1', .5, 913, 53, 104); K0('cc', 'c1', 2.3, 913, 53, 104); K0('cc', 'c1', 3.5, 1006, 118, 120);
+  for (const r of L.c1.runs) dip('cc', 'c1', r.press + .1, 1006, 118, 120, 100);
+  // c1: the worker reaches over and touches the check it is graded by
+  K0('cc', 'c1', C.how + .1, 1006, 118, 120); K0('cc', 'c1', C.how + .6, 1142, 70, 70); K0('cc', 'c1', C.how + .85, 1142, 70, 58); K0('cc', 'c1', C.how + 1.2, 1142, 70, 70);
+  K0('cc', 'c1', C.how + 1.9, 1006, 118, 120); K0('cc', 'c1', B.c1.dur, 1006, 118, 120);
   // c3: build the three candidates
   for (let j = 0; j < 3; j++) { K('cc', 'c3', .5 + j * .7, 1226 + j * 58, 140, 90); K('cc', 'c3', .85 + j * .7, 1226 + j * 58, 140, 70); }
   K('cc', 'c3', 3, 1200, 40, 150); K('cc', 'c3', 6.5, 1200, 40, 150);
@@ -334,22 +340,24 @@ function headKeys() {
   // x1: Claude Code's PR first, then Claude Code reviews Codex's
   K('cc', 'x1', .4, 1430, 140, 70); K('cc', 'x1', 1.2, 1430, 140, 70); K('cc', 'x1', 1.8, 1400, 30, 150);
   K('cc', 'x1', 4.2, 1500, 100, 150); K('cc', 'x1', 4.6, 1500, 140, 120); K('cc', 'x1', 6.4, 1500, 140, 120); K('cc', 'x1', 7.2, 1400, 30, 150);
-  // x2: chat A over the desk; once agreed, each does its own step where it is and both stay to the end
-  K('cc', 'x2', .5, 820, 110, 130); K0('cc', 'x2', SX.ro0 + .4, 820, 110, 130); K0('cc', 'x2', SX.ro0 + 1, 790, 100, 96); K0('cc', 'x2', SX.ro0 + 1.8, 790, 100, 96); K0('cc', 'x2', SX.ro0 + 2.4, 820, 110, 130);
-  park('cc', 'x3', .6, 160); park('cc', 'x3', B.x3.dur, 160); park('cc', 'close', .5, 700); K('cc', 'close', 3.5, 1006, 118, 120); K('cc', 'close', 6.5, 1430, 140, 90);
-  // Codex: joins in f4 with its readout and stays over AGENTS.md to the end of the beat, reviews at the gate,
-  // writes in x1 and leaves before x2 (two Claude Code chats), returns over its lagging skill in x3
-  K('cx', 'open', 0, -60, -20, 140, 0); K0('cx', 'f4', S4.ro0 - .6, -60, -20, 140, 0); K0('cx', 'f4', S4.ro0, 30, 70, 140, 1); K0('cx', 'f4', S4.ro0 + .5, 30, 136, 80);
-  K0('cx', 'f4', B.f4.dur, 30, 136, 80);
-  K('cx', 'p1', .5, 200, -20, 140); K('cx', 'c3', 6.6, 200, -20, 140); K('cx', 'g1', 0, 1660, -20, 140); K('cx', 'x1', 2.6, 1600, -20, 140);
+  // x2: chat A over the gate, reading the PR diff, CI and main
+  K0('cc', 'x2', .9, 1440, 96, 128); K0('cc', 'x2', B.x2.dur, 1440, 96, 128);
+  park('cc', 'x3', .6, 160); park('cc', 'x3', B.x3.dur, 160);
+  // close: the rule plate, the pitfalls drawer, the gate
+  K0('cc', 'close', .6, 85, 70, 90); K0('cc', 'close', 1.6, 85, 70, 90); K0('cc', 'close', 2.6, 560, 188, 112); K0('cc', 'close', 3.6, 560, 188, 112); K0('cc', 'close', 4.8, 1430, 140, 90);
+  // Codex: off until m3, where it saves its own lesson and recalls Claude Code's; reviews at the gate from g1; writes in x1 and
+  // leaves before x2 (two Claude Code chats); ports skills in x3
+  K('cx', 'open', 0, -60, -20, 140, 0); K0('cx', 'm3', M3.ans - .9, 760, -20, 140, 0); K0('cx', 'm3', M3.ans - .1, 600, 60, 140, 1); K0('cx', 'm3', M3.ans + .6, 592, 186, 126);
+  dip('cx', 'm3', M3.how + .7, 592, 186, 126, 112); K0('cx', 'm3', M3.ro0 - .6, 592, 186, 126); K0('cx', 'm3', M3.ro0 - .2, 584, 196, 104);
+  K0('cx', 'm3', B.m3.dur - .35, 584, 196, 104, 1); K0('cx', 'm3', B.m3.dur - .02, 584, 196, 104, 0);
+  K0('cx', 'p1', .5, 1660, -20, 140, 0); K('cx', 'g1', 0, 1660, -20, 140, 0); K('cx', 'g1', .4, 1660, -20, 140, 1); K0('cx', 'i1', .2, 1660, -20, 140); K0('cx', 'i1', 1.2, 1704, -56, 158); K0('cx', 'x0', 3, 1704, -56, 158); K('cx', 'x1', 2.6, 1600, -20, 140);
   K('cx', 'x1', 3.2, 1430, 140, 70); K('cx', 'x1', 4, 1430, 140, 70); K('cx', 'x1', 4.4, 1620, 30, 150);
   K0('cx', 'x1', B.x1.dur - .9, 1620, 30, 150); K0('cx', 'x1', B.x1.dur - .1, 1660, -20, 140, 0);
-  K0('cx', 'x3', .2, 200, 60, 140, 0); K0('cx', 'x3', 1.2, 321, 70, 140, 1); K0('cx', 'x3', B.x3.dur, 321, 70, 140); K('cx', 'close', 1, 1660, -20, 140);
-  // A second Claude Code session for /coordinate
-  // Nothing of it shows before x2: it slides in when you name it and stays until x2 ends.
-  K('cc2', 'open', 0, 1700, -20, 140, 0); K0('cc2', 'x2', SX.ans - .9, 1300, -20, 140, 0); K0('cc2', 'x2', SX.ans, 1150, 40, 140, 1); K0('cc2', 'x2', SX.ans + .9, 1006, 118, 130);
-  K0('cc2', 'x2', SX.ro0 + .4, 1006, 118, 130); K0('cc2', 'x2', SX.ro0 + 1, 1006, 118, 104); K0('cc2', 'x2', SX.ro0 + 1.8, 1006, 118, 104); K0('cc2', 'x2', SX.ro0 + 2.4, 1006, 118, 130);
-  K0('cc2', 'x2', B.x2.dur, 1006, 118, 130); K0('cc2', 'x3', .9, 1400, -20, 140, 0);
+  K0('cx', 'x3', .2, 200, 60, 140, 0); K0('cx', 'x3', 1.2, 240, 70, 128, 1); K0('cx', 'x3', X3.ans, 240, 70, 120); K0('cx', 'x3', X3.ans + 1.4, 380, 70, 120);
+  K0('cx', 'x3', X3.how, 321, 40, 150); K0('cx', 'x3', B.x3.dur, 321, 40, 150); K('cx', 'close', 1, 1660, -20, 140);
+  // A second Claude Code chat for /coordinate: nothing of it shows outside x2
+  K('cc2', 'open', 0, 1720, -20, 140, 0); K0('cc2', 'x2', .3, 1720, -20, 140, 0); K0('cc2', 'x2', 1.3, 1612, 40, 140, 1); K0('cc2', 'x2', 1.9, 1612, 96, 128);
+  K0('cc2', 'x2', B.x2.dur - .3, 1612, 96, 128, 1); K0('cc2', 'x2', B.x2.dur - .02, 1612, 96, 128, 0);
   for (const h of Object.values(HEADS)) h.keys.sort((a, b) => a[0] - b[0]);
 }
 function headAt(h, t) {
@@ -374,380 +382,494 @@ function drawArm(h, t) {
 }
 
 // ---- stations
-// Kernel: CLAUDE.md and AGENTS.md as two engraved plates on a plinth.
+// Time helpers in beat seconds: is t inside beat id; a window that rises at a and falls at b.
+const live = (id, t) => { const n = t - B[id].start; return n >= 0 && n < B[id].dur; };
+const win = (n, a, b, fi = .3, fo = .4) => sm((n - a) / fi) * (1 - sm((n - b) / fo));
+const arc = (p, q, f, h = 30) => [lerp(p[0], q[0], f), lerp(p[1], q[1], f), lerp(p[2], q[2], f) + Math.sin(Math.PI * f) * h];
+const card = (p, w, d, {e = 1, col = GREEN, g = .8, alpha = 1} = {}) => paint(dyn(p[0] - w / 2, p[1] - d / 2, w, d, p[2], 1.5, 1), {e, tone: 'hi', acc: col, g, alpha});
+
+// Kernel: the template's CLAUDE.md plate (its evidence-before-done rule, two more rule lines, the two sections /init-project
+// fills, the reference index) and AGENTS.md, on a plinth. In m1 a step on the strip in front shows the rule at work: step 1
+// is checked, then DONE; step 2 is stamped DONE with its check lamp dark, and the rule flags the risk.
 function drawKernel(t) {
-  const e = emphasis(t, 'kernel'), u = local('f1', t);
-  // Three chats read the kernel; the third read holds to the end of the beat under its readout.
-  let read = 0; for (let s = 0; s < 3; s++) read = Math.max(read, sm((u - 1.2 - s * 1.9) / .25) * (1 - sm((u - (s < 2 ? 1.9 + s * 1.9 : 6.4)) / .3)));
-  // f4: Claude Code reads CLAUDE.md until it moves to the drawers; Codex reads AGENTS.md from its readout to the end.
-  const u4 = nloc('f4', t), S4 = B.f4.S; read = Math.max(read, sm((u4 - 1.6) / .3) * (1 - sm((u4 - S4.ans - .4) / .4)));
+  const e = emphasis(t, 'kernel'), n = nloc('m1', t), nk = nloc('k1', t), M = B.m1.S, KS = B.k1.S, L1 = live('m1', t), Lk = live('k1', t);
+  const fill = [M.how + 2.2, M.how + 2.8], prune = KS.how + 1.9, zt = Z0 + 26;
+  const read = L1 ? Math.max(win(n, 1, M.ans - .4), win(n, M.why + .6, M.ro0 - 1.3)) : Lk ? Math.max(win(nk, 1, KS.how - .1), win(nk, KS.why + .4, 99)) : 0;
+  const rule = L1 ? win(n, M.ans, M.how + .2) : 0, risk = L1 ? sm((n - M.ro0 + .35) / .25) : 0, closeRule = live('close', t) ? sm((nloc('close', t) - .6) / .4) : 0;
   paint(box(0, 20, 170, 150, Z0, 22, 6, 1.4, 6), {e, tone: 'mid'});
   for (const [x, y] of k.corners({x: 0, y: 20, w: 170, d: 150}, 7)) dot([x, y, Z0 + 22], 1.4, CREAM, .4 * e);
-  paint(box(12, 32, 146, 74, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: GREEN, g: read * .9});
-  const n1 = nloc('f1', t) - B.f1.S.how - 1.2, cx4 = sm((u4 - S4.ro0 - .4) / .3) * (1 - sm((u4 - B.f4.dur) / .4)), agents = Math.max(cx4, sm(n1 / .3) * (1 - sm((n1 - 1.6) / .4)));
-  paint(box(12, 114, 146, 44, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: AMBER, g: agents * .9});
-  faceText('CLAUDE.md', [20, 42, Z0 + 26], {size: 8, a: .75, e});
-  faceText('AGENTS.md', [20, 124, Z0 + 26], {size: 8, a: .75, e});
-  for (let r = 0; r < 6; r++) line(k.lineOnTop([20, 54 + r * 8], [20 + 60 + ((r * 37) % 60), 54 + r * 8], Z0 + 26, P), {e, tone: 'lo'});
-  for (let r = 0; r < 3; r++) line(k.lineOnTop([20, 134 + r * 8], [20 + 50 + ((r * 41) % 70), 134 + r * 8], Z0 + 26, P), {e, tone: 'lo'});
-  if (read > 0) { const sy = 50 + ((u * 60) % 54); line(k.lineOnTop([14, sy], [156, sy], Z0 + 26.2, P), {e, col: GREEN, a: read * .9, w: 1.6, g: read * .6}); }
-  if (cx4 > 0) { const sy = 118 + ((u4 * 30) % 36); line(k.lineOnTop([14, sy], [156, sy], Z0 + 26.2, P), {e, col: AMBER, a: cx4 * .9, w: 1.6, g: cx4 * .6}); }
+  paint(box(12, 32, 146, 74, Z0 + 22, 4, 3, .8), {e, tone: 'hi', acc: GREEN, g: read * .7});
+  paint(box(12, 114, 146, 44, Z0 + 22, 4, 3, .8), {e, tone: 'hi'});
+  faceText('CLAUDE.md', [20, 40, zt], {size: 8, a: .75, e});
+  faceText('AGENTS.md', [20, 124, zt], {size: 8, a: .6, e});
+  for (let r = 0; r < 3; r++) line(k.lineOnTop([20, 134 + r * 8], [20 + 50 + ((r * 41) % 70), 134 + r * 8], zt, P), {e, tone: 'lo'});
+  // The evidence-before-done rule: green while the answer names it, amber when it flags the unchecked DONE.
+  const rg = Math.max(rule, risk, closeRule), rc = risk > .5 ? AMBER : GREEN;
+  if (rg > .01) paint(dyn(16, 47.5, 138, 9, zt, .6, 1), {e, tone: 'hi', acc: rc, g: rg});
+  faceText('EVIDENCE BEFORE DONE', [20, 52, zt + .8], {size: 5.2, a: .55 + .4 * rg, e, col: rg > .2 ? rc : CREAM});
+  line(k.lineOnTop([20, 60], [104, 60], zt, P), {e, tone: 'lo'});
+  // A stale line: struck and lifted out in k1, gone after.
+  const st = nk - prune, gone = sm((st - .9) / .6);
+  if (gone < 1) {
+    const z = zt + 24 * gone, hot = st > 0 ? 1 - gone : 0;
+    line(k.lineOnTop([20, 66], [82, 66], z, P), {e, col: hot ? AMBER : CREAM, a: hot ? .95 * hot : TONE.lo, w: hot ? 2.2 : 1, g: .7 * hot});
+    if (st > .3) line(k.lineOnTop([17, 66], [17 + 68 * sm((st - .3) / .4), 66], z + .3, P), {e, col: AMBER, a: .95 * (1 - gone), w: 1.4});
+  }
+  // The two sections /init-project fills: verification signal and deploy policy.
+  [['VERIFY SIGNAL', 77, fill[0]], ['DEPLOY POLICY', 88, fill[1]]].forEach(([lab, y, a]) => {
+    const f = sm((n - a) / .5), hot = L1 ? win(n, a - .2, M.why + .9) : 0;
+    faceText(lab, [20, y, zt], {size: 4.4, a: .62, e});
+    line(k.planOutline({x: 72, y: y - 4, w: 80, d: 8, r: 1}, zt + .2, P, 2), {e, col: f > .5 ? GREEN : AMBER, a: .45 + .45 * hot, g: .4 * hot});
+    if (f < 1) faceText('FILL IN', [76, y, zt + .3], {size: 4, a: .7 * (1 - f), e, col: AMBER});
+    if (f > 0) for (let r = 0; r < 2; r++) line(k.lineOnTop([76, y - 1.5 + r * 3], [76 + (r ? 44 : 66) * f, y - 1.5 + r * 3], zt + .4, P), {e, col: GREEN, a: .85, w: 1.2, g: hot * .5});
+  });
+  faceText('REFERENCE INDEX', [20, 99, zt], {size: 4.2, a: .5 + .4 * (Lk ? win(nk, KS.ans, KS.how + .4) : 0), e, col: Lk && win(nk, KS.ans, KS.how + .4) > .3 ? GREEN : CREAM});
+  if (read > 0) { const sy = 46 + (((L1 ? n : nk) * 40) % 58); line(k.lineOnTop([14, sy], [156, sy], zt + .5, P), {e, col: GREEN, a: read * .9, w: 1.6, g: read * .6}); }
+  // k1: the index points into the reference drawers.
+  if (Lk) { const c = win(nk, KS.ans + .2, 99); if (c > .01) { line(k.onTop([[150, 100], [196, 100]], zt, P), {e, col: GREEN, a: .7 * c, w: 1.3, g: .4 * c});
+    line(k.onTop([[196, 100], [196, 186], [482, 186], [482, 156]], Z0 + .6, P), {e, col: GREEN, a: .55 * c, w: 1.3, g: .3 * c});
+    for (let j = 0; j < 2; j++) { const f = ((nk - KS.ans) * .35 + j / 2) % 1, x = f < .5 ? lerp(196, 482, f * 2) : 482, y = f < .5 ? 186 : lerp(186, 156, (f - .5) * 2); spark([x, y, Z0 + 1], 14, GREEN, .7 * c); } } }
+  if (!L1) return;
+  // m1: the repo files /init-project reads, and the step strip.
+  const fin = sm(n / .6), hd = headAt('cc', t);
+  for (let j = 0; j < 3; j++) {
+    const g = win(n, M.how + .3 + j * .3, M.how + 1.9);
+    paint(box(140 + j * 25, 194, 20, 24, Z0, 6, 1.5), {e, tone: 'mid', acc: GREEN, g: g * .8, alpha: fin});
+    for (let r = 0; r < 3; r++) line(k.lineOnTop([143 + j * 25, 199 + r * 6], [143 + j * 25 + 8 + (r * 5) % 7, 199 + r * 6], Z0 + 6, P), {e, tone: 'mid', a: .5 * fin});
+  }
+  faceText('REPO FILES', [141, 226, Z0], {size: 4.6, a: .6 * fin, e});
+  if (hd) for (let j = 0; j < 3; j++) { const f = clamp((n - M.how - .5 - j * .35) / .7); if (f > 0 && f < 1) spark(arc([150 + j * 25, 206, Z0 + 6], [hd[0], hd[1], hd[2]], f, 20), 14, GREEN, .9); }
+  const s1 = win(n, M.ans - .5, M.how + .3, .3, .3), s2 = sm((n - M.ro0 + 1.6) / .3), lamp = win(n, M.ans + .4, M.how + .3);
+  paint(cyl(62, 184, 5, Z0, 5, 16), {e, tone: lamp > .1 ? 'hi' : 'mid', acc: GREEN, g: lamp});
+  if (lamp > .05) spark([62, 184, Z0 + 5], 16, GREEN, .6 * lamp);
+  faceText('CHECK', [53, 191, Z0 + 3], {size: 3.8, face: 'front', a: .6, e});
+  for (const [a, done, col] of [[s1, sm((n - M.ans - 1.3) / .2), GREEN], [s2, sm((n - M.ro0 + .55) / .2), risk > .5 ? AMBER : CREAM]]) {
+    if (a <= .01) continue;
+    paint(dyn(24, 176, 18, 16, Z0, 12, 2), {e, tone: 'hi', acc: col, g: .5, alpha: a});
+    if (done > 0) faceText('DONE', [25, 184, Z0 + 12.2], {size: 5, a: .95 * done * a, e, col});
+  }
+  if (risk > 0) {
+    paint(dcyl(88, 184, 1.2, Z0, 40 * risk, 8), {e, tone: 'mid'});
+    paint(dyn(89, 183.4, 22, 1.6, Z0 + 26 * risk, 12, .5), {e, tone: 'hi', acc: AMBER, g: .9, alpha: risk});
+    faceText('RISK', [91, 185, Z0 + 26 * risk + 9], {size: 5, face: 'front', a: .95 * risk, e, col: AMBER});
+  }
 }
-// Skill rack: front row .claude/skills, back row .agents/skills (Codex versions); two back slots
-// hold a small registration tag instead (skills registered as Claude only).
-const RACK_N = 11, RACK_X = i => 230 + i * 14.5, CLAUDE_ONLY = [3, 8];
+// Skill rack: front row .claude/skills, back row .agents/skills (the hand-translated Codex ports); two back slots hold a
+// small tag instead (skills disabled for Codex). In x3 Codex ports the back row, a hash chip lights under each Claude skill
+// (its recorded baseline), CI sweeps clean once; then one Claude skill is edited, its hash no longer matches, its port lags
+// and the next CI sweep flags it, to the end of the beat.
+const RACK_N = 11, RACK_X = i => 230 + i * 14.5, CLAUDE_ONLY = [3, 8], EDITED = 6;
 function drawRack(t) {
-  const e = emphasis(t, 'rack'), u = local('f2', t), lift = sm((u - 1.5) / .8) * (1 - sm((u - 5) / .7)), unf = sm((u - 2.2) / .7) * (1 - sm((u - 4.7) / .5));
-  // x3: a fix lands in one Claude skill (front row); its Codex version (back row) lags and sinks; CI sweeps the
-  // back row on every push, finds it on the first sweep and keeps it flagged to the end of the beat.
-  const n4 = nloc('f4', t), ux = nloc('x3', t), X = B.x3.S, live = 1 - sm((ux - B.x3.dur) / .5);
-  const fix = sm((ux - X.ans + .4) / .3) * (1 - sm((ux - X.ans - 1.6) / .5)), drift = sm((ux - X.ans - .2) / .5) * live;
-  const sweeps = [X.ans + .7, X.how + 1, X.why - .2, X.ro0 + 1], SWEEP = 1.4, hit = sweeps[0] + SWEEP * (RACK_X(6) + 4.5 - 226) / 162;
-  const flag = sm((ux - hit) / .2) * live, sweep = sweeps.map(a => (ux - a) / SWEEP).find(f => f >= 0 && f < 1);
-  const twin = Math.max(sm((n4 - B.f4.S.how - .8) / .5) * (1 - sm((n4 - B.f4.dur) / .5)), sm(ux / .5) * live);
+  const e = emphasis(t, 'rack'), ux = nloc('x3', t), X = B.x3.S, L = live('x3', t);
+  const ports = i => L ? sm((ux - X.ans - .1 - i * .12) / .3) : 0, hash = i => L ? sm((ux - X.how - .1 - i * .08) / .3) : 0;
+  const fix = L ? win(ux, X.why + .2, X.why + 1.6) : 0, edited = L ? sm((ux - X.why - .7) / .3) : 0, drift = L ? sm((ux - X.why - .8) / .5) : 0;
+  const sweeps = [X.how + 1.4, X.why + 1.2, X.ro0 + .9, X.ro0 + 2.4], SWEEP = 1.4, hit = sweeps[1] + SWEEP * (RACK_X(EDITED) + 4.5 - 226) / 162;
+  const flag = L ? sm((ux - hit) / .2) : 0, sweep = L ? sweeps.map(a => (ux - a) / SWEEP).find(f => f >= 0 && f < 1) : null;
   paint(box(220, 28, 172, 146, Z0, 10, 4, 1, 4), {e, tone: 'mid'});
-  // CI post at the back left of the rack: its lamp checks the back row against the front.
-  const ciOn = sm(ux / .5) * live, lampG = Math.max(sweep != null ? .7 : 0, flag * (.75 + .25 * Math.sin(t * 5)));
+  // CI post at the back left of the rack: its lamp checks the back row against the recorded hashes.
+  const ciOn = L ? sm(ux / .5) : 0, lampG = Math.max(sweep != null ? .7 : 0, flag * (.75 + .25 * Math.sin(t * 5)));
   paint(cyl(198, 40, 3.5, Z0, 80, 14), {e, tone: 'mid'});
   paint(cyl(198, 40, 8, Z0 + 80, 10, 20), {e, tone: 'hi', acc: flag > .5 ? AMBER : GREEN, g: lampG * ciOn});
   if (lampG * ciOn > .05) spark([198, 40, Z0 + 86], 30, flag > .5 ? AMBER : GREEN, .6 * lampG * ciOn * e);
   paint(box(202, 38, 20, 3, Z0 + 62, 14, .8), {e, tone: 'mid'});
-  faceText('CI', [205, 41, Z0 + 69], {size: 9, face: 'front', a: .8, e, col: flag > .5 && ciOn > .5 ? AMBER : CREAM});
+  faceText('CI', [205, 41, Z0 + 69], {size: 9, face: 'front', a: .8, e, col: flag > .5 ? AMBER : CREAM});
   paint(box(220, 28, 172, 8, Z0 + 10, 44, 2, .6), {e, tone: 'mid'});
-  faceText('.agents/skills', [226, 40, Z0 + 10], {size: 5.5, a: .55, e, col: twin ? AMBER : CREAM});
+  faceText('.agents/skills', [226, 40, Z0 + 10], {size: 5.5, a: .55, e, col: ports(0) > .5 ? AMBER : CREAM});
   faceText('.claude/skills', [226, 170, Z0 + 10.2], {size: 5.5, a: .55, e});
   for (let i = 0; i < RACK_N; i++) {
     const x = RACK_X(i);
     if (CLAUDE_ONLY.includes(i)) paint(box(x, 52, 9, 16, Z0 + 10, 6, 1), {e, tone: 'lo'});
     else {
-      const dr = i === 6 ? drift : 0;
-      paint(dr > .01 ? dyn(x, 46, 9, 50, Z0 + 10, 40 - 12 * dr, 1.2) : box(x, 46, 9, 50, Z0 + 10, 40, 1.2), {e, tone: 'mid', acc: AMBER, g: twin * .5 + dr * .8});
-      if (i === 6 && flag > .01) spark([x + 4.5, 70, Z0 + 44], 30, AMBER, .7 * flag);
+      const dr = i === EDITED ? drift : 0;
+      paint(dr > .01 ? dyn(x, 46, 9, 50, Z0 + 10, 40 - 12 * dr, 1.2) : box(x, 46, 9, 50, Z0 + 10, 40, 1.2), {e, tone: 'mid', acc: AMBER, g: ports(i) * .5 + dr * .8});
+      if (i === EDITED && flag > .01) spark([x + 4.5, 70, Z0 + 44], 30, AMBER, .7 * flag);
     }
   }
-  // The sweep: a bar of light along the back row; the beam from the lamp to the flagged slot.
   if (sweep != null) { const sx = 226 + 162 * sweep, a = Math.sin(Math.PI * sweep);
     line(k.segment([sx, 44, Z0 + 53], [sx, 98, Z0 + 53], P), {e, col: GREEN, a: .9 * a, w: 2, g: .6 * a}); spark([sx, 70, Z0 + 53], 18, GREEN, .5 * a); }
-  if (flag > .01) line(k.segment([198, 40, Z0 + 86], [RACK_X(6) + 4.5, 70, Z0 + 38], P), {e, col: AMBER, a: .8 * flag, w: 1.4, g: .5 * flag});
+  if (flag > .01) line(k.segment([198, 40, Z0 + 86], [RACK_X(EDITED) + 4.5, 70, Z0 + 38], P), {e, col: AMBER, a: .8 * flag, w: 1.4, g: .5 * flag});
   for (let i = 0; i < RACK_N; i++) {
-    const x = RACK_X(i), up = i === 5 ? lift * 70 : 0;
-    paint(i === 5 ? dyn(x, 104, 9, 56, Z0 + 10 + up, 46, 1.2) : box(x, 104, 9, 56, Z0 + 10, 46, 1.2), {e, tone: i === 5 || (i === 6 && fix > .05) ? 'hi' : 'mid', acc: GREEN, g: i === 5 ? lift : i === 6 ? fix : 0});
-    line(k.lineOnTop([x + 4.5, 110], [x + 4.5, 110 + 14 + (i * 7) % 24], Z0 + 56 + up, P), {e, tone: 'lo'});
-    if (i === 5 && unf > 0) {
-      // The full guide unfolds: a sheet of rule lines rises out of the lifted cartridge.
-      const hgt = 70 * unf;
-      paint(dyn(x - 40, 120, 90, 2, Z0 + 56 + up, hgt, .5), {e, tone: 'hi', acc: GREEN, g: .5});
-      for (let r = 0; r < 8; r++) { const z = Z0 + 56 + up + hgt - 8 - r * 8; if (z > Z0 + 58 + up) line(k.segment([x - 34, 122, z], [x - 34 + 30 + ((r * 29) % 48), 122, z], P), {e, tone: 'mid'}); }
-    }
+    const x = RACK_X(i), hot = i === EDITED && fix > .05;
+    paint(box(x, 104, 9, 56, Z0 + 10, 46, 1.2), {e, tone: hot ? 'hi' : 'mid', acc: GREEN, g: i === EDITED ? fix : 0});
+    line(k.lineOnTop([x + 4.5, 110], [x + 4.5, 110 + 14 + (i * 7) % 24], Z0 + 56, P), {e, tone: 'lo'});
+    // The recorded hash under each Claude skill.
+    const h = hash(i); if (h > .01) { const bad = i === EDITED ? edited : 0;
+      paint(dyn(x + 1, 146, 7, 8, Z0 + 56, 1.4, 1), {e, tone: 'hi', acc: bad > .5 ? AMBER : GREEN, g: .6 * h + .4 * bad, alpha: h}); }
   }
 }
-// Reference drawers: six files in a cabinet; pitfalls is the middle right drawer.
+// Reference drawers: six topic files in a cabinet; pitfalls is the middle right drawer. Two switches on top: each tool's
+// built-in memory, both off.
 const DRAWERS = ['architecture', 'commands', 'deployment', 'pitfalls', 'secrets', 'tech-stack'];
-function drawerOpen(t) {
-  const u = local('f3', t), u4 = nloc('f4', t);
-  return Math.max(sm((u - 3.1) / .4) * (1 - sm((u - 3.9) / .4)), sm((u - 4.6) / .4) * (1 - sm((u - 5.4) / .4)), sm((u4 - B.f4.S.how + .4) / .4) * (1 - sm((u4 - B.f4.dur) / .4)));
+const DR = j => ({x: 446 + (j % 2) * 78, z: Z0 + 6 + (2 - Math.floor(j / 2)) * 39});
+const PIT = 3, PITX = 560;
+// m2, in beat seconds: session 1 builds four blocks [block, time]; block 2 fails twice (retry) and passes once its cause
+// is confirmed; session 2 reads pitfalls.md first and builds all four.
+function m2Times() { const M = B.m2.S; return {s1: [[0, 1.2], [1, 2], [2, 2.8], [2, 3.9], [2, 7], [3, 7.8]], fails: [2.8, 3.9], cause: 6, s2: [0, 1, 2, 3].map(j => [j, M.ro0 + 1 + j * .45])}; }
+function drawerState(t) {
+  const o = [0, 0, 0, 0, 0, 0], g = [0, 0, 0, 0, 0, 0];
+  if (live('open', t)) { const u = local('open', t); g[PIT] = win(u, 4.6, 6.2); }
+  if (live('k1', t)) { const n = nloc('k1', t), K = B.k1.S; o[2] = win(n, K.how + .4, K.how + 2.6); for (let j = 0; j < 6; j++) g[j] = .5 * win(n, K.ans + .4 + j * .25, K.how + .2); g[2] = Math.max(g[2], o[2]); }
+  if (live('m2', t)) { const n = nloc('m2', t), M = B.m2.S; o[PIT] = Math.max(win(n, M.ans - .2, M.ans + 1.7), win(n, M.ro0 - .9, M.ro0 + .9)); g[PIT] = Math.max(o[PIT], .7 * win(n, M.how, M.why + .6)); }
+  if (live('m3', t)) { const n = nloc('m3', t), M = B.m3.S; o[PIT] = Math.max(win(n, 1.5, 3), sm((n - M.ro0 + .7) / .4)); o[1] = win(n, M.how + .3, M.how + 1.6); g[PIT] = o[PIT]; g[1] = o[1]; }
+  if (live('close', t)) g[PIT] = sm((nloc('close', t) - 1.6) / .4);
+  return {o, g};
 }
 function drawDrawers(t) {
-  const e = emphasis(t, 'drawers'), u = local('f3', t), open = drawerOpen(t) * 46;
+  const e = emphasis(t, 'drawers'), {o, g} = drawerState(t);
   paint(box(440, 30, 160, 120, Z0, 124, 3, 1, 4), {e, tone: 'mid'});
   line(k.sideSeam({x: 440, y: 30, w: 160, d: 120, r: 3}, Z0 + 120, P, 4), {e, tone: 'faint'});
   faceText('.claude/reference', [446, 40, Z0 + 124], {size: 6.5, a: .6, e});
-  for (let j = 0; j < 6; j++) {
-    const c = j % 2, r = 2 - Math.floor(j / 2), x = 446 + c * 78, z = Z0 + 6 + r * 39, pit = j === 3, o = pit ? open : 0;
-    if (o > .5) { paint(dyn(x + 3, 150, 66, o, z + 3, 28, 1), {e, tone: 'mid'}); }
-    const g = pit ? Math.max(sm((u - 2.6) / .3) * (1 - sm((u - 6.6) / .5)), drawerOpen(t)) : 0;
-    paint(pit ? dyn(x, 150 + o, 72, 5, z, 35, 1, .5) : box(x, 150, 72, 5, z, 35, 1, .5), {e, tone: pit ? 'hi' : 'mid', acc: GREEN, g: g * .8});
-    paint(pit ? dyn(x + 24, 155 + o, 24, 3, z + 22, 4, 1) : box(x + 24, 155, 24, 3, z + 22, 4, 1), {e, tone: 'lo'});
-    faceText(DRAWERS[j] + '.md', [x + 6, 155 + o, z + 13], {size: 5.4, face: 'front', a: pit ? .8 : .5, e});
+  // Built-in memory switches, both off (Claude Code autoMemoryEnabled: false; Codex memories not used).
+  const hi = live('m3', t) ? win(nloc('m3', t), B.m3.S.how + .1, B.m3.S.why + .6) : 0;
+  [['CLAUDE MEMORY', 448], ['CODEX MEMORY', 524]].forEach(([lab, x]) => {
+    paint(box(x, 84, 64, 20, Z0 + 124, 2, 1.5), {e, tone: 'lo', acc: AMBER, g: hi * .6});
+    const [bx, by] = iso([x + 12, 94, Z0 + 126]), [tx, ty] = iso([x + 4, 94, Z0 + 136]);
+    ctx.lineWidth = 2.2 / ZOOM; ctx.strokeStyle = css(hi > .3 ? AMBER : CREAM, (.5 + .4 * hi) * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+    dot([x + 4, 94, Z0 + 136], 2.4, hi > .3 ? AMBER : CREAM, .8 * e);
+    faceText('OFF', [x + 22, 94, Z0 + 126.2], {size: 6, a: .55 + .4 * hi, e, col: hi > .3 ? AMBER : CREAM});
+    faceText(lab, [x, 112, Z0 + 124], {size: 4.2, a: .5 + .4 * hi, e});
+  });
+  // Closed drawers first; an open drawer sticks out toward the viewer, so it is drawn last.
+  for (const j of [0, 1, 2, 3, 4, 5].sort((a, b) => (o[a] > .01) - (o[b] > .01))) {
+    const {x, z} = DR(j), op = o[j] * 46;
+    if (op > .5) paint(dyn(x + 3, 150, 66, op, z + 3, 28, 1), {e, tone: 'mid'});
+    paint(op > .5 ? dyn(x, 150 + op, 72, 5, z, 35, 1, .5) : box(x, 150, 72, 5, z, 35, 1, .5), {e, tone: g[j] > .05 ? 'hi' : 'mid', acc: GREEN, g: g[j] * .8});
+    paint(op > .5 ? dyn(x + 24, 155 + op, 24, 3, z + 22, 4, 1) : box(x + 24, 155, 24, 3, z + 22, 4, 1), {e, tone: 'lo'});
+    faceText(DRAWERS[j] + '.md', [x + 6, 155 + op, z + 13], {size: 5.4, face: 'front', a: j === PIT || g[j] > .2 ? .8 : .5, e});
   }
-  // Work blocks on the bench in front: the first session snags on the third, the second clears it.
-  const s1 = u < 5.4, n = s1 ? 3 : 4;
-  for (let j = 0; j < 4; j++) {
-    const tb = s1 ? .8 + j * .45 : 5.75 + j * .35; if (u < tb || (s1 && j > 2) || u > B.f3.od + .5) continue;
-    const snag = s1 && j === 2, g = snag ? sm((u - 2.2) / .2) : 0;
-    const fade = s1 ? 1 - sm((u - 4.4) / .5) : sm((u - tb) / .2);
-    paint(dyn(454 + j * 36, 200, 26, 26, Z0, 16, 2), {e, tone: 'hi', acc: snag ? AMBER : GREEN, g: snag ? g : (s1 ? .15 : .5), alpha: Math.max(0, fade)});
-  }
-  void n;
-  // The lesson card: printed after the snag, filed into pitfalls.md.
-  const c0 = 2.6, c1 = 3.5;
-  if (u > c0 && u < 4.2) {
-    const f = eio((u - c0) / (c1 - c0)), x = lerp(530, 600 - 70, f), y = lerp(212, 175 + open, f), z = lerp(Z0 + 40, Z0 + 6 + 39 + 30, f) + Math.sin(Math.PI * f) * 30;
-    paint(dyn(x, y, 22, 14, z - (u > c1 ? (u - c1) * 40 : 0), 1.5, 1), {e, tone: 'hi', acc: GREEN, g: .8});
-  }
-  // f4: both tools read the open drawer of .claude/reference, sparks rising to each head.
-  const u4 = nloc('f4', t);
-  if (u4 > B.f4.S.how && u4 < B.f4.dur) for (const [h, col] of [['cc', GREEN], ['cx', AMBER]]) {
-    const hd = headAt(h, t); if (!hd || hd[3] < .5) continue;
-    for (let j = 0; j < 3; j++) { const f = ((u4 - B.f4.S.how) * .55 + j / 3) % 1, a = Math.sin(Math.PI * f) * sm((u4 - B.f4.S.how) / .4);
-      spark([lerp(560, hd[0], f), lerp(196, hd[1], f), lerp(Z0 + 70, hd[2] - 2, f) + Math.sin(Math.PI * f) * 60], 16, col, .85 * a); }
+  const hd = headAt('cc', t), hx = headAt('cx', t), pz = DR(PIT).z, pin = () => [PITX, 150 + o[PIT] * 23, pz + 24];
+  // k1: /recall reads the deployment drawer, sparks rising to the head.
+  if (live('k1', t) && hd) { const n = nloc('k1', t), K = B.k1.S, a = win(n, K.how + .7, K.how + 2.4);
+    for (let j = 0; j < 3; j++) { const f = ((n - K.how) * .6 + j / 3) % 1; if (a > .01) spark(arc([482, 150 + o[2] * 23, DR(2).z + 24], hd, f, 24), 15, GREEN, .85 * a * Math.sin(Math.PI * f)); } }
+  if (live('m2', t)) drawM2(t, e, o, hd, pin);
+  if (live('m3', t)) {
+    const n = nloc('m3', t), M = B.m3.S;
+    // Claude Code files its lesson into pitfalls.md; Codex files one into commands.md.
+    if (hd) { const f = clamp((n - 1.7) / .9); if (f > 0 && f < 1) card(arc([hd[0], hd[1], hd[2] - 6], pin(), eio(f), 16), 22, 14, {e}); }
+    if (hx) { const f = clamp((n - M.how - .5) / .9); if (f > 0 && f < 1) card(arc([hx[0], hx[1], hx[2] - 6], [PITX, 150 + o[1] * 23, DR(1).z + 24], eio(f), 16), 22, 14, {e, col: AMBER}); }
+    // Codex opens pitfalls.md and recalls the lesson Claude Code saved: the green card rises to the amber head and stays.
+    const r = clamp((n - M.ro0 + .3) / 1);
+    if (r > 0 && hx) { const p = arc(pin(), [hx[0], hx[1] + 4, hx[2] - 14], eio(r), 20); card(p, 22, 14, {e}); if (r < 1) spark(p, 22, AMBER, .8); else spark(p, 18, AMBER, .35 + .2 * Math.sin(t * 4)); }
   }
 }
-// Planning desk: facts drop into the tray; open choices rise as switches; you flip each; Go.
-const SW = [0, 1, 2, 3].map(j => 744 + j * 20);
+// m2: a quirk costs a retry; once its cause is confirmed the lesson is filed into pitfalls.md unasked; git carries the
+// file to a second machine; the next session reads pitfalls.md first, cites the entry with its date and builds clean.
+function drawM2(t, e, o, hd, pin) {
+  const n = nloc('m2', t), M = B.m2.S, T = m2Times(), s2 = n > M.ro0 - .9, old = 1 - sm((n - M.ro0 + 1.3) / .4), bxl = j => 454 + j * 36;
+  for (let j = 0; j < 4; j++) {
+    if (!s2) {
+      const t0 = T.s1.find(([b]) => b === j)[1]; if (n < t0) continue;
+      const snag = j === 2 && n < 7, flash = j === 2 ? Math.max(...T.fails.map(a => win(n, a, a + .5, .08, .3))) : 0;
+      paint(dyn(bxl(j), 200, 26, 26, Z0, 16, 2), {e, tone: 'hi', acc: snag ? AMBER : GREEN, g: snag ? .5 + .5 * flash : .45, alpha: old * sm((n - t0) / .2)});
+      if (j === 2) {
+        T.fails.forEach((a, r) => { if (n > a) dot([bxl(2) + 5 + r * 6, 205, Z0 + 16.4], 2.6, AMBER, .95 * old); });
+        if (n > T.cause) faceText('CAUSE', [bxl(2) + 3, 218, Z0 + 16.4], {size: 4.4, a: .9 * old * sm((n - T.cause) / .3), e, col: GREEN});
+      }
+    } else { const tb = T.s2[j][1]; if (n < tb) continue; paint(dyn(bxl(j), 200, 26, 26, Z0, 16, 2), {e, tone: 'hi', acc: GREEN, g: .5, alpha: sm((n - tb) / .2)}); }
+  }
+  // The lesson card: printed at the block, filed into the open pitfalls.md drawer.
+  const f = clamp((n - M.ans - .1) / 1.1);
+  if (f > 0 && n < M.ans + 1.6) { const p = arc([bxl(2) + 13, 213, Z0 + 20], pin(), eio(f), 40); card([p[0], p[1], p[2] - (f >= 1 ? (n - M.ans - 1.2) * 40 : 0)], 22, 14, {e}); }
+  // How: the link from the retried block to the saved entry.
+  const lk = win(n, M.how, M.why + .4); if (lk > .01) line(k.segment([bxl(2) + 13, 213, Z0 + 16], [PITX, 156, DR(PIT).z + 17], P), {e, col: GREEN, a: .6 * lk * old, w: 1.2, g: .4 * lk});
+  // Git carries the file to a second machine, whose pitfalls.md lights.
+  const m = sm((n - M.why + .4) / .5), arrive = sm((n - M.why - 1.3) / .3);
+  if (m > .01) {
+    paint(box(340, 290, 74, 46, 0, 58, 3, 1, 4), {e, tone: 'mid', alpha: m});
+    for (let j = 0; j < 6; j++) { const c = j % 2, r = 2 - Math.floor(j / 2);
+      paint(box(344 + c * 35, 336, 31, 2, 4 + r * 17, 14, .5), {e, tone: j === PIT && arrive > .1 ? 'hi' : 'mid', acc: GREEN, g: j === PIT ? arrive * .9 : 0, alpha: m}); }
+    faceText('MACHINE 2', [344, 296, 58], {size: 5.4, a: .7 * m, e});
+    const gf = clamp((n - M.why - .2) / 1.1), from = [PITX, 156, DR(PIT).z + 17], to = [396, 336, 4 + 17 + 7];
+    if (gf > 0) { line(k.segment(from, to, P), {e, col: GREEN, a: .3 * m, w: 1}); if (gf < 1) spark(arc(from, to, gf, 30), 20, GREEN, .95); }
+    faceText('git', [lerp(from[0], to[0], .8) + 8, lerp(from[1], to[1], .8), lerp(from[2], to[2], .8) + 8], {size: 5.4, face: 'front', a: .75 * m, e, col: GREEN});
+  }
+  // The next session cites the entry, file and date, from the moment it reads it to the end.
+  const cs = clamp((n - M.ro0 + .5) / .9);
+  if (cs > 0) {
+    const p = arc(pin(), [690, 70, Z0 + 150], eio(cs), 24);
+    paint(dyn(p[0] - 56, p[1] - 9, 112, 18, p[2], 1.5, 1), {e, tone: 'hi', acc: GREEN, g: .7});
+    faceText('per pitfalls.md (2026-03-14)', [p[0] - 52, p[1], p[2] + 1.6], {size: 6.6, a: .95 * cs, e, col: GREEN});
+    if (hd && cs >= 1) line(k.segment([p[0], p[1], p[2]], [hd[0], hd[1], hd[2] + 4], P), {e, col: GREEN, a: .35, w: 1});
+  }
+}
+// Planning desk (/deep-plan): the ledger records each answer in your words (Q1 to Q4); low-stakes guesses drop into
+// ASSUMED as Q8 and Q9, each with a veto you can press; the WHY reviewer tests the two weightiest decisions; GO waits for you.
+function p1Asks() { const M = B.p1.S; return [.9, 2.9, 4.9, M.ans - .9]; }
 function drawPlan(t) {
-  const e = emphasis(t, 'plan'), u = local('p1', t), up = local('p2', t);
+  const e = emphasis(t, 'plan'), n = nloc('p1', t), M = B.p1.S, L = live('p1', t), zt = Z0 + 39, asks = p1Asks(), hd = headAt('cc', t);
+  // The WHY reviewer's lamp, on the bench behind the desk: a fresh reviewer tests Q1, then Q3
+  const rv = L ? [win(n, M.why + .1, M.why + .9, .2, .2), win(n, M.why + 1, M.why + 1.8, .2, .2)] : [0, 0];
+  paint(cyl(716, 30, 3.5, Z0, 92, 14), {e, tone: 'mid'});
+  paint(box(722, 26, 3, 16, Z0 + 70, 10, .6), {e, tone: 'mid'});
+  faceText('WHY', [725, 28, Z0 + 78], {size: 5.4, face: 'front', a: .75, e});
+  const lit = Math.max(...rv); paint(dcyl(716, 30, 8, Z0 + 92, 7, 18), {e, tone: 'hi', acc: CREAM, g: lit * .8});
+  if (lit > .05) spark([716, 30, Z0 + 95], 26, CREAM, .5 * lit);
   paint(box(660, 40, 184, 124, Z0, 36, 4, 1.2, 4), {e, tone: 'mid'});
   paint(box(670, 50, 164, 104, Z0 + 36, 3, 3, .6), {e, tone: 'hi'});
-  paint(box(678, 62, 40, 40, Z0 + 39, 1, 2), {e, tone: 'lo', flat: true});
-  faceText('FACTS', [680, 108, Z0 + 39], {size: 5, a: .5, e});
-  for (let j = 0; j < 3; j++) { const tj = 1.15 + j * .55; if (u > tj || up > 0) paint(dcyl(688 + (j % 2) * 14, 72 + j * 9, 5, Z0 + 40 + Math.max(0, 14 * (1 - sm((u - tj) / .25))) * (up > 0 ? 0 : 1), 3, 14), {e, tone: 'hi', acc: GREEN, g: .5}); }
-  faceText('YOUR CALL', [740, 108, Z0 + 39], {size: 5, a: .5, e});
-  for (let j = 0; j < 4; j++) {
-    const x = SW[j], rise = up > 0 ? 1 : sm((u - 2.6 - j * .15) / .4), flip = up > 0 ? 1 : sm((u - 4.4 - j * .32) / .25);
-    if (rise <= 0) continue;
-    paint(dcyl(x, 128, 6, Z0 + 39, 3 * rise, 16), {e, tone: 'hi', acc: flip > .5 ? GREEN : AMBER, g: .7});
-    const [bx, by] = iso([x, 128, Z0 + 42 * rise]), [tx, ty] = iso([x + lerp(-6, 6, flip), 128, Z0 + 42 + 14 * rise]);
-    ctx.lineWidth = 2.4 / ZOOM; ctx.strokeStyle = css(flip > .5 ? GREEN : AMBER, .9 * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
-    dot([x + lerp(-6, 6, flip), 128, Z0 + 42 + 14 * rise], 3, CREAM, .8 * e);
-  }
-  // Go lever: you pull it at the end of p1, once every open choice is yours
-  const go = sm((u - 6.8) / .4);
-  paint(box(822, 112, 12, 26, Z0 + 39, 4, 2), {e, tone: 'mid'});
-  const [bx, by] = iso([828, 125, Z0 + 43]), [tx, ty] = iso([828 + lerp(-10, 12, go), 125, Z0 + 43 + 30]);
-  ctx.lineWidth = 3 / ZOOM; ctx.strokeStyle = css(go > .5 ? GREEN : CREAM, (.5 + .5 * go) * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
-  dot([828 + lerp(-10, 12, go), 125, Z0 + 73], 4.5, go > .5 ? GREEN : CREAM, .9 * e);
-  faceText('GO', [820, 146, Z0 + 39], {size: 6, a: .6, e});
+  // The ledger
+  const led = L ? win(n, M.ans, M.how + .3) : 0;
+  paint(box(676, 56, 84, 92, zt, 1, 2), {e, tone: 'lo', acc: GREEN, g: led * .9, flat: true});
+  faceText('ledger.md', [680, 63, zt + 1], {size: 5.5, a: .7, e, col: led > .3 ? GREEN : CREAM});
+  asks.forEach((qa, j) => {
+    const y = 78 + j * 16, w = sm((n - qa - 1.5) / .4);
+    if (L && hd) { const f = clamp((n - qa) / .5); if (f > 0 && f < 1) spark(arc([hd[0], hd[1], hd[2]], [744, 300, 70], f, 10), 16, AMBER, .9); }
+    if (L) { const f = clamp((n - qa - .7) / .8); if (f > 0 && f < 1) card(arc([744, 290, 70], [712, y, zt + 2], eio(f), 30), 14, 8, {e}); }
+    if (w <= 0) return;
+    faceText('Q' + (j + 1), [680, y, zt + 1.2], {size: 4.8, a: .75 * w, e});
+    faceText('“', [692, y + 1, zt + 1.2], {size: 7, a: .85 * w, e, col: GREEN});
+    line(k.lineOnTop([699, y], [699 + (30 + (j * 17) % 22) * w, y], zt + 1.2, P), {e, col: CREAM, a: .6 * w});
+    if (j === 0 || j === 2) { const rv = sm((n - M.why - .9 - (j ? .9 : 0)) / .3); if (rv > 0) dot([752, y, zt + 1.4], 2.8, GREEN, .95 * rv); }
+  });
+  // Assumptions, each with a veto
+  faceText('ASSUMED', [772, 63, zt + 1], {size: 4.8, a: .65, e, col: AMBER});
+  [['Q8', M.how + .6], ['Q9', M.how + 1.25]].forEach(([q, tw], j) => {
+    const y = 78 + j * 18, a = sm((n - tw) / .3); if (a <= 0) return;
+    const hot = q === 'Q9' && L ? sm((n - M.ro0 + .1) / .3) * (.65 + .35 * Math.sin(t * 4)) : 0;
+    paint(dyn(772, y - 6, 30, 12, zt + 12 * (1 - a), 2, 1), {e, tone: 'hi', acc: AMBER, g: .35 + .65 * hot});
+    faceText(q, [776, y, zt + 2.2 + 12 * (1 - a)], {size: 5.2, a: .9 * a, e, col: AMBER});
+    paint(cyl(816, y, 4.5, zt, 2.5, 14), {e, tone: hot > .1 ? 'hi' : 'mid', acc: AMBER, g: hot * .5, alpha: a});
+    faceText('VETO', [808, y + 9, zt], {size: 3.8, a: .6 * a, e});
+  });
+  rv.forEach((a, j) => { if (a > .01 && e > .5) { const y = 78 + j * 32, a1 = iso([716, 30, Z0 + 92]), b1 = iso([678, y - 6, zt + 1]), b2 = iso([758, y + 6, zt + 1]);
+    ctx.fillStyle = css(CREAM, .16 * a); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill(); } });
+  // GO: yours, waiting; it glows once the review is done, and nobody pulls it in the film
+  const go = L ? sm((n - M.why - 2) / .4) * (.7 + .3 * Math.sin(t * 3)) : 0;
+  paint(box(784, 116, 14, 26, zt, 4, 2), {e, tone: 'mid', acc: GREEN, g: go * .6});
+  const [bx, by] = iso([791, 129, zt + 4]), [tx, ty] = iso([781, 129, zt + 32]);
+  ctx.lineWidth = 3 / ZOOM; ctx.strokeStyle = css(go > .3 ? GREEN : CREAM, (.5 + .5 * go) * (.35 + .65 * e)); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+  dot([781, 129, zt + 32], 4.5, go > .3 ? GREEN : CREAM, .9 * e);
+  faceText('GO', [784, 148, zt], {size: 6, a: .6 + .4 * go, e, col: go > .3 ? GREEN : CREAM});
 }
-// Long-horizon line: the chat (a column that fills as context grows) with the plan file state.md beside it,
-// the worker press and the checker: a dial, three check lamps and a beam it turns on the step. In p2 the steps
-// wait in a queue in front and run one at a time: onto the belt, pressed by a fresh worker, carried to the
-// checker, which runs its three checks (lamps light green), then set down in the passed row. The chat fills,
-// empties and reads state.md back, and the next step runs. In c1 the checks are written first and handed to the
-// checker; a step is pressed, claims DONE, fails its third check and goes back; it runs again and fails again
-// under the readout. It never reaches the passed row.
+// Long-horizon line: the chat column with the plan file state.md beside it, a belt, the WORKER press and the AUDITOR (a dial,
+// three check lamps and a beam it turns on the step), a queue of steps in front and a VERIFIED row.
+// p2: you start the run and the plan is saved; step 1 passes its audit and is kept in VERIFIED; step 2 fails its audit
+// twice on approach A, A is logged in state.md as a dead end, the line switches to approach B, and step 2 passes.
+// c1: the checks are written and sealed with a hash before the step and handed to the auditor; the worker presses the step
+// and stamps it DONE, leaving its report by the press, where the auditor never reads it; the audit fails; on the second
+// run the worker touches the sealed check and the seal flags it; the final auditor reruns every check and the step fails.
 const QUEUE = [0, 1, 2, 3].map(i => [896 + i * 26, 206]), PASSED = [0, 1, 2, 3].map(i => [1062 + i * 26, 206]);
-const BELT = {in: 900, press: 1006, check: 1110};
-let LINE = null;
-function lineScript() { // p2 times in beat seconds, from the caption schedule
-  if (LINE) return LINE;
-  const S = B.p2.S, D = 2.8, t0 = Math.max(2.5, S.ans - 1), sp = Math.max(2.2, (S.ro0 - .9 - D - t0) / 2);
-  return (LINE = {D, run: [t0, t0 + sp, t0 + 2 * sp, S.ro0 + .15], save: t0 - 1.2, ro: S.ro0});
+const BELT = {in: 900, press: 1006, check: 1110}, BTOP = Z0 + 14;
+const run = (go, pass, o = {}) => ({go, press: go + .85, check: [go + 1.5, go + 2.4], pass, ...o});
+let LS = null;
+function lineScript() {
+  if (LS) return LS;
+  const P = B.p2.S, C = B.c1.S;
+  const r2 = run(P.ans - 2.3, false), r3 = run(P.how - 1.5, false), r4 = run(P.ro0 + .2, true, {b: true});
+  const ra = run(4.2, false, {check: [6, 8.2]}), rb = run(C.ans - 2, false, {check: [C.ans + .1, C.how - .3], partial: 2, stay: true, final: [C.why + .1, C.ro0]});
+  return (LS = {p2: {save: .8, steps: [[run(1.6, true)], [r2, r3, r4]], runs: [run(1.6, true), r2, r3, r4], fails: [r2.check[1], r3.check[1]],
+    dead: [P.how + 1, P.how + 1.8], flip: P.ro0 - .35}, c1: {write: [.6, 2.2], seal: 2.2, fly: [2.6, 3.8], runs: [ra, rb], tamper: C.how + .85}});
 }
-// A p2 step, v seconds into its run: lift onto the belt, to the press (pressed .9-1.1), to the checker (checks
-// 1.5-2.4), down into the passed row.
-const P2_CHECK = [1.5, 2.4];
-function stepAt(i, n) {
-  const L = lineScript(), [qx, qy] = QUEUE[i], [dx, dy] = PASSED[i], v = n - L.run[i], top = Z0 + 14;
-  if (v < 0) return {x: qx, y: qy, z: Z0, g: 0, v};
-  if (v >= L.D) return {x: dx, y: dy, z: Z0, g: .9, v};
-  if (v < .4) { const f = eio(v / .4); return {x: lerp(qx, BELT.in, f), y: lerp(qy, 120, f), z: lerp(Z0, top, f), g: .4, v}; }
-  if (v < .85) return {x: lerp(BELT.in, BELT.press, eio((v - .4) / .45)), y: 120, z: top, g: .4, v};
-  if (v < 1.15) return {x: BELT.press, y: 120, z: top, g: .4, v};
-  if (v < P2_CHECK[0]) return {x: lerp(BELT.press, BELT.check, eio((v - 1.15) / .35)), y: 120, z: top, g: .4, v};
-  if (v < P2_CHECK[1]) return {x: BELT.check, y: 120, z: top, g: .4 + .5 * sm((v - P2_CHECK[1] + .15) / .15), v};
-  const f = eio((v - P2_CHECK[1]) / (L.D - P2_CHECK[1])); return {x: lerp(BELT.check, dx, f), y: lerp(120, dy, f), z: lerp(top, Z0, f), g: .9, v};
+// Where a step is at n (beat seconds), given its runs, home (queue spot) and slot (VERIFIED spot).
+function stepPos(runs, n, home, slot) {
+  let r = null, k = -1; runs.forEach((x, j) => { if (n >= x.go) { r = x; k = j; } });
+  if (!r) return {x: home[0], y: home[1], z: home[2] ?? Z0, col: GREEN, g: 0, act: false};
+  const v = n - r.go, rest = k ? [BELT.in, 120, BTOP] : [home[0], home[1], home[2] ?? Z0], [a, b] = r.check, end = r.final ? r.final[1] : b;
+  let p;
+  if (v < .4) { const f = eio(v / .4); p = [lerp(rest[0], BELT.in, f), lerp(rest[1], 120, f), lerp(rest[2], BTOP, f)]; }
+  else if (n < r.press - .05) p = [lerp(BELT.in, BELT.press, eio((v - .4) / (r.press - .05 - r.go - .4))), 120, BTOP];
+  else if (n < r.press + .3) p = [BELT.press, 120, BTOP];
+  else if (n < r.press + .65) p = [lerp(BELT.press, BELT.check, eio((n - r.press - .3) / .35)), 120, BTOP];
+  else if (r.stay || n < end + .25) p = [BELT.check, 120, BTOP];
+  else if (r.pass) { const f = eio(clamp((n - end - .25) / .6)); p = [lerp(BELT.check, slot[0], f), lerp(120, slot[1], f), lerp(BTOP, Z0, f)]; }
+  else { const f = eio(clamp((n - end - .25) / 1)); p = [lerp(BELT.check, BELT.in, f), 120, BTOP]; }
+  const failed = !r.pass && n >= end, passed = r.pass && n >= end;
+  return {x: p[0], y: p[1], z: p[2], col: failed ? AMBER : GREEN, g: passed ? .9 : failed ? .8 : .4, act: true, r, failed};
 }
-// c1, in beat seconds: the chat writes the checks and hands them to the checker; then two runs of the same step.
-// Each run: to the press, pressed and stamped DONE (the worker's report chit is set down by the press), to the
-// checker, three checks (two pass, the third fails), back to the start. The second run fails as the readout
-// shows.
-const C1 = (() => {
-  const S = B.c1.S, runs = [{go: 3.6, check: [5.8, 7.6]}, {go: 10.6, check: [13.2, S.ro0]}];
-  for (const r of runs) { r.press = r.go + .85; r.leave = r.press + .4; r.back = r.check[1] + .4; }
-  return {write: [.8, 2.4], card: [2, 3.4], runs, press: runs.map(r => r.press), how: S.how};
-})();
-function c1Step(n) {
-  let x = BELT.in, fail = 0, done = 0, run = null;
-  for (const r of C1.runs) if (n >= r.go) run = r;
-  if (!run) return {x, fail, done, run};
-  const r = run;
-  x = n < r.press ? lerp(BELT.in, BELT.press, eio(clamp((n - r.go) / .75))) : n < r.leave ? BELT.press
-    : n < r.back ? lerp(BELT.press, BELT.check, eio(clamp((n - r.leave) / .6))) : lerp(BELT.check, BELT.in, eio(clamp((n - r.back) / 1)));
-  done = sm((n - r.press - .2) / .2); fail = sm((n - r.check[1]) / .15);
-  return {x, fail, done, run: r};
-}
-// The checker's state at t: needle 0..1 across the dial, three lamps (0 off, 1 pass, 2 fail), the beam onto the step.
-function checker(t) {
-  const n = nloc('p2', t), nc = nloc('c1', t), o = {needle: 0, col: CREAM, lamps: [0, 0, 0], beam: 0, bx: BELT.check};
-  const lit = (pr, failLast) => [0, 1, 2].map(k => pr >= (k + 1) / 3 - .02 ? (failLast && k === 2 ? 2 : 1) : 0);
-  if (t < B.c1.start && n > 0) {
-    const L = lineScript();
-    for (let i = 0; i < 4; i++) { const v = n - L.run[i]; if (v < P2_CHECK[0] - .1 || v > P2_CHECK[1] + .25) continue;
-      const pr = clamp((v - P2_CHECK[0]) / (P2_CHECK[1] - P2_CHECK[0] - .1));
-      o.needle = .92 * pr * (1 - sm((v - P2_CHECK[1]) / .2)); o.col = pr >= 1 ? GREEN : AMBER; o.lamps = lit(pr, false);
-      o.beam = sm((v - P2_CHECK[0] + .1) / .15) * (1 - sm((v - P2_CHECK[1]) / .15)); }
-    return o;
-  }
-  if (nc < 0 || nc > B.c1.dur) return o;
-  for (const r of C1.runs) { const [a, b] = r.check; if (nc < a - .2) continue;
-    const pr = clamp((nc - a) / (b - a)), held = nc < (r === C1.runs[0] ? C1.runs[1].go - .4 : B.c1.dur + 1);
-    if (!held) { o.needle = 0; o.lamps = [0, 0, 0]; o.beam = 0; continue; }
-    o.needle = .92 * pr; o.col = nc >= b ? AMBER : pr > .05 ? GREEN : CREAM; o.lamps = lit(pr * (nc >= b ? 1 : .999), nc >= b);
-    if (nc < b) o.lamps[2] = 0;
-    o.beam = sm((nc - a + .2) / .2) * (1 - sm((nc - b - .3) / .3)); o.bx = BELT.check; }
+// The auditor at t: needle 0..1, three lamps (0 off, 1 pass, 2 fail), the beam on the step.
+function auditor(t) {
+  const o = {needle: 0, col: CREAM, lamps: [0, 0, 0], beam: 0};
+  const sweep = (n, a, b, pass, upto = 3, hold = 99) => { if (n < a - .2 || n > hold) return false; const pr = clamp((n - a) / (b - a));
+    o.needle = .92 * pr; o.col = !pass && n >= b ? AMBER : pr > .02 ? GREEN : CREAM; o.lamps = [0, 1, 2].map(k => k < upto && pr >= (k + 1) / 3 - .02 ? (!pass && k === 2 ? 2 : 1) : 0);
+    o.beam = sm((n - a + .2) / .2) * (n < b ? 1 : 1 - sm((n - b - .3) / .3)); return true; };
+  if (live('p2', t)) { const n = nloc('p2', t); for (const r of lineScript().p2.runs) sweep(n, ...r.check, r.pass, 3, r.check[1] + .5); return o; }
+  if (live('c1', t)) { const n = nloc('c1', t), [ra, rb] = lineScript().c1.runs;
+    sweep(n, ...ra.check, false, 3, rb.go - .4); sweep(n, ...rb.check, true, rb.partial, rb.final[0] - .15); sweep(n, ...rb.final, false, 3, 99);
+    if (n > rb.final[1] - .01) o.beam = Math.max(o.beam, .5); return o; }
   return o;
 }
-function chatFill(t) {
-  const n = nloc('p2', t), L = lineScript(); if (n < 0) return 0;
-  let f = [0, 1, 2].reduce((s, i) => s + sm((n - L.run[i] - L.D + .3) / .4), 0) / 3;
-  f *= 1 - sm((n - L.ro) / .5);
-  f += sm((n - L.run[3] - L.D + .3) / .4) / 3;
-  return f * (1 - sm((n - B.p2.dur) / .6));
-}
 function drawLine(t) {
-  const e = emphasis(t, 'line'), nc = nloc('c1', t), inC1 = nc > 0 && nc < B.c1.dur, n = nloc('p2', t), L = lineScript(), inP2 = n >= 0 && t < B.c1.start;
-  // The plan file, beside the chat: saved at the start of the run, read back when the chat restarts.
-  const saved = sm((n - L.save) / .3) * (1 - sm((n - L.save - 1.6) / .5)), reread = sm((n - L.ro - .2) / .3) * (1 - sm((n - L.ro - 2) / .5));
-  paint(box(846, 30, 30, 46, Z0, 5, 2, .6), {e, tone: 'mid', acc: GREEN, g: Math.max(saved, reread) * .9});
-  faceText('state.md', [849, 56, Z0 + 5], {size: 5, a: .7, e});
-  // The chat: pedestal and a column that fills as the run uses context; amber when full.
+  const e = emphasis(t, 'line'), n = nloc('p2', t), nc = nloc('c1', t), L2 = live('p2', t), Lc = live('c1', t), S = lineScript(), p2 = S.p2, c1 = S.c1;
+  // The plan file: saved when you start the run; in p2 it logs approach A as a dead end.
+  const saved = L2 ? win(n, p2.save + .8, p2.save + 1.8) : 0, dead = L2 ? sm((n - p2.dead[1]) / .3) : 0;
+  paint(box(846, 28, 34, 52, Z0, 5, 2, .6), {e, tone: 'mid', acc: dead > .5 ? AMBER : GREEN, g: Math.max(saved, L2 ? win(n, p2.dead[1], p2.dead[1] + 1.2) : 0) * .9});
+  faceText('state.md', [849, 74, Z0 + 5], {size: 5, a: .7, e});
+  for (let r = 0; r < 3; r++) line(k.lineOnTop([850, 36 + r * 6], [850 + 14 + (r * 9) % 16, 36 + r * 6], Z0 + 5, P), {e, tone: 'lo'});
+  if (dead > 0) { paint(dyn(848, 53, 30, 9, Z0 + 5, .6, 1), {e, tone: 'hi', acc: AMBER, g: .7 * dead}); faceText('DEAD END · A', [849, 58, Z0 + 5.8], {size: 3.8, a: .95 * dead, e, col: AMBER}); }
+  if (L2 && n > p2.save && n < p2.save + 1.2) { const f = eio(clamp((n - p2.save) / 1)); spark(arc([760, 120, Z0 + 40], [863, 54, Z0 + 6], f, 40), 18, GREEN, .9); }
+  // The chat: pedestal and column; in c1 it writes the checks.
   paint(box(884, 24, 58, 58, Z0, 40, 3, 1), {e, tone: 'mid'});
   faceText('CHAT', [888, 84, Z0 + 32], {size: 5, face: 'front', a: .5, e});
-  const fill = chatFill(t), full = sm((n - L.ro + .5) / .2) * (1 - sm((n - L.ro) / .3));
-  const brief = inC1 ? sm((nc - C1.write[0]) / .3) * (1 - sm((nc - C1.write[1]) / .3)) : 0;
+  const brief = Lc ? win(nc, c1.write[0], c1.write[1], .3, .3) : 0;
   paint(cyl(913, 53, 19, Z0 + 40, 34, 32), {e, tone: 'hi', acc: GREEN, g: brief * .8});
   for (let r = 1; r < 6; r++) line(k.sideArc(913, 53, 19, Z0 + 40 + r * 6, P, 20), {e, tone: 'faint'});
-  if (fill > .01) paint(dcyl(913, 53, 19.6, Z0 + 40, 34 * Math.min(1, fill), 32), {e, tone: 'hi', acc: full > .1 ? AMBER : GREEN, g: .5 + .5 * full});
-  // Plan saved: a spark from the desk to the file. Resume: sparks from the file back up into the chat.
-  if (saved > 0 && n < L.save + 1.2) { const f = eio(clamp((n - L.save) / 1)); spark([lerp(760, 861, f), lerp(100, 53, f), Z0 + 40 + Math.sin(Math.PI * f) * 40], 18, GREEN, .9); }
-  for (let j = 0; j < 3; j++) { const f = clamp((n - L.ro - .3 - j * .3) / .8); if (f > 0 && f < 1) spark([lerp(861, 913, f), 53, lerp(Z0 + 5, Z0 + 74, f) + Math.sin(Math.PI * f) * 20], 16, GREEN, .9); }
   // Belt with moving cleats
   paint(box(880, 98, 286, 44, Z0, 14, 6, .8), {e, tone: 'mid'});
   for (let j = 0; j < 14; j++) { const x = 888 + ((j * 20 + (t * 22) % 20)); if (x < 1160) line(k.lineOnTop([x, 102], [x, 138], Z0 + 14, P), {e, tone: 'faint'}); }
-  // Checker pedestal (behind the belt): dial, needle, three check lamps
-  const ck = checker(t);
+  // p2: the approach selector, A or B, with a pip for each failed audit on A
+  if (L2) {
+    const b = sm((n - p2.flip) / .3);
+    paint(box(916, 150, 64, 24, Z0, 6, 2, .5), {e, tone: 'mid'});
+    faceText('APPROACH', [920, 176, Z0 + 4], {size: 3.8, face: 'front', a: .6, e});
+    [['A', 932, 1 - b], ['B', 962, b]].forEach(([s, x, on]) => { paint(cyl(x, 160, 6, Z0 + 6, 3, 18), {e, tone: on > .5 ? 'hi' : 'mid', acc: s === 'A' ? AMBER : GREEN, g: on * (s === 'A' && n > p2.fails[0] ? 1 : .8)});
+      faceText(s, [x - 2, 170, Z0 + 6], {size: 6, a: .8, e, col: on > .5 ? (s === 'A' && n > p2.fails[0] ? AMBER : GREEN) : CREAM}); });
+    p2.fails.forEach((a, j) => { const f = sm((n - a) / .2); if (f > 0) dot([944 + j * 6, 156, Z0 + 6.2], 2.4, AMBER, .95 * f); });
+    // The dead end chit flies from the selector to state.md
+    const f = clamp((n - p2.dead[0]) / (p2.dead[1] - p2.dead[0])); if (f > 0 && f < 1) card(arc([932, 160, Z0 + 10], [863, 57, Z0 + 6], eio(f), 40), 18, 10, {e, col: AMBER});
+  }
+  // The auditor pedestal (behind the belt): dial, needle, three check lamps
+  const ck = auditor(t);
   paint(box(1086, 24, 84, 58, Z0, 30, 3, 1), {e, tone: 'mid'});
-  faceText('CHECKER', [1090, 84, Z0 + 22], {size: 5, face: 'front', a: .5, e});
+  faceText('AUDITOR', [1090, 84, Z0 + 22], {size: 5, face: 'front', a: .5, e});
   paint(cyl(1114, 52, 23, Z0 + 30, 7, 48), {e, tone: 'hi'});
   const tk = k.radialTicks(1114, 52, 21, 30, 5, Z0 + 37, [2, 4], P, -2.2, 4.4); line(tk.minor, {e, tone: 'lo'}); line(tk.major, {e, tone: 'mid'});
   const na = -2.2 + 4.4 * ck.needle;
   line(k.lineOnTop([1114, 52], [1114 + Math.sin(na) * 18, 52 - Math.cos(na) * 18], Z0 + 37.4, P), {e, col: ck.col, a: .95, w: 1.6, g: ck.needle > .02 ? .4 : 0});
   ck.lamps.forEach((s, j) => { paint(cyl(1157, 36 + j * 16, 6, Z0 + 30, 4, 18), {e, tone: s ? 'hi' : 'mid', acc: s === 2 ? AMBER : GREEN, g: s ? 1 : 0});
     if (s) spark([1157, 36 + j * 16, Z0 + 35], s === 2 ? 26 : 16, s === 2 ? AMBER : GREEN, (s === 2 ? .9 : .6) * e); });
-  // c1: the checks, written first, fly from the chat to the checker before the worker starts, and stay there.
-  if (inC1 && nc > C1.card[0] - .2) {
-    const fb = sm((nc - C1.card[0]) / (C1.card[1] - C1.card[0])), hi = sm((nc - C1.how) / .3) * (1 - sm((nc - C1.how - 1.6) / .4));
-    paint(dyn(lerp(904, 1134, fb), lerp(44, 64, fb), 16, 12, Z0 + lerp(74, 30, fb) + Math.sin(Math.PI * fb) * 30, 2, 1), {e, tone: 'hi', acc: AMBER, g: .6 + .4 * hi});
-    if (fb > .9) for (let r = 0; r < 3; r++) line(k.lineOnTop([1137, 67 + r * 3], [1137 + 6 + (r % 2) * 3, 67 + r * 3], Z0 + 32.2, P), {e, tone: 'mid'});
+  // c1: the checks, written and sealed first, fly to the auditor before the worker starts, and stay there; the seal flags a touch.
+  if (Lc && nc > c1.write[0]) {
+    const fb = clamp((nc - c1.fly[0]) / (c1.fly[1] - c1.fly[0])), p = fb > 0 ? arc([913, 53, Z0 + 76], [1142, 70, Z0 + 30], eio(fb), 30) : [913, 53, Z0 + 76 + 6 * sm((nc - c1.write[0]) / .5)];
+    const touched = sm((nc - c1.tamper) / .2), sealed = sm((nc - c1.seal) / .3);
+    paint(dyn(p[0] - 8, p[1] - 6, 16, 12, p[2], 2, 1), {e, tone: 'hi', acc: touched > .5 ? AMBER : GREEN, g: .5 + .4 * touched, alpha: sm((nc - c1.write[0]) / .4)});
+    for (let r = 0; r < 3; r++) line(k.lineOnTop([p[0] - 6, p[1] - 3 + r * 3], [p[0] - 6 + 7 + (r % 2) * 3, p[1] - 3 + r * 3], p[2] + 2.2, P), {e, tone: 'mid'});
+    if (sealed > 0) { dot([p[0] + 5, p[1] + 3, p[2] + 2.3], 3.2, touched > .5 ? AMBER : GREEN, .95 * sealed); spark([p[0] + 5, p[1] + 3, p[2] + 2.3], touched > .5 ? 26 : 12, touched > .5 ? AMBER : GREEN, (touched > .5 ? .8 : .4) * sealed); }
+    if (touched > 0) { paint(dyn(1132, 84, 30, 2, Z0 + 18, 9, .5), {e, tone: 'hi', acc: AMBER, g: .8, alpha: touched}); faceText('HASH DIFF', [1133, 85, Z0 + 25], {size: 3.8, face: 'front', a: .95 * touched, e, col: AMBER}); }
   }
   // Worker press over the belt
   for (const y of [92, 148]) paint(cyl(1006, y, 4.5, Z0 + 14, 82, 16), {e, tone: 'mid'});
   paint(box(1000, 88, 12, 64, Z0 + 96, 9, 2, .5), {e, tone: 'mid'});
   faceText('WORKER', [992, 150, Z0 + 108], {size: 5, face: 'front', a: .5, e});
   let press = 0;
-  // p2: the queue, the step on the belt, the passed row
+  const pr = runs => { for (const r of runs) press = Math.max(press, sm(((L2 ? n : nc) - r.press + .05) / .12) * (1 - sm(((L2 ? n : nc) - r.press - .2) / .12))); };
+  faceText('VERIFIED', [1062, 222, Z0 + 2], {size: 4.4, face: 'front', a: .5, e});
+  // p2: the queue, the steps on the belt, the VERIFIED row
   if (t < B.c1.start) for (let i = 0; i < 4; i++) {
-    const s = inP2 ? stepAt(i, n) : {x: QUEUE[i][0], y: QUEUE[i][1], z: Z0, g: 0, v: -1};
-    paint(dyn(s.x - 9, s.y - 9, 18, 18, s.z, 12, 2), {e, tone: s.v >= 0 ? 'hi' : 'mid', acc: GREEN, g: s.g});
-    if (s.v > .85 && s.v < 1.2) press = Math.max(press, sm((s.v - .9) / .08) * (1 - sm((s.v - 1.05) / .08)));
+    const runs = L2 ? p2.steps[i] || [] : [], s = stepPos(runs, n, QUEUE[i], PASSED[i]);
+    paint(dyn(s.x - 9, s.y - 9, 18, 18, s.z, 12, 2), {e, tone: s.act ? 'hi' : 'mid', acc: s.col, g: s.g});
+    if (i === 1 && s.act) { const b = n > p2.flip + .15; faceText(b ? 'B' : 'A', [s.x - 3, s.y, s.z + 12.2], {size: 7, a: .9, e, col: b ? GREEN : (n > p2.fails[0] ? AMBER : CREAM)}); }
+    if (L2) pr(runs);
   }
-  // c1: the step, its DONE stamp and the worker's report chit; on a failed check the stamp is struck through.
-  if (inC1) {
-    const s = c1Step(nc), acc = s.fail > .5 ? AMBER : GREEN;
-    paint(dyn(s.x - 10, 110, 20, 20, Z0 + 14, 14, 2), {e, tone: 'hi', acc, g: s.fail > .5 ? .9 : .4});
-    if (s.done > 0) {
-      faceText('DONE', [s.x - 9, 120, Z0 + 28.2], {size: 6.5, a: .9 * s.done, e, col: acc});
-      if (s.fail > 0) line(k.lineOnTop([s.x - 9, 120], [s.x - 9 + 18 * s.fail, 120], Z0 + 28.4, P), {e, col: AMBER, a: .95, w: 1.6});
-    }
-    // The report chit stays beside the press: the checker never reads it.
-    const chit = Math.max(...C1.runs.map(r => sm((nc - r.press - .2) / .3) * (1 - sm((nc - r.back - 1.2) / .4))));
+  // c1: one step, its DONE stamp (struck through when the audit fails) and the report chit beside the press
+  if (Lc) {
+    const s = stepPos(c1.runs, nc, [BELT.in, 120, BTOP], PASSED[0]), r = s.r;
+    paint(dyn(s.x - 10, 110, 20, 20, s.z, 14, 2), {e, tone: 'hi', acc: s.col, g: s.g});
+    if (r) { const done = sm((nc - r.press - .2) / .2), fail = r.final ? sm((nc - r.final[1]) / .15) : sm((nc - r.check[1]) / .15);
+      if (done > 0) { faceText('DONE', [s.x - 9, 120, s.z + 14.2], {size: 6.5, a: .9 * done, e, col: fail > .5 ? AMBER : GREEN});
+        if (fail > 0) line(k.lineOnTop([s.x - 9, 120], [s.x - 9 + 18 * fail, 120], s.z + 14.4, P), {e, col: AMBER, a: .95, w: 1.6}); } }
+    const chit = sm((nc - c1.runs[0].press - .2) / .3);
     if (chit > .01) { paint(dyn(1018, 150, 22, 14, Z0, 2, 1), {e, tone: 'hi', alpha: chit}); faceText('REPORT', [1020, 157, Z0 + 2.2], {size: 3.6, a: .75 * chit, e}); }
-    for (const p of C1.press) press = Math.max(press, sm((nc - p + .05) / .12) * (1 - sm((nc - p - .2) / .12)));
+    pr(c1.runs);
   }
-  // The checker's beam on the step it is checking
   if (ck.beam > .01 && e > .5) {
-    const a1 = iso([1114, 70, Z0 + 37]), b1 = iso([ck.bx - 12, 112, Z0 + 28]), b2 = iso([ck.bx + 12, 128, Z0 + 28]);
-    ctx.fillStyle = css(ck.col === AMBER && ck.lamps[2] === 2 ? AMBER : GREEN, .12 * ck.beam); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill();
+    const a1 = iso([1114, 70, Z0 + 37]), b1 = iso([BELT.check - 12, 112, Z0 + 28]), b2 = iso([BELT.check + 12, 128, Z0 + 28]);
+    ctx.fillStyle = css(ck.lamps[2] === 2 ? AMBER : GREEN, .12 * ck.beam); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill();
   }
   paint(dcyl(1006, 120, 9, Z0 + 96 - 30 - press * 22, 30, 18), {e, tone: press > .05 ? 'hi' : 'mid', acc: GREEN, g: press});
 }
-// Arena: three turntables; a blind judge lamp sweeps them; B is the base and takes one idea from A and C.
+// Arena: three turntables behind low partitions (isolated builds); covers hide the names; the blind judge lamp checks each
+// build against the same three pass/fail criteria (a row of lamps in front of each); B is recommended as the base and takes
+// one idea each from A and C.
+const CRIT = [[1, 0, 1], [1, 1, 1], [1, 1, 0]];
 function drawArena(t) {
-  const e = emphasis(t, 'arena'), u = local('c3', t);
+  const e = emphasis(t, 'arena'), u = local('c3', t), L = live('c3', t);
   paint(box(1196, 30, 178, 172, Z0, 8, 6, 1, 6), {e, tone: 'mid'});
-  const judge = [[3, 3.6, 0], [3.6, 4.2, 1], [4.2, 4.8, 2]], win = sm((u - 5) / .4);
+  const judge = [[3, 3.6, 0], [3.6, 4.2, 1], [4.2, 4.8, 2]], win5 = sm((u - 5) / .4);
+  for (const x of [1255, 1313]) paint(box(x - 1.5, 112, 3, 58, Z0 + 8, 16, .6), {e, tone: 'lo'});
   for (let j = 0; j < 3; j++) {
     const cx = 1226 + j * 58, cy = 140, rot = t * .6 + j;
-    paint(cyl(cx, cy, 24, Z0 + 8, 6, 40), {e, tone: 'mid', acc: GREEN, g: j === 1 ? win * .8 : 0});
+    paint(cyl(cx, cy, 24, Z0 + 8, 6, 40), {e, tone: 'mid', acc: GREEN, g: j === 1 ? win5 * .8 : 0});
     const tk = k.radialTicks(cx, cy, 23, 24, 6, Z0 + 14, [1.5, 3], P, rot % 6.283); line(tk.minor, {e, tone: 'faint'});
-    const built = sm((u - .7 - j * .7) / .3) + (u > 5 ? 0 : 0);
-    if (built > 0 || u > B.c3.od) {
+    const built = sm((u - .7 - j * .7) / .3);
+    if (built > 0) {
       const hts = [[12, 10], [16, 8, 10], [8, 14]][j]; let z = Z0 + 14;
-      hts.forEach((h, q) => { paint(dyn(cx - 8 + q * 2, cy - 8, 14 - q * 2, 14, z, h * built, 1.5), {e, tone: 'hi', acc: GREEN, g: j === 1 ? win * .7 : .15}); z += h * built; });
-      // Grafted ideas fly from A and C onto B.
+      hts.forEach((h, q) => { paint(dyn(cx - 8 + q * 2, cy - 8, 14 - q * 2, 14, z, h * built, 1.5), {e, tone: 'hi', acc: GREEN, g: j === 1 ? win5 * .7 : .15}); z += h * built; });
       if (j !== 1 && u > 5.4) {
-        const f = eio(clamp((u - 5.4 - (j ? .3 : 0)) / .8)), bx = 1284, sx = cx, x = lerp(sx, bx, f), zz = lerp(z, Z0 + 14 + 34 + (j ? 6 : 0), f) + Math.sin(Math.PI * f) * 30;
+        const f = eio(clamp((u - 5.4 - (j ? .3 : 0)) / .8)), x = lerp(cx, 1284, f), zz = lerp(z, Z0 + 14 + 34 + (j ? 6 : 0), f) + Math.sin(Math.PI * f) * 30;
         paint(dyn(x - 4, cy - 4, 8, 8, zz, 5, 1), {e, tone: 'hi', acc: GREEN, g: .9});
       }
     }
     paint(box(cx - 12, 172, 24, 12, Z0 + 8, 2, 1), {e, tone: 'lo'});
-    faceText('ABC'[j], [cx - 3, 178, Z0 + 10], {size: 7, a: .7, e});
-    // The blind: a cover slides over each name plate while judging.
+    if (j === 1 && win5 > .5) faceText('B BASE', [cx - 10, 178, Z0 + 10], {size: 5.4, a: .95, e, col: GREEN}); else faceText('ABC'[j], [cx - 3, 178, Z0 + 10], {size: 7, a: .7, e});
     const cover = sm((u - 2.6) / .3) * (1 - sm((u - 4.9) / .3));
     if (cover > 0) paint(dyn(cx - 13, 171, 26 * cover, 14, Z0 + 10, 2, 1), {e, tone: 'mid'});
+    // The criteria lamps: each lights pass (green) or fail (amber) as the judge checks it, and stays through the beat.
+    for (let c = 0; c < 3; c++) {
+      const lit = L ? sm((u - judge[j][0] - .1 - c * .15) / .1) : 0, ok = CRIT[j][c];
+      paint(cyl(cx - 9 + c * 9, 192, 3, Z0 + 8, 2, 12), {e, tone: lit > .5 ? 'hi' : 'mid', acc: ok ? GREEN : AMBER, g: lit});
+    }
   }
-  // Judge lamp on a post at the back
   paint(cyl(1286, 46, 6, Z0 + 8, 92, 18), {e, tone: 'mid'});
   let jx = 1284, bright = 0; for (const [a, b, j] of judge) if (u >= a && u < b) { jx = 1226 + j * 58; bright = sm((u - a) / .15) * (1 - sm((u - b + .1) / .15)); }
-  if (u >= 4.8) { jx = 1284; bright = win; }
+  if (u >= 4.8) { jx = 1284; bright = win5; }
   paint(dyn(1282, 46, 8, 70, Z0 + 96, 6, 2), {e, tone: 'mid'});
+  faceText('JUDGE', [1278, 40, Z0 + 70], {size: 5, face: 'front', a: .5, e});
   if (bright > 0 && e > .5) {
     const a1 = iso([1286, 110, Z0 + 92]), b1 = iso([jx - 22, 140, Z0 + 14]), b2 = iso([jx + 22, 140, Z0 + 14]);
     ctx.fillStyle = css(CREAM, .07 * bright); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill();
   }
   paint(dcyl(1286, 112, 10, Z0 + 92, 10, 20), {e, tone: 'hi', acc: CREAM, g: bright * .6});
 }
-// Review gate: a PR card rides the track under an arch of reviewer lenses; you turn the /merge key;
-// findings are checked, the confirmed ones fixed, the whole card scanned again, CI lights, and the card
-// merges at the commit that was reviewed.
+// Review gate: a PR card rides the track under an arch of reviewer lenses; you turn the /merge key; findings are checked,
+// the confirmed ones fixed (a new commit), the whole card scanned again, CI lights, and the card squash-merges into main at
+// the commit that was reviewed.
 function gateScript(t) {
-  // returns {key, card: [{x, col, findings: [{state}], scan, lensCol}], ci}
   const ug = local('g1', t), ux = local('x1', t), ur = local('res', t);
-  const o = {key: 0, cards: [], ci: [0, 0], lens: AMBER, scan: 0};
-  if (ug >= 0 && ug < B.g1.od + .5) {
+  const o = {key: 0, cards: [], ci: [0, 0], lens: AMBER, scan: 0, glow: 0};
+  if (live('g1', t)) {
     o.key = sm((ug - 2) / .3);
     const x = ug < 2 ? lerp(1404, 1440, sm(ug / 1.2)) : ug < 2.6 ? lerp(1440, 1500, eio((ug - 2) / .6)) : ug < 7.8 ? 1500 : lerp(1500, 1676, eio((ug - 8.6) / .8));
     o.scan = Math.max(sm((ug - 2.6) / .3) * (1 - sm((ug - 3.8) / .3)), sm((ug - 6.4) / .3) * (1 - sm((ug - 7.6) / .3)));
     const fs = [0, 1, 2].map(j => ({show: sm((ug - 3 - j * .2) / .2), drop: j === 1 ? sm((ug - 4.3) / .4) : 0, fixed: j !== 1 ? sm((ug - 5.6 - j * .2) / .3) : 0}));
-    o.cards.push({x, col: GREEN, fs, merged: ug > 9.4, stack: 0});
+    o.cards.push({x, col: GREEN, fs, merged: ug > 9.4, hash: ug < 6.1 ? 'a3f9c1e' : 'b71e04d'});
     o.ci = [sm((ug - 7.9) / .3), sm((ug - 8.1) / .3)];
   }
-  if (ux >= 0 && ux < B.x1.od + .3) {
+  if (live('x1', t)) {
+    // Codex (amber lenses) reviews Claude Code's card and catches one finding, fixed before it merges; then Claude (green
+    // lenses) reviews the card Codex wrote and catches one, fixed too.
     const x1 = ux < .4 ? 1404 : ux < 1.6 ? lerp(1404, 1500, eio((ux - .4) / 1.2)) : ux < 2.7 ? 1500 : lerp(1500, 1676, eio((ux - 2.7) / .7));
-    o.cards.push({x: x1, col: GREEN, fs: [], merged: ux > 3.3, stack: 1});
+    o.cards.push({x: x1, col: GREEN, fs: [{show: sm((ux - 1.8) / .15), drop: 0, fixed: sm((ux - 2.3) / .2)}], merged: ux > 3.3, hash: 'c58d2a0'});
     o.scan = Math.max(sm((ux - 1.6) / .2) * (1 - sm((ux - 2.5) / .2)), sm((ux - 4.7) / .2) * (1 - sm((ux - 6.2) / .2)));
     o.lens = ux < 3.6 ? AMBER : GREEN;
-    if (ux > 3.2) { const x2 = ux < 4.2 ? lerp(1404, 1500, eio((ux - 3.2) / 1)) : ux < 6.3 ? 1500 : lerp(1500, 1676, eio((ux - 6.3) / .7)); o.cards.push({x: x2, col: AMBER, fs: [], merged: ux > 7, stack: 2}); }
+    if (ux > 3.2) { const x2 = ux < 4.2 ? lerp(1404, 1500, eio((ux - 3.2) / 1)) : ux < 6.3 ? 1500 : lerp(1500, 1676, eio((ux - 6.3) / .7));
+      o.cards.push({x: x2, col: AMBER, fs: [{show: sm((ux - 5) / .15), drop: 0, fixed: sm((ux - 5.7) / .2)}], merged: ux > 7, hash: '9e04b7f'}); }
     o.ci = [sm((ux - 2.4) / .2) * (1 - sm((ux - 3.4) / .3)) + sm((ux - 6) / .2), sm((ux - 2.5) / .2) * (1 - sm((ux - 3.4) / .3)) + sm((ux - 6.1) / .2)];
   }
+  if (live('x2', t)) { o.cards.push({x: 1452, col: GREEN, fs: [], merged: false, hash: '4d1e8b3'}); o.ci = [1, 1]; o.lens = CREAM; }
   if (ur >= 0) {
     // Results: #211 three rounds 2, 4, 0; #212 three reviewers, 0, CI on two systems; #214 the rule.
     o.lens = AMBER; o.res = ur;
     o.scan = [[.4, 1], [1.3, 1.9], [2.2, 2.8], [4.1, 4.9]].reduce((m, [a, b]) => Math.max(m, sm((ur - a) / .15) * (1 - sm((ur - b) / .2))), 0);
     o.ci = [sm((ur - 5.1) / .3), sm((ur - 5.3) / .3)];
   }
+  if (live('close', t)) o.glow = sm((nloc('close', t) - 2.6) / .4);
   return o;
 }
 function drawGate(t) {
   const e = emphasis(t, 'gate'), s = gateScript(t);
   paint(box(1400, 118, 290, 44, Z0, 6, 4, .6), {e, tone: 'mid'});
   for (let j = 0; j < 14; j++) line(k.lineOnTop([1408 + j * 20, 122], [1408 + j * 20, 158], Z0 + 6, P), {e, tone: 'faint'});
-  // CI tower, behind the track
   paint(cyl(1600, 70, 5, Z0, 74, 16), {e, tone: 'mid'});
-  for (let j = 0; j < 2; j++) { paint(cyl(1600, 70, 9, Z0 + 74 + j * 16, 12, 20), {e, tone: 'hi', acc: GREEN, g: s.ci[j]}); }
+  for (let j = 0; j < 2; j++) paint(cyl(1600, 70, 9, Z0 + 74 + j * 16, 12, 20), {e, tone: 'hi', acc: GREEN, g: s.ci[j]});
   faceText('CI', [1612, 78, Z0 + 92], {size: 6, face: 'front', a: .55, e});
-  // Arch: back post, lintel with lenses, front post drawn after the card
   paint(cyl(1500, 104, 6, Z0, 116, 18), {e, tone: 'mid'});
   paint(box(1494, 96, 12, 88, Z0 + 116, 10, 2, .6), {e, tone: 'mid'});
   faceText('REVIEW', [1496, 186, Z0 + 124], {size: 4.6, face: 'front', a: .5, e});
   for (let j = 0; j < 3; j++) {
-    const y = 116 + j * 24; paint(dcyl(1500, y, 7, Z0 + 100, 16, 18), {e, tone: 'hi', acc: s.lens, g: .4 + s.scan * .6});
+    const y = 116 + j * 24, lc = s.glow ? (j === 1 ? GREEN : AMBER) : s.lens;
+    paint(dcyl(1500, y, 7, Z0 + 100, 16, 18), {e, tone: 'hi', acc: lc, g: .4 + Math.max(s.scan, s.glow) * .6});
     if (s.scan > 0 && e > .5) {
       const a1 = iso([1500, y, Z0 + 100]), b1 = iso([1478, y - 8, Z0 + 12]), b2 = iso([1522, y + 8, Z0 + 12]);
       ctx.fillStyle = css(s.lens, .09 * s.scan); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill();
     }
   }
-  // Merged stack at the exit
-  const merged = s.cards.filter(c => c.merged).length + (s.res != null ? 0 : 0);
-  let stackZ = Z0 + 6; const stackN = Math.max(0, mergedCount(t));
+  let stackZ = Z0 + 6; const stackN = mergedCount(t);
   for (let j = 0; j < stackN; j++) { paint(box(1650, 122, 46, 36, stackZ, 3, 2), {e, tone: 'mid'}); stackZ += 3.6; }
-  void merged;
+  faceText('main', [1654, 160, Z0 + 5], {size: 5, face: 'front', a: .6, e});
   for (const c of s.cards) {
     if (c.merged) continue;
     paint(dyn(c.x - 23, 122, 46, 36, Z0 + 6, 4, 2, .5), {e, tone: 'hi', acc: c.col, g: .45});
     for (let r = 0; r < 4; r++) line(k.lineOnTop([c.x - 18, 128 + r * 6], [c.x - 18 + 14 + ((r * 13) % 20), 128 + r * 6], Z0 + 10.2, P), {e, tone: 'mid'});
-    faceText('a3f9c1e', [c.x - 18, 154, Z0 + 10.2], {size: 4.4, a: .7, e, col: c.col});
+    faceText(c.hash, [c.x - 18, 154, Z0 + 10.2], {size: 4.4, a: .7, e, col: c.col});
     c.fs.forEach((f, j) => {
       if (f.show <= 0) return; const fx = c.x + 4 + j * 6, fy = 132 + j * 7, gone = f.drop;
       const col = f.fixed > .5 ? GREEN : AMBER, a = f.show * (1 - f.fixed) * (1 - gone);
@@ -756,7 +878,6 @@ function drawGate(t) {
     });
   }
   paint(cyl(1500, 176, 6, Z0, 116, 18), {e, tone: 'mid'});
-  // The /merge key switch, with you beside it
   paint(box(1428, 196, 22, 22, Z0, 40, 2, .6), {e, tone: 'mid'});
   paint(cyl(1439, 207, 6, Z0 + 40, 4, 18), {e, tone: 'hi', acc: GREEN, g: s.key * .8});
   const ka = -.8 + s.key * 1.6; line(k.lineOnTop([1439 - Math.cos(ka) * 6, 207 - Math.sin(ka) * 6], [1439 + Math.cos(ka) * 6, 207 + Math.sin(ka) * 6], Z0 + 44.2, P), {e, col: s.key > .5 ? GREEN : CREAM, a: .95, w: 2.2});
@@ -769,27 +890,48 @@ function mergedCount(t) {
   if (t > at('x1', 7)) n++;
   return n;
 }
-// Reader behind the gate: session strips feed a drum; corrections tally in three jars; at three one pull
-// request of rule edits prints and rides the pipe to the PR slot beside the drawers, where it waits for you.
+// Reader behind the gate (/refine weekly): a week of session strips feed a drum; this week's correction count grows as an
+// amber bar; the previous four runs rise beside it and a trend line joins them; proposed edits pass an evidence gate (one is
+// turned back); one pull request rides the return pipe to the PR slot by the drawers, where it waits for you to review it.
 function drawBack(t) {
-  const e = emphasis(t, 'back'), u = local('i1', t);
+  const e = emphasis(t, 'back'), n = nloc('i1', t), M = B.i1.S, L = live('i1', t);
   paint(box(1560, -38, 90, 52, Z0, 30, 4, 1), {e, tone: 'mid'});
-  paint(dcyl(1605, -12, 16, Z0 + 30, 12, 28), {e, tone: 'hi', acc: GREEN, g: u > 0 && u < 5 ? .6 : 0});
+  paint(dcyl(1605, -12, 16, Z0 + 30, 12, 28), {e, tone: 'hi', acc: GREEN, g: L && n > .3 && n < M.how + 1.6 ? .6 : 0});
   faceText('/refine weekly', [1566, 16, Z0 + 18], {size: 4.8, face: 'front', a: .6, e});
-  for (let j = 0; j < 5; j++) { const f = ((u * .6 + j * .2) % 1); if (u > .3 && u < 4.6) paint(dyn(1660 + 50 * (1 - f), -26, 18, 26, Z0 + 30 + 2, 1.5, 1), {e, tone: 'hi', alpha: Math.sin(Math.PI * f)}); }
-  const tallies = [[.9, 1.6, 2.4], [1.3], [2, 3.1]];
-  tallies.forEach((ts, j) => {
-    const x = 1470 + j * 30; paint(cyl(x, -16, 10, Z0, 6, 20), {e, tone: 'mid'});
-    let z = Z0 + 6; ts.forEach(tt => { if (u > tt) { paint(dcyl(x, -16, 8, z, 3, 18), {e, tone: 'hi', acc: AMBER, g: j === 0 && ts.length === 3 && u > 2.4 ? 1 : .4}); z += 3.6; } });
-  });
-  // The one pull request rides the pipe to the PR slot beside the drawers and waits there for you.
-  paint(box(604, 206, 30, 26, Z0, 20, 2, .6), {e: emphasis(t, 'drawers'), tone: 'mid'});
-  faceText('PR', [612, 232, Z0 + 12], {size: 5.4, face: 'front', a: .65, e: emphasis(t, 'drawers')});
-  if (u > 2.8 && u < B.i1.od + .5) {
-    const f = clamp((u - 3) / 3.4), seg = 1032 + 258, d = eio(f) * seg;
+  // The return pipe's evidence gate, just behind the reader
+  paint(box(1626, -56, 4, 24, Z0 + 4, 26, .8), {e, tone: 'mid'}); paint(box(1626, -56, 4, 24, Z0 + 30, 3, .8), {e, tone: 'mid', acc: GREEN, g: L ? win(n, M.how + .4, M.how + 2.4) * .8 : 0});
+  // The PR slot by the drawers
+  const ed = emphasis(t, 'drawers');
+  paint(box(604, 206, 30, 26, Z0, 20, 2, .6), {e: ed, tone: 'mid'});
+  faceText('PR', [612, 232, Z0 + 12], {size: 5.4, face: 'front', a: .65, e: ed});
+  if (!L) return;
+  for (let j = 0; j < 5; j++) { const f = ((n * .6 + j * .2) % 1); if (n > .3 && n < M.ans + .4) paint(dyn(1660 + 50 * (1 - f), -26, 18, 26, Z0 + 30 + 2, 1.5, 1), {e, tone: 'hi', alpha: Math.sin(Math.PI * f)}); }
+  // The trend: a panel raised over the reader, four earlier runs (cream) and this week (amber), joined by a line
+  const pin = sm(n / .5), PZ = Z0 + 58;
+  paint(cyl(1640, -24, 2.5, Z0 + 30, 30, 12), {e, tone: 'mid', alpha: pin});
+  paint(box(1580, -30, 104, 4, PZ, 58, 1.5), {e, tone: 'mid', alpha: pin});
+  faceText('TREND · 5 RUNS', [1584, -26, PZ + 52], {size: 5, face: 'front', a: .7 * pin, e});
+  const H = [14, 19, 16, 22, 34];
+  for (let j = 0; j < 5; j++) {
+    const now = j === 4, h = now ? H[4] * sm((n - .5) / (M.ans - .5)) : H[j] * sm((n - M.ans - .2 - j * .3) / .3);
+    if (h > .3) paint(dyn(1590 + j * 18, -27, 11, 3, PZ + 6, h, .6), {e, tone: 'hi', acc: now ? AMBER : CREAM, g: now ? .8 : .2});
+  }
+  const tr = sm((n - M.ans - 1.5) / .4);
+  if (tr > 0) { const pts = H.map((h, j) => iso([1595.5 + j * 18, -23.5, PZ + 6 + h + 4])); ctx.lineWidth = 1.8 / ZOOM; ctx.strokeStyle = css(AMBER, .95 * tr); glow(AMBER, .6 * tr);
+    ctx.beginPath(); pts.forEach((p, j) => j ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.stroke(); noGlow(); }
+  // Proposed edits meet the evidence gate: the first passes, the second is turned back
+  for (let j = 0; j < 2; j++) { const a = M.how + .3 + j * .7, f = clamp((n - a) / .8); if (f <= 0) continue;
+    if (j === 0) { if (f < 1) card(arc([1605, -12, Z0 + 42], [1628, -44, Z0 + 14], eio(f), 16), 10, 8, {e}); }
+    else { const back = clamp((n - a - .8) / .6), p = f < 1 ? arc([1605, -12, Z0 + 42], [1622, -44, Z0 + 14], eio(f), 16) : [lerp(1622, 1600, back), lerp(-44, -20, back), Z0 + 14 - 14 * back];
+      if (back < 1) card(p, 10, 8, {e, col: AMBER, alpha: 1 - back}); } }
+  // The one pull request rides the pipe to the PR slot and waits there for you
+  const go = M.how + 1.9, arrive = M.why + 1.4;
+  if (n > go) {
+    const f = clamp((n - go) / (arrive - go)), seg = 1032 + 258, d = eio(f) * seg;
     let x, y; if (d < 1032) { x = 1650 - d; y = -44; } else { x = 618; y = -44 + (d - 1032); }
-    const wait = sm((u - 6.3) / .3), z = lerp(Z0 + 12, Z0 + 21, wait);
+    const wait = sm((n - arrive) / .3), z = lerp(Z0 + 12, Z0 + 21, wait);
     paint(dyn(x - 11, y - 7, 22, 14, z, 1.5, 1), {e: 1, tone: 'hi', acc: AMBER, g: .7 + .3 * wait * (.5 + .5 * Math.sin(t * 3))});
+    if (wait > 0) faceText('1 PR', [x - 9, y, z + 1.7], {size: 4.6, a: .9 * wait, e: 1, col: AMBER});
   }
 }
 
@@ -823,12 +965,15 @@ function frame(t, view) {
   drawBench(t); drawRailBack(t); for (const h of ['cx', 'cc2', 'cc']) drawCarriage(h, t);
   drawPipe(t);
   drawKernel(t); drawRack(t); drawDrawers(t); drawBack(t); drawPlan(t); drawLine(t); drawArena(t); drawGate(t);
-  // You: at the desk (choices, Go, starting the run, naming the second chat), at the gate (/merge, merging,
-  // the final yes) and by the drawers (correcting a mistake).
-  const pulse = (u, a, b) => sm((u - a) / .3) * (1 - sm((u - b) / .4)), n2 = nloc('p2', t), ux = local('x1', t);
-  person([744, 300, 0], {e: emphasis(t, 'plan'), lit: Math.max(sm((local('p1', t) - 4.2) / .3) * (1 - sm((n2 - .6) / .4)), pulse(n2, lineScript().save - .4, lineScript().save + 1.6), pulse(local('x2', t), .1, 1.1))});
-  person([1452, 300, 0], {e: emphasis(t, 'gate'), lit: Math.max(pulse(local('g1', t), 1.8, 3.6), pulse(local('open', t), 9.4, 11.3), pulse(ux, 2.5, 3.5), pulse(ux, 6.2, 7.9))});
-  person([660, 290, 0], {e: emphasis(t, 'drawers'), lit: pulse(local('f3', t), 2.2, 3.3)});
+  // You: at the desk (each answer and GO in p1, starting the run in p2), at the gate (/merge, merging, deciding the open
+  // /coordinate item, the final yes) and by the PR slot (reviewing the /refine PR).
+  const n1 = nloc('p1', t), P1 = B.p1.S, n2 = nloc('p2', t), ux = local('x1', t), cut = id => live(id, t) ? 1 : 0;
+  const desk = cut('p1') * Math.max(...p1Asks().map(a => win(n1, a + .5, a + 1.4)), win(n1, P1.why + 2, 99)) + cut('p2') * win(n2, .3, 2);
+  const gate = Math.max(cut('g1') * win(local('g1', t), 1.8, 3.6), cut('open') * win(local('open', t), 9.4, 99), cut('x1') * Math.max(win(ux, 2.5, 3.5), win(ux, 6.2, 99)),
+    cut('x2') * win(nloc('x2', t), B.x2.S.why + 1.9, 99), cut('close') * sm((nloc('close', t) - 3.6) / .4));
+  person([744, 300, 0], {e: emphasis(t, 'plan'), lit: desk});
+  person([1452, 300, 0], {e: emphasis(t, 'gate'), lit: gate});
+  person([660, 290, 0], {e: emphasis(t, 'drawers'), lit: cut('i1') * win(nloc('i1', t), B.i1.S.why + 1.6, 99)});
   for (const h of ['cx', 'cc2', 'cc']) drawArm(h, t);
   ctx.restore();
   GA = 1; ctx.globalAlpha = 1;
@@ -873,15 +1018,32 @@ function readout(t) {
   for (const it of b.items) if (it.ro && u >= it.at) r = it.html;
   return r;
 }
-// /coordinate: verdict chips arc between the two sessions until both agree.
+// /coordinate: the two chats exchange claims, read the PR diff, CI and main, then trade a numbered verdict per item: 1 agree,
+// 2 disagree (the PR diff says otherwise), 3 agree. Item 2 is still open after a second exchange, so it goes to you.
 function drawCoordinate(t) {
-  const u = local('x2', t); if (u < 1 || u > 4.6) return;
-  const a = headAt('cc', t), b = headAt('cc2', t); if (!a || !b) return;
-  for (let j = 0; j < 4; j++) {
-    const t0 = 1.1 + j * .75, f = clamp((u - t0) / .6); if (f <= 0 || f >= 1) continue;
-    const [p, q] = j % 2 ? [b, a] : [a, b], x = lerp(p[0], q[0], f), y = lerp(p[1], q[1], f), z = lerp(p[2], q[2], f) + Math.sin(Math.PI * f) * 50;
-    spark([x, y, z], 22, j === 3 ? GREEN : AMBER, .9); dot([x, y, z], 3, CREAM, .9);
+  if (!live('x2', t)) return;
+  const n = nloc('x2', t), X = B.x2.S, a = headAt('cc', t), b = headAt('cc2', t); if (!a || !b || b[3] < .5) return;
+  const tipA = [a[0], a[1], a[2] - 2], tipB = [b[0], b[1], b[2] - 2];
+  // Claims cross between the chats
+  for (let j = 0; j < 4; j++) { const f = clamp((n - X.ans - .2 - j * .4) / .6); if (f > 0 && f < 1) { const [p, q] = j % 2 ? [tipB, tipA] : [tipA, tipB]; spark(arc(p, q, f, 40), 16, CREAM, .8); } }
+  // Each reads the sources itself: the PR diff, CI, main
+  const SRC = [[1452, 140, Z0 + 10], [1600, 70, Z0 + 92], [1673, 140, Z0 + 18]];
+  SRC.forEach((s, j) => { for (const h of [tipA, tipB]) { const f = clamp((n - X.how - .15 - j * .7) / .6); if (f > 0 && f < 1) spark(arc(s, h, f, 20), 15, GREEN, .85); } });
+  // Verdicts: [item, from A?, time, agree]
+  const V = [[1, 1, X.how + 2.2, 1], [2, 1, X.ro0 - .6, 0], [3, 1, X.ro0 + .3, 1], [2, 0, X.why + .2, 0]];
+  const park = k => [1526, 50 + k * 32, Z0 + 150];
+  const show = {};
+  for (const [k, fromA, t0, ok] of V) { const f = clamp((n - t0) / .6); if (f <= 0) continue;
+    const p = f < 1 ? arc(fromA ? tipA : tipB, park(k), eio(f), 30) : park(k); show[k] = {p, ok}; }
+  // Item 2 after its second exchange: to you, at the gate
+  const down = clamp((n - X.why - 1.1) / 1);
+  if (show[2] && down > 0) show[2].p = arc(park(2), [1452, 290, 96], eio(down), 20);
+  for (const [k, {p, ok}] of Object.entries(show)) {
+    paint(dyn(p[0] - 12, p[1] - 12, 24, 24, p[2], 3, 2), {e: 1, tone: 'hi', acc: ok ? GREEN : AMBER, g: .9});
+    faceText(k, [p[0] - 4, p[1] + .5, p[2] + 3.1], {size: 14, a: .95, e: 1, col: ok ? GREEN : AMBER});
   }
+  // While item 2 is open, a beam from the PR diff to its chip
+  const beam = win(n, X.ro0 - .2, X.why + 1.1); if (beam > .01 && show[2]) line(k.segment(SRC[0], show[2].p, P), {e: 1, col: AMBER, a: .7 * beam, w: 1.4, g: .5 * beam});
 }
 
 // ---- mount
