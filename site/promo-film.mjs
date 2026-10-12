@@ -67,7 +67,7 @@ const BEATS = [
   quote({id: 'p1', rec: 'Surface choices someone must own',
     q: '“The danger is that the engineer never noticed that there was a choice to make.”', who: 'Gabriel Martinez · G2i',
     tag: '/deep-plan', ans: 'Built-in ledger keeps decisions in your <em>words</em>', how: 'Low-stakes guesses listed as assumptions you can veto',
-    why: 'Weightiest decisions reviewed before your go-ahead', ro: ['Q9 ASSUMED UNLESS YOU OBJECT'], order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'ro0', 'why']}),
+    why: 'Fresh reviewer tests weightiest calls before go-ahead', ro: ['Q9 ASSUMED UNLESS YOU OBJECT'], order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'ro0', 'why']}),
   quote({id: 'p2', rec: 'Change approach, try different angle', q: '“You will change your approach.”', who: 'Matt Gibiec · Dynatrace',
     tag: '/long-horizon', ans: 'Two failed audits, same step → new <em>approach</em>', how: 'You start /long-horizon; ruled-out approaches stay logged',
     why: 'Stuck run changes course, keeps verified work', ro: ['AUDIT FAIL ×2 → NEW APPROACH'], order: ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'ro0', 'why']}),

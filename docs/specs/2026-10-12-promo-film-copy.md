@@ -82,7 +82,7 @@ Talk: Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI
 Tag: /deep-plan
 Answer: Built-in ledger keeps decisions in your *words*
 How: Low-stakes guesses listed as assumptions you can veto
-Why: Weightiest decisions reviewed before your go-ahead
+Why: Fresh reviewer tests weightiest calls before go-ahead
 Readout: Q9 ASSUMED UNLESS YOU OBJECT
 Stock: parts a user would wire up: plan mode plus an "Interview me in detail using the AskUserQuestion tool ... then write a complete spec to SPEC.md" prompt, or Codex `/plan` with an interview request; a SPEC or decisions file the user writes; `/advisor` (which sees the whole conversation) or a reviewer subagent briefed by hand; Anthropic's feature-dev plugin (https://code.claude.com/docs/en/best-practices#let-claude-interview-you, https://learn.chatgpt.com/docs/long-running-work, https://code.claude.com/docs/en/advisor, https://github.com/anthropics/claude-plugins-public/tree/main/plugins/feature-dev)
 Edge: planning, decision ledger: `/deep-plan` records each decision in `.tmp/deep-plan/<slug>/ledger.md` with stable question IDs, the user's own words and the rejected options, resumable after compaction or in a new session (Harness-Firmware .claude/skills/deep-plan/SKILL.md § Ledger) [ready]
