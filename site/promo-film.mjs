@@ -1,5 +1,5 @@
-// Promo film (/promo, #promo): what conference speakers recommend, paired with how Harness Firmware
-// already does it. One isometric machine, "the harness bench", stands for a repository with the
+// Promo film (/promo, #promo): the owner's statement of what Harness Firmware is for, then best practices
+// from conference and YouTube talks, each beside how Harness Firmware does it. One isometric machine, "the harness bench", stands for a repository with the
 // firmware in it: a kernel plate, a skill rack, a cabinet of reference drawers, a planning desk, the
 // long-horizon line, an arena, the review gate and a return pipe that carries lessons back. Two gantry
 // heads ride a rail above it: Claude Code (green) and Codex (amber). Each beat moves the camera to the
@@ -24,13 +24,15 @@ const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a.toFixed(
 const LW = 1.15;
 
 // ---- beats. Every caption is verbatim from docs/specs/2026-10-12-promo-film-copy.md (asterisk word -> <em>).
-// Quote beats compare two groups: what industry speakers recommend (label, Recommends, quote, speaker) and
-// Harness Firmware's version (tag, answer, how, why). Readouts are the deck's, in deck order.
+// Quote beats set two groups side by side: Best practice (label, Recommends, quote, speaker) and In Harness
+// Firmware (label, tag, answer, how, why). Readouts are the deck's, in deck order.
 // Reveal times and each beat's length come from the word counts (the reading rule): an element revealed at
 // `at` stays until the beat ends, and the beat lasts long enough to read it and everything revealed after it
-// at 3 words a second, plus 1 s. `od` is the length of the machine's original choreography for the beat;
+// at 3 words a second, plus 1 s. The open's statement is the one group that clears before the beat ends: a line
+// marked `clear` ends a group whose elements stay until everything in it has been read at 3 words a second plus
+// 1 s, and the next element starts after the fade. `od` is the length of the machine's original choreography for the beat;
 // `warp` maps beat time onto that choreography so each machine state lands on its caption or readout.
-const REC_LABEL = 'Industry speakers recommend', HF_LABEL = 'Harness Firmware’s version';
+const REC_LABEL = 'Best practice', HF_LABEL = 'In Harness Firmware';
 const QORDER = ['rl', 'rec', 'q', 'who', 'hl', 'tag', 'ans', 'how', 'why', 'ro0', 'ro1'];
 const quote = o => ({kind: 'quote', ...o});
 // f4, c1 and x3 are choreographed directly in beat seconds from the caption schedule: an identity warp.
@@ -38,14 +40,17 @@ const BEAT_SECONDS = (S, d) => [[0, 0], [d, d]];
 const extra = o => ({kind: 'x', order: ['xl', 'tag', 'ans', 'how', 'why', 'ro0'], ...o});
 const BEATS = [
   {id: 'open', od: 11, kind: 'open', lead: .6, lines: [
+    ['s1', 'pf-say', 'Harness Firmware aims to solve the spikiness of agent quality by steering them to work better than they normally would through reliable and repeatable methods', 1],
+    ['s2', 'pf-say', 'Models have basically solved code. They haven’t solved reliable verification', 1],
+    ['s3', 'pf-say', 'Harness Firmware is an ongoing engineering project to attack that bottleneck', 1, 1],
     ['o0', 'pf-sub', 'Harness Firmware · Claude Code + Codex repo template'],
     ['o1p', 'pf-was', 'Agent forgets'], ['o1a', 'pf-now', 'Repo keeps lessons', 1],
     ['o2p', 'pf-was', 'Agent grades itself'], ['o2a', 'pf-now', 'Other company’s model reviews every PR', 1],
     ['o3p', 'pf-was', 'Agent loses long jobs'], ['o3a', 'pf-now', 'Plan on disk', 1],
     ['o4', 'pf-big', 'You give final <em>yes</em>', 1],
-    ['o5', 'pf-cue', 'Industry speakers recommend → Harness Firmware’s version'],
     ['o6', 'pf-fine', 'No speaker reviewed or endorsed Harness Firmware']],
-    warp: S => [[0, 2], [S.o1p, 4.5], [S.o2p, 6.1], [S.o3p, 7.7], [S.o4, 9.3]]},
+    // The statement reads over the dust; the machine assembles as the tagline comes up.
+    warp: S => [[0, 2], [S.o0, 3.4], [S.o1p, 4.5], [S.o2p, 6.1], [S.o3p, 7.7], [S.o4, 9.3]]},
   quote({id: 'f1', od: 6.5, rec: 'Define agent rules and policies once',
     q: '“Define your guardrails, your agents, your docs, testing policies, really governance just one time”', who: 'Davis Palmie · Factory',
     tag: 'CLAUDE.md and AGENTS.md', ans: 'Project rules written once, loaded every <em>chat</em>', how: 'Claude Code reads CLAUDE.md; Codex reads AGENTS.md',
@@ -108,15 +113,16 @@ const ITEM = {rl: ['pf-lab', 'p', 1], hl: ['pf-lab pf-lab-h', 'p', 1], xl: ['pf-
 let TOTAL = 0; const B = {};
 for (const b of BEATS) {
   // Items in reading order: {k, cls, tag, html, label, words, ro}
-  if (b.lines) b.items = b.lines.map(([k, cls, html, words]) => ({k, cls, tag: 'p', html, words: !!words}));
+  if (b.lines) b.items = b.lines.map(([k, cls, html, words, clear]) => ({k, cls, tag: 'p', html, words: !!words, clear: !!clear}));
   else b.items = (b.order || QORDER).filter(k => k.startsWith('ro') ? b.ro && b.ro[+k[2]] : true).map(k => {
     if (k.startsWith('ro')) return {k, ro: true, html: b.ro[+k[2]]};
     const [cls, tag, label, words] = ITEM[k], html = k === 'rl' ? REC_LABEL : k === 'hl' ? HF_LABEL : b[k];
     return {k, cls, tag, html, label: !!label, words: !!words};
   });
   // Reveal schedule. A readout replaced by the next one needs its own reading time plus 1 s (and slack for sampling).
-  let a = b.lead ?? .4, ros = 0; b.S = {};
-  for (const it of b.items) { if (it.ro && ros++) a = up2(a + 1.3); it.at = a; b.S[it.k] = a; a = up2(a + nw(it.html) / 3); }
+  let a = b.lead ?? .4, ros = 0, g0 = 0; b.S = {};
+  b.items.forEach((it, j) => { if (it.ro && ros++) a = up2(a + 1.3); it.at = a; b.S[it.k] = a; a = up2(a + nw(it.html) / 3);
+    if (it.clear) { const u = up2(a + 1.05); for (const x of b.items.slice(g0, j + 1)) x.until = u; g0 = j + 1; a = up2(u + .5); } });
   b.dur = up2(a + 1 + .55);
   b.start = TOTAL; TOTAL += b.dur; B[b.id] = b;
   // Beat time -> choreography time, piecewise linear and strictly increasing in both.
@@ -845,7 +851,7 @@ function frame(t, view) {
 // ---- captions: one layer per beat, built from the beat table; each element has data-at (seconds into the beat)
 function captionHTML() {
   const words = s => s.split(/(\s+)/).map(w => /\s+/.test(w) ? w : `<span class="w">${w}</span>`).join('');
-  const el = it => it && !it.ro ? `<${it.tag} class="${it.cls}" data-at="${it.at.toFixed(2)}"${it.label ? ' data-label' : ''}${it.words ? ' data-words' : ''}>${it.words ? words(it.html) : it.html}</${it.tag}>` : '';
+  const el = it => it && !it.ro ? `<${it.tag} class="${it.cls}" data-at="${it.at.toFixed(2)}"${it.until != null ? ` data-until="${it.until.toFixed(2)}"` : ''}${it.label ? ' data-label' : ''}${it.words ? ' data-words' : ''}>${it.words ? words(it.html) : it.html}</${it.tag}>` : '';
   const out = [];
   for (const b of BEATS) {
     const I = Object.fromEntries(b.items.map(it => [it.k, it])), E = k => el(I[k]);
@@ -853,7 +859,7 @@ function captionHTML() {
     if (b.kind === 'quote') h += `<div class="pf-copy pf-grp pf-grp-rec">${E('rl')}${E('rec')}${E('q')}${E('who')}</div>
       <div class="pf-answer pf-grp pf-grp-hf">${E('hl')}${E('tag')}${E('ans')}${E('how')}${E('why')}</div>`;
     else if (b.kind === 'x') h += `<div class="pf-answer pf-answer-x pf-grp pf-grp-hf">${E('xl')}${E('tag')}${E('ans')}${E('how')}${E('why')}</div>`;
-    else if (b.kind === 'open') h += `<div class="pf-open">${E('o0')}<div class="pf-rows">${[1, 2, 3].map(j => E(`o${j}p`) + E(`o${j}a`)).join('')}</div>${E('o4')}${E('o5')}</div>${E('o6')}`;
+    else if (b.kind === 'open') h += `<div class="pf-say-grp">${E('s1')}${E('s2')}${E('s3')}</div><div class="pf-open">${E('o0')}<div class="pf-rows">${[1, 2, 3].map(j => E(`o${j}p`) + E(`o${j}a`)).join('')}</div>${E('o4')}</div>${E('o6')}`;
     else h += `<div class="pf-stmt pf-${b.kind}">${b.items.map(el).join('')}</div>`;
     h += `<p class="pf-readout" data-readout></p>`;
     out.push(`<div class="pf-beat" data-beat="${b.id}">${h}</div>`);

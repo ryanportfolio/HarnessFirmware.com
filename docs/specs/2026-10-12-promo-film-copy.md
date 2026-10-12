@@ -1,14 +1,16 @@
 # Promo film: on-screen copy
 
-Every on-screen line is compressed to caveman ultra for strangers: fragments with no articles or filler, arrows for cause and sequence, and only the abbreviations a developer already knows (PR, CI, repo), while each line still names who does what to which file. Each quote beat reads as a comparison (the practice in plain words under "Industry speakers recommend", a verbatim excerpt of the speaker's quote, then how Harness Firmware does it), the person's step stays on screen wherever the loop appears, and the whole film reads in under 270 seconds at 3 words per second.
+Every on-screen line is compressed to caveman ultra for strangers: fragments with no articles or filler, arrows for cause and sequence, and only the abbreviations a developer already knows (PR, CI, repo), while each line still names who does what to which file. The open leads with the owner's statement in the owner's words, each quote beat sets a "Best practice" group (the practice in plain words, a verbatim excerpt of a talk's quote, its speaker) beside an "In Harness Firmware" group (how Harness Firmware does it) with no wording that links a speaker to Harness Firmware, the person's step stays on screen wherever the loop appears, and the whole film reads in under 270 seconds at 3 words per second.
 
 ## open
+Line: Harness Firmware aims to solve the spikiness of agent quality by steering them to work better than they normally would through reliable and repeatable methods
+Line: Models have basically solved code. They haven't solved reliable verification
+Line: Harness Firmware is an ongoing engineering project to attack that bottleneck
 Line: Harness Firmware · Claude Code + Codex repo template
 Row: Agent forgets | Repo keeps lessons
 Row: Agent grades itself | Other company's model reviews every PR
 Row: Agent loses long jobs | Plan on disk
 Line: You give final *yes*
-Frame: Industry speakers recommend → Harness Firmware's version
 Line: No speaker reviewed or endorsed Harness Firmware
 Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Lost long tasks; product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval; docs/promo/social-proof.md § How to use it; social-proof.md § A second vendor's model reviews every pull request, in both directions
 
