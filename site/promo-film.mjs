@@ -92,7 +92,7 @@ const BEATS = [
     how: 'Read PR diff, CI, main; verdict per item until agreed', why: 'Two exchanges unresolved → you decide', ro: ['ITEM 2 · DISAGREE · PR DIFF'],
     order: ['xl', 'tag', 'ans', 'how', 'ro0', 'why']}),
   extra({id: 'x3', xl: 'More · 3 of 3', tag: 'Codex skill sync', ans: 'Ships hand-translated Codex skill <em>ports</em>',
-    how: 'Hash per Claude skill; CI warns when port lags', why: 'Edited skill → Codex port flagged for update', ro: ['CI · ONE CODEX SKILL BEHIND']}),
+    how: 'Hash per ported skill; CI warns when port lags', why: 'Edited skill → Codex port flagged for update', ro: ['CI · ONE CODEX SKILL BEHIND']}),
   {id: 'res', od: 9.5, kind: 'res', lines: [['r0', 'pf-eye', 'Results'],
     ['r1', 'pf-fig', 'Harness-Firmware #211 · 3 Codex reviews: 2 findings → 4 → <em>none</em>, all fixed', 1],
     ['r2', 'pf-fig', '#212 · 3 Codex reviewers, zero findings, CI passed', 1], ['r3', 'pf-fig', '#214 · cross-company review became rule for every PR', 1]],

@@ -189,7 +189,7 @@ Sources: docs/promo/social-proof.md § /coordinate: two sessions review each oth
 ## x3
 Tag: Codex skill sync
 Answer: Ships hand-translated Codex skill *ports*
-How: Hash per Claude skill; CI warns when port lags
+How: Hash per ported skill; CI warns when port lags
 Why: Edited skill → Codex port flagged for update
 Readout: CI · ONE CODEX SKILL BEHIND
 Stock: parts a user would wire up: one symlinked skill folder, the shared skill format, or import (one-time, or kept in sync one way by the ChatGPT desktop app); a symlink gives both tools the same text, so a skill naming Claude-only tools is not adapted for Codex (https://learn.chatgpt.com/docs/build-skills, https://code.claude.com/docs/en/skills#using-skill-frontmatter-outside-claude-code, https://learn.chatgpt.com/docs/import)
