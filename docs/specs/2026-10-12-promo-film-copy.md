@@ -4,11 +4,11 @@ Every on-screen line is compressed to caveman ultra for strangers: fragments wit
 
 ## open
 Line: Harness Firmware · Claude Code + Codex repo template
-Row: Agent forgets | Lessons saved in repo
-Row: Agent grades itself | Other company's model reviews
+Row: Agent forgets | Repo keeps lessons
+Row: Agent grades itself | Other company's model reviews every PR
 Row: Agent loses long jobs | Plan on disk
 Line: You give final *yes*
-Frame: Speakers recommend practices → scenes compare Harness Firmware
+Frame: Industry speakers recommend → Harness Firmware's version
 Line: No speaker reviewed or endorsed Harness Firmware
 Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Lost long tasks; product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval; docs/promo/social-proof.md § How to use it; social-proof.md § A second vendor's model reviews every pull request, in both directions
 
@@ -32,21 +32,21 @@ Talk: Why Bigger Context Windows Won't Save Your Agent, AI Engineer
 Tag: Skills
 Answer: Skills: step-by-step guides, loaded only when *needed*
 How: Each turn sees name + description; full guide loads when used
-Why: Many guides, one line each
+Why: Many guides, context stays small
 Readout: IDLE · ONE LINE EACH
 Readout: CALLED · FULL GUIDE LOADED
 Sources: docs/promo/social-proof.md § Compress with care: summarize old turns, keep what the agent still needs; social-proof.md § Load details only when needed (progressive disclosure); .claude/reference/product.md § Layer 3: skill library; product.md § Context cost; product.md § What it is
 
 ## f3
-Recommends: Write hard-won know-how down for agents
-Quote: "If agents would try to figure out that from scratch, they are likely going to fail."
-Who: Rafal Wilinski · Runlayer
-Talk: From 36% to 100%: How Self-Improving Agents Write Their Own Skills, AI Engineer
+Recommends: Write down unwritten project rules
+Quote: "When you join a new company there are a lot of rules that are not really codified anywhere."
+Who: Tereza Tížková · Factory
+Talk: What It Actually Takes to Build a Software Factory, AI Engineer
 Tag: /recall and pitfalls.md
-Answer: Confirmed failure cause → *lesson* in pitfalls.md
-How: Agent writes it without asking; file tracked in git
-Why: Later chats read it, avoid repeating it
-Sources: docs/promo/social-proof.md § Write the playbook down after cracking a hard problem; keep the rituals nobody should rediscover; .claude/reference/product.md § Repeated mistakes; product.md § Failure to saved lesson; product.md § Layer 2: project memory; product.md § Forgetting between sessions
+Answer: Agent writes project *lessons* into repo
+How: Mistake you correct → pitfalls.md; /recall save → reference files
+Why: Later chats read lessons, avoid known mistakes
+Sources: docs/promo/social-proof.md § Codify unwritten rules; turn repeated work into reusable skills; .claude/reference/product.md § Repeated mistakes; product.md § Failure to saved lesson; product.md § Layer 2: project memory; product.md § Forgetting between sessions
 
 ## f4
 Recommends: Don't bet on one AI model
@@ -68,7 +68,7 @@ Talk: Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI
 Tag: /deep-plan
 Answer: Agent finds facts, you make *choices*
 How: Each choice comes with recommendation; build waits for Go
-Why: No choice slips past you
+Why: Open choices reach you before build
 Readout: GO · PICKED BY YOU
 Sources: docs/promo/social-proof.md § Resolve ambiguity instead of guessing; surface the choices someone has to own; social-proof.md § Humans decide what to build; agents decide how; humans stay the gate for direction; .claude/reference/product-skills.md § Think before building (deep-plan)
 
