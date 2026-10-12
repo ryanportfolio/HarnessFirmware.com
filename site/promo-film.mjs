@@ -457,9 +457,9 @@ function drawKernel(t) {
   }
 }
 // Skill rack: front row .claude/skills, back row .agents/skills (the hand-translated Codex ports); two back slots hold a
-// small tag instead (skills disabled for Codex). In x3 Codex ports the back row, a hash chip lights under each Claude skill
-// (its recorded baseline), CI sweeps clean once; then one Claude skill is edited, its hash no longer matches, its port lags
-// and the next CI sweep flags it, to the end of the beat.
+// small tag instead (skills disabled for Codex). In x3 Codex ports the back row, a hash chip lights under each ported
+// Claude skill (its recorded baseline; Claude-only skills have none), CI sweeps clean once; then one Claude skill is
+// edited, its hash no longer matches, its port lags and the next CI sweep flags it, to the end of the beat.
 const RACK_N = 11, RACK_X = i => 230 + i * 14.5, CLAUDE_ONLY = [3, 8], EDITED = 6;
 function drawRack(t) {
   const e = emphasis(t, 'rack'), ux = nloc('x3', t), X = B.x3.S, L = live('x3', t);
@@ -494,8 +494,8 @@ function drawRack(t) {
     const x = RACK_X(i), hot = i === EDITED && fix > .05;
     paint(box(x, 104, 9, 56, Z0 + 10, 46, 1.2), {e, tone: hot ? 'hi' : 'mid', acc: GREEN, g: i === EDITED ? fix : 0});
     line(k.lineOnTop([x + 4.5, 110], [x + 4.5, 110 + 14 + (i * 7) % 24], Z0 + 56, P), {e, tone: 'lo'});
-    // The recorded hash under each Claude skill.
-    const h = hash(i); if (h > .01) { const bad = i === EDITED ? edited : 0;
+    // The recorded hash under each ported Claude skill; Claude-only slots record none.
+    const h = CLAUDE_ONLY.includes(i) ? 0 : hash(i); if (h > .01) { const bad = i === EDITED ? edited : 0;
       paint(dyn(x + 1, 146, 7, 8, Z0 + 56, 1.4, 1), {e, tone: 'hi', acc: bad > .5 ? AMBER : GREEN, g: .6 * h + .4 * bad, alpha: h}); }
   }
 }
