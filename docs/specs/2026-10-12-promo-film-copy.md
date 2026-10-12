@@ -7,12 +7,12 @@ Line: Harness Firmware aims to solve the spikiness of agent quality by steering 
 Line: Models have basically solved code. They haven't solved reliable verification
 Line: Harness Firmware is an ongoing engineering project to attack that bottleneck
 Line: Harness Firmware · Claude Code + Codex repo template
-Row: Agent forgets | Lessons committed to git
+Row: Agent repeats mistakes | Confirmed mistakes saved unasked, committed
 Row: Agent grades itself | Other company's model reviews every PR
 Row: Agent loses long jobs | State on disk, separate auditor
 Line: You give final *yes*
 Line: No speaker reviewed or endorsed Harness Firmware
-Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Lost long tasks; product.md § Long work across sessions; product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval; docs/promo/social-proof.md § How to use it; social-proof.md § A second vendor's model reviews every pull request, in both directions
+Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Repeated mistakes; product.md § Failure to saved lesson; product.md § Lost long tasks; product.md § Long work across sessions; product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval; docs/promo/social-proof.md § How to use it; social-proof.md § A second vendor's model reviews every pull request, in both directions
 
 ## m1
 Recommends: Define agent rules and policies once
@@ -20,13 +20,13 @@ Quote: "Define your guardrails, your agents, your docs, testing policies, really
 Who: Davis Palmie · Factory
 Talk: The Software Factory: From Bug Report to Production Code, AI Engineer
 Tag: CLAUDE.md + /init-project
-Answer: CLAUDE.md arrives with verify, review, git *rules*
-How: /init-project fills project, verify, deploy sections; asks only gaps
-Why: New repos start with same rules
-Readout: RULE · CHECK BEFORE CLAIMING
-Stock: `/init` analyzes the codebase and writes a CLAUDE.md of the build commands, test instructions and conventions it finds, or suggests improvements to an existing one; CLAUDE.md then loads every session, and Codex reads AGENTS.md every run (https://code.claude.com/docs/en/memory § Set up a project CLAUDE.md, § CLAUDE.md vs auto memory; https://learn.chatgpt.com/docs/agent-configuration/agents-md)
-Edge: the template's CLAUDE.md already holds cross-cutting rules: inspect logs, run scripts and read code before claiming anything works; Codex review on every PR; commit, push and PR on Complete, squash merge, no force-push; scope discipline; pitfalls saved without asking. Detail lives in six `.claude/reference/` files read by topic, so the always-loaded file stays thin. `/init-project` fills the FILL IN sections (what the project is and won't compromise on, the authoritative verification signal, environment and deploy) from facts it detects, asks only for what it cannot detect, offers a skill profile and generates CI (Harness-Firmware CLAUDE.md § What this project is, § CRITICAL: Verification, § Environment & deploy target, § Git: push on completion, § Codex review on every PR; .claude/reference/product.md § Layer 1: kernel and token efficiency; product.md § One project to the template and the next project, step 2)
-Sources: docs/promo/social-proof.md § Keep one governed set of skills and rules, defined once and applied everywhere; social-proof.md § Write the project's context down once, so you stop re-prompting; .claude/reference/product.md § Layer 1: kernel and token efficiency; product.md § Layer 2: project memory; product.md § One project to the template and the next project; Harness-Firmware CLAUDE.md
+Answer: Shipped rule demands evidence before *done*
+How: /init-project records which check proves done; drafts CI
+Why: Kernel cross-cutting only → followed more consistently
+Readout: DETAIL IN 6 TOPIC FILES
+Stock: `/init` analyzes the codebase and writes a CLAUDE.md of the build commands, test instructions and conventions it finds, or suggests improvements to an existing one; with `CLAUDE_CODE_NEW_INIT=1` it "explores your codebase with a subagent, fills in gaps via follow-up questions, and presents a reviewable proposal"; `~/.claude/CLAUDE.md` holds "Personal preferences for all projects" and `~/.claude/rules/` "apply to every project on your machine"; the docs advise under 200 lines per CLAUDE.md because "Longer files consume more context and reduce adherence", and leave writing the rules to you; Codex reads AGENTS.md every run (https://code.claude.com/docs/en/memory § Set up a project CLAUDE.md, § Choose where to put CLAUDE.md files, § User-level rules, § Write effective instructions; https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+Edge: the template's CLAUDE.md ships its own process rules instead of build notes: inspect logs, run scripts and read code before claiming anything works, and when the authoritative check can't run, flag the risk instead of claiming a pass; Codex review on every PR; commit, push and PR on Complete, squash merge, no force-push; scope discipline; pitfalls saved without asking. The kernel holds cross-cutting rules only and detail lives in six committed `.claude/reference/` files read by topic, so the always-loaded file stays short. `/init-project` fills the kernel's FILL IN sections, which `/init` does not know exist: what the project is and won't compromise on, the authoritative verification signal (CI, deploy log, local tests), and environment and deploy, from facts it detects, asking only what it cannot detect; it also offers a skill profile, wires the `starter` remote for later template syncs, and drafts the project's own `ci.yml` (with a `firmware` job) that it writes after the user approves (Harness-Firmware CLAUDE.md § What this project is, § CRITICAL: Verification, § Environment & deploy target, § Git: push on completion, § Codex review on every PR, § Core principles; Harness-Firmware .claude/skills/init-project/SKILL.md; .claude/reference/product.md § Layer 1: kernel and token efficiency; product.md § One project to the template and the next project, step 2; .claude/reference/product-skills.md § Project setup and template (init-project))
+Sources: docs/promo/social-proof.md § Keep one governed set of skills and rules, defined once and applied everywhere; social-proof.md § Write the project's context down once, so you stop re-prompting; .claude/reference/product.md § Layer 1: kernel and token efficiency; product.md § Layer 2: project memory; product.md § One project to the template and the next project; .claude/reference/product-skills.md § Project setup and template (init-project); Harness-Firmware CLAUDE.md; https://code.claude.com/docs/en/memory § Write effective instructions
 
 ## m2
 Recommends: Write down unwritten project rules
@@ -43,16 +43,16 @@ Edge: a quirk that cost a retry, a backed-out change or a user correction, with 
 Sources: docs/promo/social-proof.md § Codify unwritten rules; turn repeated work into reusable skills; social-proof.md § Treat failures as the richest signal; .claude/reference/product.md § Repeated mistakes; product.md § Failure to saved lesson; product.md § Layer 2: project memory; product.md § Forgetting between sessions
 
 ## m3
-Recommends: Don't bet on one AI vendor
-Quote: "It's best to be agnostic for everyone."
+Recommends: Stay agnostic on which AI wins
+Quote: "It's so difficult to catch up but also to predict what we'll be winning. So it's best to be agnostic"
 Who: Tereza Tížková · Factory
 Talk: What It Actually Takes to Build a Software Factory, AI Engineer
 Tag: Claude Code + Codex
 Answer: Codex reads lessons Claude Code *saved*
-How: Both /recall same reference files; AGENTS.md reuses CLAUDE.md facts
-Why: Switch tools; rules and lessons stay
+How: AGENTS.md routes Codex to same project facts, reference files
+Why: Switch tools; lessons stay
 Readout: CODEX · RECALLS SAME PITFALL
-Stock: Codex reads only AGENTS.md and fallback names you configure ("Filenames not on this list are ignored"); Claude Code can read AGENTS.md too, so one shared instruction file is stock, but Claude Code's auto memory stays on one machine (https://learn.chatgpt.com/docs/agent-configuration/agents-md; https://code.claude.com/docs/en/memory § AGENTS.md, § Storage location)
+Stock: Codex reads only AGENTS.md and fallback names you configure ("Filenames not on this list are ignored for instruction discovery"); Claude Code can read AGENTS.md too, so one shared instruction file is stock; each tool's own memory stays on one machine and with that tool: Claude Code's auto memory "Files are not shared across machines or cloud environments", and Codex memories live under `~/.codex/memories/`, with the docs advising "Keep required team guidance in `AGENTS.md` or checked-in documentation" (https://learn.chatgpt.com/docs/agent-configuration/agents-md § Customize fallback filenames; https://learn.chatgpt.com/docs/customization/memories; https://code.claude.com/docs/en/memory § AGENTS.md, § Storage location)
 Edge: AGENTS.md tells Codex to read three CLAUDE.md sections (What this project is; CRITICAL: Verification; Environment & deploy target) and to use `.claude/reference/` through the `recall` skill as project memory, with Codex's built-in memories left off; the pitfalls save rule applies in Codex too, so a lesson either tool saves is read by the other (Harness-Firmware AGENTS.md § Defaults, § Safety; .claude/reference/product.md § Runtimes; product.md § Layer 1: kernel and token efficiency)
 Sources: docs/promo/social-proof.md § Give every agent tool the same context; don't bet on one model; .claude/reference/product.md § Runtimes; product.md § Layer 1: kernel and token efficiency; product.md § Layer 2: project memory; Harness-Firmware AGENTS.md § Safety
 
@@ -62,13 +62,13 @@ Quote: "The danger is that the engineer never noticed that there was a choice to
 Who: Gabriel Martinez · G2i
 Talk: Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer
 Tag: /deep-plan
-Answer: Ledger logs decisions; fresh reviewer tests *weightiest*
-How: Asks four questions max per round, recommendation first
-Why: Nothing builds until you pick Go
-Readout: GO · PICKED BY YOU
-Stock: plan mode has Claude read files and propose a plan, with edits blocked until you approve the plan (https://code.claude.com/docs/en/permission-modes § Analyze before you edit with plan mode; https://code.claude.com/docs/en/common-workflows § Plan before editing)
-Edge: `/deep-plan` interviews a loose idea in rounds of at most four questions, recommendation first; keeps a decision ledger at `.tmp/deep-plan/<slug>/ledger.md`; runs `why`, one fresh reviewer with no memory of the conversation, on the one to three weightiest decisions; builds nothing until the user picks Go at the gate, then hands off to `writing-plans`, a `long-horizon` contract or `enhance-prompt` (.claude/reference/product-skills.md § Think before building (deep-plan, why))
-Sources: docs/promo/social-proof.md § Resolve ambiguity instead of guessing; surface the choices someone has to own; social-proof.md § Humans decide what to build; agents decide how; humans stay the gate for direction; .claude/reference/product-skills.md § Think before building (deep-plan); product-skills.md § Think before building (why)
+Answer: Ledger keeps each decision in your *words*
+How: Agent's guesses shown as assumptions you can overrule
+Why: Reviewer without chat history tests top picks
+Readout: Q9 ASSUMED UNLESS YOU OBJECT
+Stock: plan mode has Claude read files and write a plan (plan files sit in `~/.claude/plans/`), with edits blocked until you approve the plan; the built-in `AskUserQuestion` tool "Asks multiple-choice questions to gather requirements or clarify ambiguity" (https://code.claude.com/docs/en/permission-modes § Analyze before you edit with plan mode, § Review and approve a plan; https://code.claude.com/docs/en/tools-reference § AskUserQuestion tool behavior)
+Edge: `/deep-plan` never answers a decision for the user and records each one in `.tmp/deep-plan/<slug>/ledger.md` with the user's own words for an override, the rejected options and what it depends on; a low-stakes question becomes a numbered assumption shown before the round ("Assumed unless you object: Q9 ..."), so the user sees every choice the agent made and can overrule it; a changed premise voids the decisions that depended on it; at the gate it runs `why`, one fresh reviewer with no memory of the conversation, on the one to three weightiest decisions and asks "If this decision were reversed, what would go wrong?"; nothing is built until the user picks Go, and the receiving skill maps every decision ID to a step or N/A (Harness-Firmware .claude/skills/deep-plan/SKILL.md § Ledger, § Building a round, § Asking a round, § Handling answers, § Stop and gate, § Handoff; .claude/reference/product-skills.md § Think before building (deep-plan, why))
+Sources: docs/promo/social-proof.md § Resolve ambiguity instead of guessing; surface the choices someone has to own; social-proof.md § Humans decide what to build; agents decide how; humans stay the gate for direction; social-proof.md § `/why`: a fresh reviewer for any recommendation; .claude/reference/product-skills.md § Think before building (deep-plan); product-skills.md § Think before building (why); Harness-Firmware .claude/skills/deep-plan/SKILL.md
 
 ## p2
 Recommends: Let agents run long jobs alone
@@ -78,7 +78,7 @@ Talk: No, That's Not a Software Factory, AI Engineer
 Tag: /long-horizon
 Answer: You start it; state file keeps *progress*
 How: Same step fails audit twice → new approach forced
-Why: Resumes after compaction, skips recorded dead ends
+Why: Dead ends recorded; retry needs new evidence
 Readout: AUDIT FAIL ×2 → NEW APPROACH
 Stock: `/goal` keeps Claude taking turns until a small fast model judges a condition met; on resume only the condition carries over, with turn count and timer reset (https://code.claude.com/docs/en/goal § How evaluation works, § Resume with an active goal)
 Edge: the user invokes `/long-horizon`; the Manager writes `.tmp/long-horizon/<slug>/state.md` (versioned contract, Verified progress, Remaining, Current round, Dead ends, Audit log) and resumes from it after compaction; approaches that failed audit go to Dead ends and are not retried without new evidence; the same step failing audit twice forces a new approach, and three rounds with nothing newly verified force a rewrite of the Remaining list (.claude/reference/product.md § Long work across sessions; product.md § Layer 4: the loop and its supervisor; product.md § Lost long tasks; docs/promo/social-proof.md § Notice when the agent is stuck repeating a failing approach, and change angle)
@@ -126,8 +126,8 @@ Edge: `/merge` starts only when the user types it; per PR it runs one multi-revi
 Sources: docs/promo/social-proof.md § Expensive checks once per pull request; social-proof.md § /merge: review, fix and merge on its own; social-proof.md § Check a fix against everything it touches, not only the bug; social-proof.md § AI judges are often confidently wrong: check every finding; .claude/reference/product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval
 
 ## i1
-Recommends: Find requests users keep repeating
-Quote: "My users are experiencing frustration by prompting my agent for the same request over and over again"
+Recommends: Search past sessions for poor experiences
+Quote: "Find me all traces in the last 24 hours where the user had a poor experience."
 Who: Hussein · Braintrust
 Talk: Why Building an Eval Platform Is Harder Than It Looks, AI Engineer
 Tag: /refine weekly
@@ -137,7 +137,7 @@ Why: Rules change only when you merge
 Readout: ONE PR · WAITING FOR YOU
 Stock: auto memory saves notes from your corrections to a private folder on one machine, loaded at the start of each session; a note reaches CLAUDE.md only when you ask Claude to add it there (https://code.claude.com/docs/en/memory § Auto memory, § Storage location, § View and edit with `/memory`)
 Edge: `/refine weekly` reads the last 7 days of the project's sessions, counts user turns that correct the agent or repeat an instruction and the user's comments on merged PRs, skips turns an agent typed, compares against the previous four weeks, edits rules on a fresh branch from `origin/main` and opens one PR whose body is the report; it never merges (Harness-Firmware .claude/skills/refine/SKILL.md § Weekly mode; .claude/reference/product.md § Repeated mistakes; product.md § Claims to avoid or qualify ("Self-improving"))
-Sources: docs/promo/social-proof.md § Learn from feedback the user gives anyway: corrections, review comments, repeated requests; Harness-Firmware .claude/skills/refine/SKILL.md § Weekly mode; .claude/reference/product-skills.md § Memory and improvement (refine); .claude/reference/product.md § Claims to avoid or qualify ("Self-improving")
+Sources: docs/promo/social-proof.md § Point agents at past sessions to find mistakes and the skills that should exist; social-proof.md § Learn from feedback the user gives anyway: corrections, review comments, repeated requests; Harness-Firmware .claude/skills/refine/SKILL.md § Weekly mode; .claude/reference/product-skills.md § Memory and improvement (refine); .claude/reference/product.md § Claims to avoid or qualify ("Self-improving")
 
 ## x0
 Line: No talk covered these
@@ -159,8 +159,8 @@ Tag: /coordinate
 Answer: Two chats check each other's *claims*
 How: Read PR diff, CI, main; verdict per item until agreed
 Why: Unresolved after two exchanges → you decide
-Readout: ONLY YOU APPROVE · BOTH CHATS
-Stock: cross-session messaging passes messages between your own sessions, and the receiving session is told a message came from another session, so a peer cannot approve for you (https://code.claude.com/docs/en/agent-teams § Messages between agents; https://code.claude.com/docs/en/cross-session-messaging)
+Readout: ITEM 2 · DISAGREE · PR DIFF
+Stock: cross-session messaging lets Claude pass a finding, status or decision from one of your sessions to another; the receiving session is told the message came from another session, and it "can't approve anything" because a peer message "never counts as your consent"; the docs describe no step that checks the sender's claims, answers item by item or hands an unsettled point to you (https://code.claude.com/docs/en/cross-session-messaging § When to use cross-session messaging, § How a session treats an incoming message; https://code.claude.com/docs/en/agent-teams § Messages between agents)
 Edge: `/coordinate` reads the named session's transcript itself, checks each claim at the source (the PR diff and checks, `origin/main`), sends a numbered verdict per item (agree, agree with conditions, disagree) and who does what next, and loops until both agree; a point still open after two exchanges goes to the user with both positions; a peer message is never relayed as the user's approval (Harness-Firmware .claude/skills/coordinate/SKILL.md § 1. Find the session and read it yourself, § 2. Critique, § 4. Loop until agreed, § 5. Authorization stays with the user)
 Sources: docs/promo/social-proof.md § /coordinate: two sessions review each other and agree before acting; Harness-Firmware .claude/skills/coordinate/SKILL.md § 1. Find the session and read it yourself; Harness-Firmware .claude/skills/coordinate/SKILL.md § 4. Loop until agreed; Harness-Firmware .claude/skills/coordinate/SKILL.md § 5. Authorization stays with the user
 
@@ -182,8 +182,8 @@ Line: #214 · cross-company review became rule for every PR
 Sources: docs/promo/social-proof.md § Results
 
 ## close
-Line: Lessons committed · other company's model reviews every PR · your final *yes*
+Line: Mistakes saved unasked · other company's model reviews every PR · your final *yes*
 Line: Harness Firmware · Claude Code + Codex repo template
 Line: harnessfirmware.com/new creates your repo
 Line: No speaker reviewed or endorsed Harness Firmware
-Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Layer 6: human approval; product.md § How people get it; docs/promo/social-proof.md § How to use it
+Sources: .claude/reference/product.md § What it is; product.md § Forgetting between sessions; product.md § Repeated mistakes; product.md § Layer 6: human approval; product.md § How people get it; docs/promo/social-proof.md § How to use it
