@@ -8,7 +8,7 @@ Line: Models have basically solved code. They haven't solved reliable verificati
 Line: Harness Firmware is an ongoing engineering project to attack that bottleneck
 Line: Harness Firmware · Claude Code + Codex repo template
 Row: Repeated mistakes | Confirmed cause saved unasked to committed pitfalls.md
-Row: Self-graded work | Other company's AI auto-reviews every PR
+Row: Self-graded work | Two-way cross-company PR review, switched on
 Row: Long jobs stall | 2 failed audits → new approach forced
 Line: You give final *yes*
 Line: No speaker reviewed or endorsed Harness Firmware
@@ -22,7 +22,7 @@ Who: Davis Palmie · Factory
 Talk: The Software Factory: From Bug Report to Production Code, AI Engineer
 Tag: CLAUDE.md + /init-project
 Answer: Template CLAUDE.md requires evidence before *done*
-How: When asked, /init-project fills project sections, seeds notes from repo
+How: When asked, /init-project reads repo, fills verify signal, deploy policy
 Why: Working agreement on from day one
 Readout: CHECK NOT RUN → RISK FLAGGED
 Stock: parts a user would wire up for the working agreement: writing these rules into their own `CLAUDE.md` (the docs teach this kind of rule; `/init` "creates a file with build commands, test instructions, and project conventions it discovers"), Claude Code's built-in git instructions, and a project `verify` skill that `/verify` writes to `.claude/skills/verify/SKILL.md` (https://code.claude.com/docs/en/memory#set-up-a-project-claude-md, https://code.claude.com/docs/en/memory#write-effective-instructions, https://code.claude.com/docs/en/settings-reference#includegitinstructions, https://code.claude.com/docs/en/skills#run-and-verify-your-app)
@@ -81,8 +81,8 @@ Who: Gabriel Martinez · G2i
 Talk: Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer
 Tag: /deep-plan
 Answer: Built-in ledger keeps decisions in your *words*
-How: Guesses listed as assumptions; fresh reviewer tests top picks
-Why: Nothing built until your go-ahead
+How: Low-stakes guesses listed as assumptions you can veto
+Why: Weightiest decisions reviewed before your go-ahead
 Readout: Q9 ASSUMED UNLESS YOU OBJECT
 Stock: parts a user would wire up: plan mode plus an "Interview me in detail using the AskUserQuestion tool ... then write a complete spec to SPEC.md" prompt, or Codex `/plan` with an interview request; a SPEC or decisions file the user writes; `/advisor` (which sees the whole conversation) or a reviewer subagent briefed by hand; Anthropic's feature-dev plugin (https://code.claude.com/docs/en/best-practices#let-claude-interview-you, https://learn.chatgpt.com/docs/long-running-work, https://code.claude.com/docs/en/advisor, https://github.com/anthropics/claude-plugins-public/tree/main/plugins/feature-dev)
 Edge: planning, decision ledger: `/deep-plan` records each decision in `.tmp/deep-plan/<slug>/ledger.md` with stable question IDs, the user's own words and the rejected options, resumable after compaction or in a new session (Harness-Firmware .claude/skills/deep-plan/SKILL.md § Ledger) [ready]
