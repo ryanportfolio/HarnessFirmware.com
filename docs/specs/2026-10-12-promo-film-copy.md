@@ -7,8 +7,8 @@ Line: Harness Firmware aims to solve the spikiness of agent quality by steering 
 Line: Models have basically solved code. They haven't solved reliable verification
 Line: Harness Firmware is an ongoing engineering project to attack that bottleneck
 Line: Harness Firmware · Claude Code + Codex repo template
-Row: Repeated mistakes | Built in: confirmed cause → committed pitfalls.md
-Row: Self-graded work | Ships on: other company's AI reviews PRs
+Row: Repeated mistakes | Confirmed cause saved unasked to committed pitfalls.md
+Row: Self-graded work | Other company's AI auto-reviews every PR
 Row: Long jobs stall | 2 failed audits → new approach forced
 Line: You give final *yes*
 Line: No speaker reviewed or endorsed Harness Firmware
@@ -21,8 +21,8 @@ Quote: "Define your guardrails, your agents, your docs, testing policies, really
 Who: Davis Palmie · Factory
 Talk: The Software Factory: From Bug Report to Production Code, AI Engineer
 Tag: CLAUDE.md + /init-project
-Answer: CLAUDE.md ships rules: evidence before *done*
-How: Setup: /init-project fills project sections, seeds reference notes from repo
+Answer: Template CLAUDE.md requires evidence before *done*
+How: When asked, /init-project fills project sections, seeds notes from repo
 Why: Working agreement on from day one
 Readout: CHECK NOT RUN → RISK FLAGGED
 Stock: parts a user would wire up for the working agreement: writing these rules into their own `CLAUDE.md` (the docs teach this kind of rule; `/init` "creates a file with build commands, test instructions, and project conventions it discovers"), Claude Code's built-in git instructions, and a project `verify` skill that `/verify` writes to `.claude/skills/verify/SKILL.md` (https://code.claude.com/docs/en/memory#set-up-a-project-claude-md, https://code.claude.com/docs/en/memory#write-effective-instructions, https://code.claude.com/docs/en/settings-reference#includegitinstructions, https://code.claude.com/docs/en/skills#run-and-verify-your-app)
@@ -38,11 +38,11 @@ Who: Tereza Tížková · Factory
 Talk: What It Actually Takes to Build a Software Factory, AI Engineer
 Tag: CLAUDE.md structure
 Answer: Ships short CLAUDE.md; detail in topic *files*
-How: /recall reads task's topic file; standing rule prunes stale lines
-Why: Detail loads per task
+How: /recall reads task's topic file; rules favor pruning stale lines
+Why: Less always-loaded context each turn
 Stock: parts a user would wire up: the docs' structure advice ("target under 200 lines per CLAUDE.md file", procedures to skills, area rules to `.claude/rules/` with `paths:`), `/doctor` to migrate always-loaded guidance, `/doctor prompt-audit` and Code Review to catch stale lines (https://code.claude.com/docs/en/memory#write-effective-instructions, https://code.claude.com/docs/en/memory#path-specific-rules, https://code.claude.com/docs/en/skills#bundled-skills, https://code.claude.com/docs/en/memory#audit-your-instruction-files, https://code.claude.com/docs/en/code-review#claude-md)
 Edge: rules, kernel structure: the template ships the kernel already split: `CLAUDE.md` holds cross-cutting rules (its line 3 blockquote: "Kernel rules. Read first. Cross-cutting only.") and topical facts live in on-demand `.claude/reference/` files indexed by a table, which `recall` reads by topic (Harness-Firmware CLAUDE.md § Project reference library; Harness-Firmware .claude/skills/recall/SKILL.md; .claude/reference/product.md § Layer 1: kernel and token efficiency) [ready]
-Edge: context, thin kernel: standing kernel rules keep it thin: new rules must earn their place, stale content gets pruned, area detail moves to `.claude/reference/`, and nothing the harness already injects is restated (Harness-Firmware CLAUDE.md § Core principles) [ready]
+Edge: context, thin kernel: standing kernel rules keep it thin: new rules must earn their place, pruning stale content is preferred over accreting, area detail moves to `.claude/reference/`, and nothing the harness already injects is restated (Harness-Firmware CLAUDE.md § Core principles) [ready]
 Sources: docs/promo/social-proof.md § Load details only when needed (progressive disclosure); social-proof.md § Keep always-loaded context small; a bigger window does not help, because models lose the middle of a long context; .claude/reference/product.md § Layer 1: kernel and token efficiency; product.md § Context cost; product.md § Rules for changing the firmware
 
 ## m2
@@ -51,10 +51,10 @@ Quote: "When you join a new company there are a lot of rules that are not really
 Who: Tereza Tížková · Factory
 Talk: What It Actually Takes to Build a Software Factory, AI Engineer
 Tag: pitfalls.md + /recall
-Answer: Built-in rule: confirmed quirks → *pitfalls.md*
-How: Cost retry or correction, cause confirmed → saved unasked to repo
-Why: Git carries lesson; /recall cites file, date
-Readout: NEXT SESSION · PER PITFALLS.MD
+Answer: Preset rule saves confirmed quirks to *pitfalls.md*
+How: Cost retry or correction → saved unasked to repo
+Why: Git carries lesson to every machine
+Readout: NEXT SESSION CITES PITFALLS.MD + DATE
 Stock: parts a user would wire up: a custom subagent with `memory: project` plus a save instruction, delegated to or run as the session with `--agent` (and subagent memory has no effect when auto memory is off); Projects memory, which saves a pitfall when you tell Claude to remember it (Pro and Max cloud threads); rules written into `CLAUDE.md`; `/revise-claude-md` from the claude-md-management plugin; hookify rules; auto memory saves correction notes in `~/.claude/projects/<project>/memory/` on one machine, with `modified` dates, which a user would add an instruction to cite (https://code.claude.com/docs/en/sub-agents#enable-persistent-memory, https://code.claude.com/docs/en/claude-projects#when-to-use-a-project, https://github.com/anthropics/claude-plugins-official/tree/main/plugins/claude-md-management, https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify, https://code.claude.com/docs/en/memory#storage-location, https://code.claude.com/docs/en/memory#how-it-works)
 Edge: lessons, pitfall rule: when a quirk cost a retry, a backed-out change or a user correction and its cause is confirmed (a guess does not count), the agent saves it to the committed `.claude/reference/pitfalls.md` before the task ends, without asking, amending an existing entry over adding one; git carries it to every machine and sandbox; built-in auto memory is off (`autoMemoryEnabled: false`); committing follows normal git authorization (Harness-Firmware CLAUDE.md § Project reference library, § Core principles; Harness-Firmware .claude/skills/recall/SKILL.md; .claude/reference/product.md § Failure to saved lesson; product.md § Layer 2: project memory) [ready]
 Edge: lessons, recall cites file and date: when a stored fact changes an action, `recall` says so with its file and date ("per pitfalls.md (2026-03-14): ..."), so a stale fact surfaces as a dated claim the user can correct (Harness-Firmware .claude/skills/recall/SKILL.md; .claude/reference/product.md § Forgetting between sessions) [ready]
@@ -66,7 +66,7 @@ Quote: "It's so difficult to catch up but also to predict what we'll be winning.
 Who: Tereza Tížková · Factory
 Talk: What It Actually Takes to Build a Software Factory, AI Engineer
 Tag: Claude Code + Codex
-Answer: Built in: Codex, Claude Code share *lessons*
+Answer: Codex + Claude Code wired to share *lessons*
 How: Both write .claude/reference; both built-in memories off
 Why: Switch tools; lessons stay
 Readout: CODEX · RECALLS SAME PITFALL
@@ -80,9 +80,9 @@ Quote: "The danger is that the engineer never noticed that there was a choice to
 Who: Gabriel Martinez · G2i
 Talk: Generation Is Cheap, Review Is Expensive: How to Stop Shipping AI Slop, AI Engineer
 Tag: /deep-plan
-Answer: Built in: ledger keeps decisions, your *words*
-How: Low-stakes guesses listed as assumptions you can overrule
-Why: Fresh reviewer tests top picks before Go
+Answer: Built-in ledger keeps decisions in your *words*
+How: Guesses listed as assumptions; fresh reviewer tests top picks
+Why: Nothing built until your go-ahead
 Readout: Q9 ASSUMED UNLESS YOU OBJECT
 Stock: parts a user would wire up: plan mode plus an "Interview me in detail using the AskUserQuestion tool ... then write a complete spec to SPEC.md" prompt, or Codex `/plan` with an interview request; a SPEC or decisions file the user writes; `/advisor` (which sees the whole conversation) or a reviewer subagent briefed by hand; Anthropic's feature-dev plugin (https://code.claude.com/docs/en/best-practices#let-claude-interview-you, https://learn.chatgpt.com/docs/long-running-work, https://code.claude.com/docs/en/advisor, https://github.com/anthropics/claude-plugins-public/tree/main/plugins/feature-dev)
 Edge: planning, decision ledger: `/deep-plan` records each decision in `.tmp/deep-plan/<slug>/ledger.md` with stable question IDs, the user's own words and the rejected options, resumable after compaction or in a new session (Harness-Firmware .claude/skills/deep-plan/SKILL.md § Ledger) [ready]
@@ -97,7 +97,7 @@ Who: Matt Gibiec · Dynatrace
 Talk: Your AI Agent Has No Nervous System, AI Engineer
 Tag: /long-horizon
 Answer: Two failed audits, same step → new *approach*
-How: Ruled-out approaches logged; 3 batches unverified → plan rewritten
+How: You start /long-horizon; ruled-out approaches stay logged
 Why: Stuck run changes course, keeps verified work
 Readout: AUDIT FAIL ×2 → NEW APPROACH
 Stock: closest stock parts: `/goal` stops when its evaluator says met or impossible, on an unrecoverable error, or after several turns without tool calls; the workflows "Keep fixing until a check passes" pattern fixes "until the type check passes or two rounds in a row make no progress"; the advisor may be consulted "when stuck on a recurring error"; none keeps a list of ruled-out approaches or forces a different one (https://code.claude.com/docs/en/goal#how-evaluation-works, https://code.claude.com/docs/en/workflows#keep-fixing-until-a-check-passes, https://code.claude.com/docs/en/advisor)
@@ -110,7 +110,7 @@ Quote: "The agents will often overconfidently claim that they did something when
 Who: Miguel · Browserbase and Corby · Microsoft
 Talk: Your LLM Judge Is a Confident Liar: Building Better Verifiers, AI Engineer
 Tag: /long-horizon
-Answer: Built in: auditor never sees worker's *report*
+Answer: Shipped auditor never sees worker's *report*
 How: Checks written before step; hash diff flags edited checks
 Why: Final auditor reruns every check
 Readout: AUDITOR · FAIL · NOT COUNTED
@@ -126,9 +126,9 @@ Quote: "Side-by-side comparison becomes the next evolution of the eval cycle"
 Who: Hussein · Braintrust
 Talk: Why Building an Eval Platform Is Harder Than It Looks, AI Engineer
 Tag: /arena
-Answer: Built in: blind judge ranks rival *builds*
-How: 3 isolated builds, same criteria; authors hidden from judge
-Why: Strongest kept; best ideas grafted on
+Answer: Packaged blind judge checks each *criterion*
+How: 3 isolated builds, names hidden; judge recommends base
+Why: Base kept; best rival ideas grafted on
 Stock: parts a user would wire up: fork subagents, multi-angle workflows, experimental agent teams, Codex cloud `--attempts` best-of-N; for a second vendor, the Codex plugin's `/codex:rescue` (https://code.claude.com/docs/en/sub-agents#fork-the-current-conversation, https://code.claude.com/docs/en/workflows#when-to-use-a-workflow, https://code.claude.com/docs/en/agent-teams, https://learn.chatgpt.com/docs/cli/reference#codex-cloud, https://github.com/openai/codex-plugin-cc)
 Edge: attempts, arena: competing builds judged blind, best ideas grafted: three candidates by default from different angles in isolated worktrees, a fresh read-only judge scores them against 3 to 6 pass/fail criteria an outsider could check with names and rationale stripped, the strongest becomes the base and the best ideas from the others are grafted on (Harness-Firmware .claude/skills/arena/SKILL.md; .claude/reference/product-skills.md § Think before building (arena)) [ready]
 Sources: docs/promo/social-proof.md § Try several versions and compare them side by side; .claude/reference/product-skills.md § Think before building (arena)
@@ -139,7 +139,7 @@ Quote: "Expensive things you want to run once when the PR goes up."
 Who: Dru Knox · Tessl
 Talk: Harness Engineering: How to Build a Software Factory, AI Engineer
 Tag: /merge
-Answer: Built in: /merge reviews, fixes, re-reviews, *merges*
+Answer: Included /merge reviews, fixes, re-reviews, *merges*
 How: You type /merge → Codex reviewers; fixes → whole diff re-reviewed
 Why: Squash-merge at reviewed commit, CI green
 Readout: MERGED AT REVIEWED COMMIT
@@ -154,7 +154,7 @@ Who: Hussein · Braintrust
 Talk: Why Building an Eval Platform Is Harder Than It Looks, AI Engineer
 Tag: /refine weekly
 Answer: Week of corrections → trend, one rule *PR*
-How: Counts your corrections vs prior 4 weeks; evidence-gated edits
+How: Counts your corrections vs previous four runs; evidence-gated edits
 Why: Never merges; you review the PR
 Readout: ONE PR · WAITING FOR YOU
 Stock: closest stock parts: `/insights` reports friction from up to 200 recent sessions on one machine and keeps a timestamped copy of each run for 30 days, but changes no files and computes no trend; auto memory keeps corrections as private notes; a schedule comes from a Desktop scheduled task, a routine or a Codex scheduled task the user sets up (https://code.claude.com/docs/en/costs#analyze-your-usage-patterns, https://code.claude.com/docs/en/memory#auto-memory, https://code.claude.com/docs/en/scheduled-tasks, https://code.claude.com/docs/en/routines)
@@ -168,7 +168,7 @@ Sources: docs/promo/social-proof.md § Beyond what the talks covered
 
 ## x1
 Tag: Cross-company review
-Answer: Ships on: cross-company review, every *PR*
+Answer: Cross-company review switched on for every *PR*
 How: Codex reviews Claude Code PRs; Claude reviews Codex PRs
 Why: Can catch what author's model misses
 Readout: YOU MERGE OR TYPE /merge
@@ -178,7 +178,7 @@ Sources: docs/promo/social-proof.md § A second vendor's model reviews every pul
 
 ## x2
 Tag: /coordinate
-Answer: Built-in protocol: chats check each other's *claims*
+Answer: Bundled protocol makes chats cross-check *claims*
 How: Read PR diff, CI, main; verdict per item until agreed
 Why: Two exchanges unresolved → you decide
 Readout: ITEM 2 · DISAGREE · PR DIFF
@@ -204,8 +204,9 @@ Line: #214 · cross-company review became rule for every PR
 Sources: docs/promo/social-proof.md § Results
 
 ## close
-Line: Built in: rules, pitfall log, cross-company PR review · your final *yes*
+Line: Evidence-before-done rule, pitfall log, cross-company PR review, switched on · your final *yes*
 Line: Harness Firmware · Claude Code + Codex repo template
 Line: harnessfirmware.com/new creates your repo
 Line: No speaker reviewed or endorsed Harness Firmware
+Edge: rules, working agreement: the evidence-before-done rule (inspect logs, run scripts and read code before claiming anything works; flag the risk when the authoritative check cannot run), source as in m1 [ready]; lessons, pitfall rule, source as in m2 [ready]; cross-vendor, review on every PR in both directions, source as in x1 [ready]; the final yes is stated as a property of the loop, not an edge
 Sources: .claude/reference/product.md § What it is; product.md § Repeated mistakes; product.md § Layer 5: review and the PR gate; product.md § Layer 6: human approval; product.md § How people get it; docs/promo/social-proof.md § How to use it
