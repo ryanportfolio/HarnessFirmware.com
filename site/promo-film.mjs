@@ -345,12 +345,14 @@ function headKeys() {
   park('cc', 'x3', .6, 160); park('cc', 'x3', B.x3.dur, 160);
   // close: the rule plate, the pitfalls drawer, the gate
   K0('cc', 'close', .6, 85, 70, 90); K0('cc', 'close', 1.6, 85, 70, 90); K0('cc', 'close', 2.6, 560, 188, 112); K0('cc', 'close', 3.6, 560, 188, 112); K0('cc', 'close', 4.8, 1430, 140, 90);
-  // Codex: off until m3, where it saves its own lesson and recalls Claude Code's; reviews at the gate from g1; writes in x1 and
+  // Codex: off until m3, where it saves its own lesson and recalls Claude Code's; reviews at the gate in g1, then fades out for
+  // i1 (/refine weekly reads Claude Code's sessions) and x0; back for x1, where it writes, and
   // leaves before x2 (two Claude Code chats); ports skills in x3
   K('cx', 'open', 0, -60, -20, 140, 0); K0('cx', 'm3', M3.ans - .9, 760, -20, 140, 0); K0('cx', 'm3', M3.ans - .1, 600, 60, 140, 1); K0('cx', 'm3', M3.ans + .6, 592, 186, 126);
   dip('cx', 'm3', M3.how + .7, 592, 186, 126, 112); K0('cx', 'm3', M3.ro0 - .6, 592, 186, 126); K0('cx', 'm3', M3.ro0 - .2, 584, 196, 104);
   K0('cx', 'm3', B.m3.dur - .35, 584, 196, 104, 1); K0('cx', 'm3', B.m3.dur - .02, 584, 196, 104, 0);
-  K0('cx', 'p1', .5, 1660, -20, 140, 0); K('cx', 'g1', 0, 1660, -20, 140, 0); K('cx', 'g1', .4, 1660, -20, 140, 1); K0('cx', 'i1', .2, 1660, -20, 140); K0('cx', 'i1', 1.2, 1704, -56, 158); K0('cx', 'x0', 3, 1704, -56, 158); K('cx', 'x1', 2.6, 1600, -20, 140);
+  K0('cx', 'p1', .5, 1660, -20, 140, 0); K('cx', 'g1', 0, 1660, -20, 140, 0); K('cx', 'g1', .4, 1660, -20, 140, 1); K0('cx', 'i1', .2, 1660, -20, 140); K0('cx', 'i1', 1.2, 1704, -56, 158, 0); K0('cx', 'x0', 3, 1704, -56, 158, 0);
+  K('cx', 'x1', .2, 1660, -20, 140, 0); K('cx', 'x1', 1.2, 1640, -20, 140, 1); K('cx', 'x1', 2.6, 1600, -20, 140);
   K('cx', 'x1', 3.2, 1430, 140, 70); K('cx', 'x1', 4, 1430, 140, 70); K('cx', 'x1', 4.4, 1620, 30, 150);
   K0('cx', 'x1', B.x1.dur - .9, 1620, 30, 150); K0('cx', 'x1', B.x1.dur - .1, 1660, -20, 140, 0);
   K0('cx', 'x3', .2, 200, 60, 140, 0); K0('cx', 'x3', 1.2, 240, 70, 128, 1); K0('cx', 'x3', X3.ans, 240, 70, 120); K0('cx', 'x3', X3.ans + 1.4, 380, 70, 120);
@@ -646,7 +648,8 @@ function drawPlan(t) {
 // twice on approach A, A is logged in state.md as a dead end, the line switches to approach B, and step 2 passes.
 // c1: the checks are written and sealed with a hash before the step and handed to the auditor; the worker presses the step
 // and stamps it DONE, leaving its report by the press, where the auditor never reads it; the audit fails; on the second
-// run the worker touches the sealed check and the seal flags it; the final auditor reruns every check and the step fails.
+// run the worker touches the sealed check and the seal flags it; then a separate FINAL AUDITOR rises in front of the belt,
+// takes the same sealed checks, reruns all three with its own lens and the step fails.
 const QUEUE = [0, 1, 2, 3].map(i => [896 + i * 26, 206]), PASSED = [0, 1, 2, 3].map(i => [1062 + i * 26, 206]);
 const BELT = {in: 900, press: 1006, check: 1110}, BTOP = Z0 + 14;
 const run = (go, pass, o = {}) => ({go, press: go + .85, check: [go + 1.5, go + 2.4], pass, ...o});
@@ -655,7 +658,7 @@ function lineScript() {
   if (LS) return LS;
   const P = B.p2.S, C = B.c1.S;
   const r2 = run(P.ans - 2.3, false), r3 = run(P.how - 1.5, false), r4 = run(P.ro0 + .2, true, {b: true});
-  const ra = run(4.2, false, {check: [6, 8.2]}), rb = run(C.ans - 2, false, {check: [C.ans + .1, C.how - .3], partial: 2, stay: true, final: [C.why + .1, C.ro0]});
+  const ra = run(4.2, false, {check: [6, 8.2]}), rb = run(C.ans - 2, false, {check: [C.ans + .1, C.how - .3], partial: 2, stay: true, final: [C.why + .45, C.ro0]});
   return (LS = {p2: {save: .8, steps: [[run(1.6, true)], [r2, r3, r4]], runs: [run(1.6, true), r2, r3, r4], fails: [r2.check[1], r3.check[1]],
     dead: [P.how + 1, P.how + 1.8], flip: P.ro0 - .35}, c1: {write: [.6, 2.2], seal: 2.2, fly: [2.6, 3.8], runs: [ra, rb], tamper: C.how + .85}});
 }
@@ -683,9 +686,16 @@ function auditor(t) {
     o.beam = sm((n - a + .2) / .2) * (n < b ? 1 : 1 - sm((n - b - .3) / .3)); return true; };
   if (live('p2', t)) { const n = nloc('p2', t); for (const r of lineScript().p2.runs) sweep(n, ...r.check, r.pass, 3, r.check[1] + .5); return o; }
   if (live('c1', t)) { const n = nloc('c1', t), [ra, rb] = lineScript().c1.runs;
-    sweep(n, ...ra.check, false, 3, rb.go - .4); sweep(n, ...rb.check, true, rb.partial, rb.final[0] - .15); sweep(n, ...rb.final, false, 3, 99);
-    if (n > rb.final[1] - .01) o.beam = Math.max(o.beam, .5); return o; }
+    // The line's auditor stops when the final auditor takes over (finalAuditor below).
+    sweep(n, ...ra.check, false, 3, rb.go - .4); sweep(n, ...rb.check, true, rb.partial, rb.final[0] - .15); return o; }
   return o;
+}
+// c1's final auditor, a separate unit that rises when its line shows: rise 0..1, three lamps (0 off, 1 pass, 2 fail), beam.
+function finalAuditor(nc) {
+  const C = B.c1.S, [a, b] = lineScript().c1.runs[1].final, pr = clamp((nc - a) / (b - a)), failed = nc >= b;
+  const rise = sm((nc - C.why) / .4) * (1 - sm((nc - B.c1.dur + .45) / .4));
+  return {rise, pr, failed, lamps: [0, 1, 2].map(k => pr >= (k + 1) / 3 - .02 ? (k === 2 && failed ? 2 : 1) : 0),
+    beam: sm((nc - a + .2) / .2) * (failed ? .6 : 1)};
 }
 function drawLine(t) {
   const e = emphasis(t, 'line'), n = nloc('p2', t), nc = nloc('c1', t), L2 = live('p2', t), Lc = live('c1', t), S = lineScript(), p2 = S.p2, c1 = S.c1;
@@ -759,6 +769,22 @@ function drawLine(t) {
     const chit = sm((nc - c1.runs[0].press - .2) / .3);
     if (chit > .01) { paint(dyn(1018, 150, 22, 14, Z0, 2, 1), {e, tone: 'hi', alpha: chit}); faceText('REPORT', [1020, 157, Z0 + 2.2], {size: 3.6, a: .75 * chit, e}); }
     pr(c1.runs);
+    // The final auditor: its own pedestal, three lamps and lens; the sealed checks travel to it, it reruns all three.
+    const F = finalAuditor(nc);
+    if (F.rise > .01) {
+      const al = F.rise, zr = Z0 - 14 * (1 - F.rise), ex = Math.max(e, F.rise);
+      paint(box(1122, 160, 52, 30, zr, 14, 3, .8), {e: ex, tone: 'mid', alpha: al});
+      faceText('FINAL AUDITOR', [1125, 190, zr + 9], {size: 4.2, face: 'front', a: .8 * al, e: ex, col: F.failed ? AMBER : CREAM});
+      F.lamps.forEach((s, j) => { paint(cyl(1132 + j * 11, 175, 4, zr + 14, 3, 16), {e: ex, tone: s ? 'hi' : 'mid', acc: s === 2 ? AMBER : GREEN, g: s ? 1 : 0, alpha: al});
+        if (s) spark([1132 + j * 11, 175, zr + 17], s === 2 ? 22 : 14, s === 2 ? AMBER : GREEN, (s === 2 ? .9 : .6) * al); });
+      paint(cyl(1166, 168, 2.5, zr + 14, 28, 12), {e: ex, tone: 'mid', alpha: al});
+      const lens = F.failed ? AMBER : CREAM, run = F.beam * al;
+      paint(dcyl(1166, 168, 7, zr + 42, 6, 18), {e: ex, tone: 'hi', acc: lens, g: .3 + .7 * run, alpha: al});
+      if (run > .05) spark([1166, 168, zr + 45], 26, lens, .55 * run);
+      const cf = clamp((nc - B.c1.S.why - .05) / .5); if (cf > 0 && cf < 1) card(arc([1142, 70, Z0 + 32], [1143, 175, Z0 + 18], eio(cf), 30), 16, 12, {e: ex, col: GREEN, alpha: .9});
+      if (run > .01) { const a1 = iso([1166, 168, zr + 42]), b1 = iso([BELT.check - 12, 112, BTOP + 14]), b2 = iso([BELT.check + 12, 128, BTOP + 14]);
+        ctx.fillStyle = css(lens, .14 * run); ctx.beginPath(); ctx.moveTo(...a1); ctx.lineTo(...b1); ctx.lineTo(...b2); ctx.closePath(); ctx.fill(); }
+    }
   }
   if (ck.beam > .01 && e > .5) {
     const a1 = iso([1114, 70, Z0 + 37]), b1 = iso([BELT.check - 12, 112, Z0 + 28]), b2 = iso([BELT.check + 12, 128, Z0 + 28]);
