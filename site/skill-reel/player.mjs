@@ -203,7 +203,9 @@ function mount(fig) {
     if (!ok) {
       setBusy(false);
       show();
-      if (fsElement() === fig) exitFs(); // the poster alone has no controls in full screen
+      // The poster alone has no controls in full screen. The request may still be in flight when a
+      // load fails fast, so leave once it settles.
+      Promise.resolve(fsRequest).then(() => { if (fsElement() === fig) exitFs(); });
       return;
     }
     if (ended || t >= reel.total - 0.01) { t = 0; ended = false; }
@@ -232,10 +234,12 @@ function mount(fig) {
   // Full screen needs the press's user activation, so the request runs before play() awaits anything.
   // A rejected or missing request (iPhone Safari has no element full screen) leaves the reel inline.
   const canFs = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  // The last request, settled either way, so a failed load can wait for it before leaving full screen.
+  let fsRequest = null;
   const enterFs = () => {
     try {
       const p = (fig.requestFullscreen || fig.webkitRequestFullscreen).call(fig);
-      if (p && p.catch) p.catch(() => {});
+      fsRequest = Promise.resolve(p).catch(() => {});
     } catch {}
   };
   function exitFs() {
