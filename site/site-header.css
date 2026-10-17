@@ -6,7 +6,7 @@
 .site-header .brand span br{display:inline}
 .site-header .harness-mark{width:35px;height:35px;fill:currentColor;stroke:none}
 .site-header nav{display:flex;align-items:center;gap:36px;font-size:13px}
-.site-header nav a[aria-current]{color:#96f77c}
+.site-header nav a[aria-current]{color:#53db76}
 .site-header .github{display:inline}
 .site-header .nav-start{border:1px solid rgba(243,243,236,.22);border-radius:0;padding:13px 17px}
 .site-header .nav-start span{margin-left:25px}

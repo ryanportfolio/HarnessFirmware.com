@@ -22,7 +22,7 @@ html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-
 
 /* Routing: the repository file tree. Ink ground, paper type, green #53db76 only for what a task reads.
    A task tab marks its topic files read: the row's dither wipes in left to right, its bar grows and
-   its tag fades in; rows leaving the route fade back. Reduced motion drops every transition above. */
+   its label turns from skipped to this task; rows leaving the route fade back. Reduced motion drops every transition above. */
 .routing{--paper:#f3f3ec;--hf-green:#53db76;--mute:#808d83;--line:rgba(243,243,236,.24);--dither:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%2353db76'/%3E%3C/svg%3E");padding:122px 4.3% 72px;color:var(--paper);background:linear-gradient(rgba(243,243,236,.022) 1px,transparent 1px) 0 0/64px 64px,linear-gradient(90deg,rgba(243,243,236,.022) 1px,transparent 1px) 0 0/64px 64px,#0f1210}
 @media(min-width:1600px){.routing{padding-left:max(4.3%,calc((100vw - 1500px)/2));padding-right:max(4.3%,calc((100vw - 1500px)/2))}}
 .routing :focus-visible{outline:2px solid #5fb775;outline-offset:4px}
@@ -54,9 +54,13 @@ html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-
 .mf-desc{font-size:15px;line-height:1.4;color:var(--mute);transition:color .3s}
 .mf.is-read .mf-name{color:var(--hf-green)}
 .mf.is-read .mf-desc{color:rgba(243,243,236,.9)}
-.mf-tag{padding:3px 11px 4px;border:1px solid var(--hf-green);font:12px/1.2 var(--font-mono);color:var(--hf-green);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s}
-.mf.is-read .mf-tag{opacity:1;visibility:visible;transition:opacity .3s .18s}
-.mf.is-read .mf-off{display:none}
+/* Why a row is read: root files "every session", a task's topic files "this task", the rest "skipped".
+   Only one of the two topic labels is displayed, so screen readers hear the current state. */
+.mf-why{min-width:13ch;font:12px/1.2 var(--font-mono);letter-spacing:.04em;text-align:right;color:var(--mute)}
+.mf.is-root .mf-why{color:rgba(243,243,236,.62)}
+.mf-why-on{display:none;color:var(--hf-green)}
+.mf.is-read .mf-why-on{display:inline}
+.mf.is-read .mf-why-off{display:none}
 .vh{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 .tree-dir{position:relative;margin-top:6px}
 .tree-dir-label{position:relative;display:flex;align-items:center;gap:14px;min-height:42px;padding-left:40px;color:rgba(243,243,236,.82)}
@@ -76,5 +80,5 @@ html[data-smooth-scroll],html[data-smooth-scroll] [data-scroll-layer],html[data-
 .route-note{font:14px/1.4 var(--font-mono);color:var(--hf-green)}
 @media(max-width:1200px){.tree{--name-base:230px}.tree-sub{--indent:72px}}
 @media(max-width:1000px){.routing{padding-top:116px}.tasks button{padding:8px 20px;font-size:16px}.tree{--name-base:210px}.mf{column-gap:14px}.mf-name,.tree-dir-label code{font-size:15px}.mf-desc{font-size:14px}}
-@media(max-width:860px){.routing{padding:122px 24px 56px}.tasks{gap:8px;margin-top:24px}.tasks button{min-height:56px;padding:8px 10px;font-size:14px}.memory-panel{padding:0 12px}.mp-head{padding:14px 4px 12px}.mp-title,.mp-count{font-size:12px}.mf{grid-template-columns:3px 14px minmax(0,1fr) auto;grid-template-areas:"bar icon name tag" "bar . desc desc";column-gap:10px;row-gap:3px;padding:9px 8px 9px 0}.mf-bar{grid-area:bar}.mf-icon{grid-area:icon;width:14px;height:18px}.mf-name{grid-area:name;font-size:14px}.mf-desc{grid-area:desc;font-size:13px}.mf-tag{grid-area:tag;font-size:11px;padding:2px 8px 3px}.tree-dir-label{padding-left:28px;gap:10px}.tree-dir-label code{font-size:14px}.tree-dir-label:before{left:6px;width:14px}.tree-dir-label .mf-icon{width:18px;height:15px}.tree-sub{--indent:56px;--trunk:36px}.tree-sub .mf:after{width:calc(var(--indent) - var(--trunk) - 5px);--branch-y:calc(21px + var(--gap))}.tree-sub .mf:first-child:after{--branch-y:33px}.tree-sub .mf:last-child:after{height:calc(21px + var(--gap))}.mp-foot{padding:14px 6px 16px}.mp-foot p:first-child{font-size:14px;flex-basis:100%}.mp-foot p:first-child:after{display:none}.route-note{font-size:13px}}
-@media(max-width:600px){.routing{padding:104px 22px 56px}}
+@media(max-width:860px){.routing{padding:122px 24px 56px}.tasks{gap:8px;margin-top:24px}.tasks button{min-height:56px;padding:8px 10px;font-size:14px}.memory-panel{padding:0 12px}.mp-head{padding:14px 4px 12px}.mp-title,.mp-count{font-size:12px}.mf{grid-template-columns:3px 14px minmax(0,1fr) auto;grid-template-areas:"bar icon name tag" "bar . desc desc";column-gap:10px;row-gap:3px;padding:9px 8px 9px 0}.mf-bar{grid-area:bar}.mf-icon{grid-area:icon;width:14px;height:18px}.mf-name{grid-area:name;font-size:14px}.mf-desc{grid-area:desc;font-size:13px}.mf-why{grid-area:tag;min-width:0;font-size:11px}.tree-dir-label{padding-left:28px;gap:10px}.tree-dir-label code{font-size:14px}.tree-dir-label:before{left:6px;width:14px}.tree-dir-label .mf-icon{width:18px;height:15px}.tree-sub{--indent:56px;--trunk:36px}.tree-sub .mf:after{width:calc(var(--indent) - var(--trunk) - 5px);--branch-y:calc(21px + var(--gap))}.tree-sub .mf:first-child:after{--branch-y:33px}.tree-sub .mf:last-child:after{height:calc(21px + var(--gap))}.mp-foot{padding:14px 6px 16px}.mp-foot p:first-child{font-size:14px;flex-basis:100%}.mp-foot p:first-child:after{display:none}.route-note{font-size:13px}}
+@media(max-width:600px){.routing{padding:104px 22px 56px}.mf-name{font-size:13px;overflow-wrap:normal;white-space:nowrap}.mf-why{font-size:10px;letter-spacing:.02em}}
