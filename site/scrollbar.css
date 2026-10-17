@@ -3,7 +3,8 @@
    texture of the evidence fields) and turns solid green under the pointer, because green means action.
    Chromium and Safari read the ::-webkit-scrollbar rules. Chromium 121+ ignores them on any element whose
    scrollbar-color or scrollbar-width is set (scrollbar-color inherits), so the standard properties go only
-   to browsers without the pseudo-elements (Firefox), which get a flat green-on-ink bar. Chromium draws the
+   to Firefox, which gets a flat green-on-ink bar. The gate is -moz-appearance: Firefox accepts any unknown
+   ::-webkit- pseudo-element as valid, so selector(::-webkit-scrollbar) passes there too. Chromium draws the
    page scrollbar from body::-webkit-scrollbar here (html:: alone left it at 8px), so the page rules name both. */
 ::-webkit-scrollbar{width:8px;height:8px;background:#0f1210}
 html::-webkit-scrollbar,body::-webkit-scrollbar{width:12px;height:12px}
@@ -14,5 +15,5 @@ html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{border-width:3px}
 ::-webkit-scrollbar-thumb:hover{background:#53db76 padding-box}
 ::-webkit-scrollbar-thumb:active{background:#96f77c padding-box}
 ::-webkit-scrollbar-corner{background:#0f1210}
-@supports not selector(::-webkit-scrollbar){html{scrollbar-color:#3f9f58 #0f1210}}
+@supports (-moz-appearance:none){html{scrollbar-color:#3f9f58 #0f1210}}
 @media(forced-colors:active){::-webkit-scrollbar-thumb,::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background:CanvasText padding-box}::-webkit-scrollbar,::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:Canvas}}
