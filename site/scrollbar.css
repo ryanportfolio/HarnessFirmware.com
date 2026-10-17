@@ -1,0 +1,18 @@
+/* Site scrollbar. Linked right after fonts.css on every page.
+   Square and flat, like the rest of the chrome. The thumb rests as a green checker of 2px cells (the ordered-dither
+   texture of the evidence fields) and turns solid green under the pointer, because green means action.
+   Chromium and Safari read the ::-webkit-scrollbar rules. Chromium 121+ ignores them on any element whose
+   scrollbar-color or scrollbar-width is set (scrollbar-color inherits), so the standard properties go only
+   to browsers without the pseudo-elements (Firefox), which get a flat green-on-ink bar. Chromium draws the
+   page scrollbar from body::-webkit-scrollbar here (html:: alone left it at 8px), so the page rules name both. */
+::-webkit-scrollbar{width:8px;height:8px;background:#0f1210}
+html::-webkit-scrollbar,body::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background:#0f1210;box-shadow:inset 1px 0 rgba(243,243,236,.12)}
+::-webkit-scrollbar-track:horizontal{box-shadow:inset 0 1px rgba(243,243,236,.12)}
+::-webkit-scrollbar-thumb{min-height:40px;min-width:40px;border:2px solid transparent;background:repeating-conic-gradient(#53db76 0 25%,#0f1210 0 50%) 0 0/4px 4px padding-box}
+html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{border-width:3px}
+::-webkit-scrollbar-thumb:hover{background:#53db76 padding-box}
+::-webkit-scrollbar-thumb:active{background:#96f77c padding-box}
+::-webkit-scrollbar-corner{background:#0f1210}
+@supports not selector(::-webkit-scrollbar){html{scrollbar-color:#3f9f58 #0f1210}}
+@media(forced-colors:active){::-webkit-scrollbar-thumb,::-webkit-scrollbar-thumb:hover,::-webkit-scrollbar-thumb:active{background:CanvasText padding-box}::-webkit-scrollbar,::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:Canvas}}

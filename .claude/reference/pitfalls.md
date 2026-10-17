@@ -253,3 +253,7 @@ commit, the rebase linearizes it, so after a container restart the local branch 
 its remote with the same tree, and a plain push is rejected. Do not force-push. Confirm the tree
 matches (`git rev-parse HEAD^{tree} origin/<branch>^{tree}`) and that `origin/main` is already an
 ancestor of the remote branch, then reset the local branch to `origin/<branch>` and carry on.
+
+## Page scrollbar reads body::-webkit-scrollbar (2026-10-17)
+
+In Chrome 152 the page (viewport) scrollbar ignored `html::-webkit-scrollbar{width:12px}` and kept the 8px global rule; `body::-webkit-scrollbar` set it. `site/scrollbar.css` names both. Also: Chromium 121+ drops every `::-webkit-scrollbar` rule on an element whose `scrollbar-color` or `scrollbar-width` is set, and `scrollbar-color` inherits, so set the standard properties only inside `@supports not selector(::-webkit-scrollbar)`.
