@@ -316,6 +316,21 @@ const SKILLS = [
     group: 'specialist',
     description: 'Coordinate parallel sessions through one shared HTML hub file',
   },
+  {
+    name: 'coordinate',
+    label: 'Coordinate',
+    group: 'specialist',
+    runtime: 'claude',
+    recent: true,
+    description: 'Review another session\'s work, agree a plan by message, and ping you only when needed',
+  },
+  {
+    name: 'cache-loop',
+    label: 'Cache loop',
+    group: 'specialist',
+    recent: true,
+    description: 'Cache unchanged assets long and keep each release fresh, checked on a real revisit',
+  },
 ];
 
 // required comes from the template's removal rules (skill-rules.js), never from this list.

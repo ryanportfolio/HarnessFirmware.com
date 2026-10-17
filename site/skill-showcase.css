@@ -112,3 +112,48 @@ html:not([data-smooth-scroll]) body{padding-top:90px}
   #skills .ss-motion{grid-column:2;grid-row:2;justify-self:end}
   #skills .agent-cta-slot--skills{grid-column:2;grid-row:1;align-self:stretch;display:flex;align-items:center;justify-content:center;min-height:0;margin:0}
 }
+
+/* Featured trio rotation (skill-features.mjs). Panels keep their frames and sizes; only their contents change.
+   State styles apply once the script marks the gallery live, so the no-script trio renders as shipped. */
+#skills .ss-feature>*{transition:opacity .65s ease,filter .65s ease,transform .65s ease}
+#skills .ss-feature.is-out>*{opacity:0;filter:blur(3px);transform:translateY(5px)}
+#skills .ss-gallery.is-live :is([data-st],[data-from],[data-half],[data-seq]){opacity:var(--off,.16);transition:opacity .45s,fill .45s,stroke .45s}
+#skills .ss-gallery.is-live .on{opacity:1}
+#skills .ss-gallery.is-live .half{opacity:.45}
+#skills .ss-gallery.is-live .ss-planes[data-st],#skills .ss-gallery.is-live .ss-planes[data-seq]{--off:1;fill:#50d87308;stroke:#6c9175}
+#skills .ss-gallery.is-live .ss-planes.on{fill:#53db7624;stroke:#53db76}
+#skills .ss-gallery.is-live .ss-arena-branch[data-st]{--off:.22}
+#skills .ss-gallery.is-live .ss-arena-branch.on{opacity:.8}
+#skills .ss-gallery.is-live .ss-repair-wire[data-st]{--off:1}
+#skills .ss-gallery.is-live .ss-repair-wire.on{stroke:#efc87e}
+#skills .ss-frame{fill:none;stroke:#8bb596;stroke-width:.7}
+#skills .ss-box{fill:#53db760a;stroke:#6c9175;stroke-width:.6}
+#skills .ss-ink{fill:none;stroke:#53db76;stroke-width:1}
+#skills .ss-ring{fill:none;stroke:#53db76;stroke-width:.9}
+#skills .ss-mark{fill:#53db76}
+#skills .ss-speck{fill:#8fd9a2}
+#skills .ss-flag{fill:none;stroke:#efbb69;stroke-width:1.2}
+#skills .ss-flag-dot{fill:#efbb69}
+#skills .ss-bar{fill:none;stroke:#53db76;stroke-width:2}
+#skills .ss-bar.warn{stroke:#efbb69}
+#skills .dash{stroke-dasharray:3 3}
+#skills .ss-cmd{fill:#f1f0df;font:11px var(--font-mono)}
+#skills .ss-go{fill:#53db76;font:8px var(--font-mono);letter-spacing:1px}
+#skills .ss-num{fill:#a0bea8;font:8px var(--font-mono)}
+/* The large panel draws a small scene scaled up about 1.5x; these keep its lines and labels at the same weight as the native scenes. */
+#skills .ss-scaled .ss-diagram-label{font-size:6.2px;letter-spacing:.7px}
+#skills .ss-scaled .ss-wire{stroke-width:1.15}
+#skills .ss-scaled :is(.ss-filament,.ss-orbit,.ss-box){stroke-width:.45}
+#skills .ss-scaled :is(.ss-planes,.ss-frame,.ss-ink,.ss-ring,.ss-gate){stroke-width:.6}
+#skills .ss-scaled :is(.ss-audit-finding,.ss-audit-check,.ss-flag){stroke-width:1.2}
+#skills .ss-scaled .ss-bar{stroke-width:1.5}
+#skills .ss-scaled .ss-node{filter:drop-shadow(0 0 3px #58e07b)}
+#skills .ss-rotate{display:flex;gap:6px}
+#skills .ss-motion .ss-rotate button{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #546959;background:transparent;color:var(--ss-ivory)}
+#skills .ss-motion .ss-rotate button[hidden]{display:none}
+#skills .ss-motion .ss-rotate button:hover{border-color:var(--ss-lime);color:var(--ss-lime)}
+#skills .ss-rotate svg{width:12px;height:12px;fill:currentColor}
+@media(prefers-reduced-motion:reduce){#skills .ss-feature>*,#skills .ss-gallery.is-live :is([data-st],[data-from],[data-half],[data-seq]){transition:none}}
+@media(max-width:1000px){#skills .ss-label-art{display:none}}
+/* Native scroll: a featured "See the skill" link lands its entry below the fixed header. */
+html:not([data-smooth-scroll]) #skills .ss-entry{scroll-margin-top:110px}

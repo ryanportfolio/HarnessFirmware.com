@@ -452,9 +452,12 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
         else setCmd(TEXT.command.slice(0, k), noiseEl.textContent.slice(noiseEl.textContent.length - (TEXT.command.length - k)));
       }
     }
-    // the key leans toward the pointer, measured from its own centre, so it rocks under a pointer on it
-    const lean = arm > 0 && W ? `${(Math.tanh((pointer.x - keyC.x) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1)}deg ${(Math.tanh((keyC.y - pointer.y) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1)}deg` : '';
-    if (lean !== tilt) { tilt = lean; if (lean) { const [y, x] = lean.split(' '); key.style.setProperty('--acta-tilt-y', y); key.style.setProperty('--acta-tilt-x', x); } else key.style.removeProperty('--acta-tilt-y'), key.style.removeProperty('--acta-tilt-x'); }
+    // the key leans toward the pointer, measured from its own centre, so it rocks under a pointer on it.
+    // A zero lean drops [data-tilt], and with it the 3D transform (see .acta-key in agent-cta.css).
+    const ly = arm > 0 && W ? +(Math.tanh((pointer.x - keyC.x) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1) : 0;
+    const lx = arm > 0 && W ? +(Math.tanh((keyC.y - pointer.y) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1) : 0;
+    const lean = ly || lx ? `${ly}deg ${lx}deg` : '';
+    if (lean !== tilt) { tilt = lean; if (lean) { key.style.setProperty('--acta-tilt-y', `${ly}deg`); key.style.setProperty('--acta-tilt-x', `${lx}deg`); key.setAttribute('data-tilt', ''); } else key.removeAttribute('data-tilt'), key.style.removeProperty('--acta-tilt-y'), key.style.removeProperty('--acta-tilt-x'); }
 
     const c = ctx;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
