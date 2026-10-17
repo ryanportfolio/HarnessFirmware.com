@@ -94,6 +94,17 @@ const GLYPHS = {
 };
 const glyph = (name) => `<svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path fill="currentColor" d="${GLYPHS[name]}"/></svg>`;
 
+// Glyph sizes with a whole number of device pixels per grid cell, nearest to 24 and 36 CSS px, so every
+// cell is the same size at any display scale. Refit when the scale changes (zoom, another monitor).
+function fitGlyphs() {
+  const dpr = window.devicePixelRatio || 1;
+  const fit = (css) => `${(12 * Math.max(1, Math.round((css * dpr) / 12))) / dpr}px`;
+  document.documentElement.style.setProperty('--acta-glyph', fit(24));
+  document.documentElement.style.setProperty('--acta-glyph-lg', fit(36));
+  matchMedia(`(resolution: ${dpr}dppx)`).addEventListener('change', fitGlyphs, { once: true });
+}
+fitGlyphs();
+
 let dialog = null, uid = 0;
 
 // ---- clipboard ------------------------------------------------------------------------------------

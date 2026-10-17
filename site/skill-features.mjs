@@ -383,7 +383,7 @@ if (gallery) {
     toggle.innerHTML = paused ? icons.play : icons.pause;
     toggle.setAttribute('aria-label', paused ? 'Play the featured skills' : 'Pause the featured skills');
     gallery.classList.toggle('is-still', reduced.matches || paused);
-    if (status) status.textContent = reduced.matches ? 'Static diagrams' : paused ? 'Paused' : 'Illustrative workflows';
+    if (status) status.textContent = reduced.matches ? 'Static diagrams' : paused ? 'Paused' : '';
     if (reduced.matches) live.forEach((slot) => { slot.t = 0; slot.paint(0); });
     if (animating()) raf = requestAnimationFrame(frame);
   }

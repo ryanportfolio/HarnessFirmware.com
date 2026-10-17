@@ -8,6 +8,7 @@
 #skills h2{font:var(--display-weight) clamp(38px,4.1vw,62px)/1.06 var(--font-display);letter-spacing:var(--display-track);margin:0 0 10px}
 #skills .ss-heading p{margin:0;font:13px/1.5 var(--font-mono);color:var(--ss-muted)}
 #skills .ss-motion{display:flex;align-items:center;gap:13px;flex-shrink:0;font:10px/1.4 var(--font-mono);letter-spacing:.07em;text-transform:uppercase}
+#skills #ss-motion-status:empty{display:none}
 #skills button{cursor:pointer;font-family:inherit}
 #skills .ss-motion button{color:var(--ss-ivory);background:transparent;border:1px solid #546959;padding:10px 13px;font:11px var(--font-mono)}
 #skills .ss-gallery{display:grid;grid-template-columns:1.62fr 1fr;grid-template-rows:238px 258px;gap:12px}
