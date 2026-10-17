@@ -1,45 +1,19 @@
 import {mountMemoryScroll} from './memory-scroll.mjs';
-const facts={"claude":["CLAUDE.md","Core Claude Code rules, with links to references the task needs."],"agents":["AGENTS.md","Codex rules, with shared references for both agents."],"architecture":["architecture.md","How the project fits together, and why."],"pitfalls":["pitfalls.md","Known failures, their causes, and verified fixes."],"commands":["commands.md","Build and test commands. Check them against the current project."],"deployment":["deployment.md","Release requirements. Deployment still needs authorization."],"tech-stack":["tech-stack.md","Project tools and versions. Current source takes priority."],"secrets":["secrets.md","Secret names and locations only. Never credential values."]},stages=[["Find the cause","Find the cause. Verify the fix."],["Save with evidence","Save lasting lessons with permission and evidence."],["Reuse in context","Read the relevant lesson before starting the next task."],["Amend what changed","Update the lesson when the code or evidence changes."]];
+const stages=[["Find the cause","Find the cause. Verify the fix."],["Save with evidence","Save lasting lessons with permission and evidence."],["Reuse in context","Read the relevant lesson before starting the next task."],["Amend what changed","Update the lesson when the code or evidence changes."]];
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+// Routing: a task tab marks the topic files its route reads. The file tree, its count and the
+// route line are static markup for the default task (Fix a bug); CSS animates the row states.
 const routes={bug:['architecture','pitfalls'],feature:['architecture','commands','tech-stack'],deploy:['deployment','commands','secrets']};
-$$('[data-task]').forEach(b=>b.addEventListener('click',()=>{
-  $$('[data-task]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+const taskButtons=$$('[data-task]'),topicRows=$$('.tree-sub [data-file]'),routeCount=$('.mp-count b'),routeNote=$('.route-note');
+taskButtons.forEach(b=>b.addEventListener('click',()=>{
+  taskButtons.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
   const set=routes[b.dataset.task];
-  $$('[data-file],[data-branch]').forEach(x=>x.classList.toggle('active',set.includes(x.dataset.file||x.dataset.branch)));
-  $('.route-note').textContent=b.textContent.trim()+' → '+set.join(' + ');
+  topicRows.forEach(r=>r.classList.toggle('is-read',set.includes(r.dataset.file)));
+  routeCount.textContent=set.length;
+  routeNote.textContent=b.textContent.trim()+' → '+set.map(f=>f+'.md').join(' + ');
 }));
-const panel=$('.route-detail'), routeTriggers=$$('[data-detail]');
-let routePin=null, routeCurrent=null, routeTimer, restoringFocus=false;
+let restoringFocus=false;
 function restoreFocus(el){if(!el)return;restoringFocus=true;el.focus({preventScroll:true});restoringFocus=false;}
-function showRoute(el,pin=false){
-  clearTimeout(routeTimer);if(restoringFocus||(routePin&&!pin))return;
-  const fact=facts[el.dataset.detail];routeCurrent=el;if(pin)routePin=el;
-  panel.querySelector('h3').textContent=fact[0];panel.querySelector('p').textContent=fact[1];panel.hidden=false;
-  panel.querySelector('.pin-state').textContent=routePin?'PINNED':'PREVIEW';
-  routeTriggers.forEach(x=>x.setAttribute('aria-expanded',String(x===el)));
-}
-function closeRoute(returnFocus=false){
-  clearTimeout(routeTimer);const trigger=routePin||routeCurrent;
-  routePin=null;routeCurrent=null;panel.hidden=true;
-  routeTriggers.forEach(x=>x.setAttribute('aria-expanded','false'));
-  if(returnFocus)restoreFocus(trigger);
-}
-function scheduleRouteClose(){
-  clearTimeout(routeTimer);routeTimer=setTimeout(()=>{
-    if(routePin||panel.matches(':hover')||panel.contains(document.activeElement)||document.activeElement===routeCurrent)return;
-    closeRoute();
-  },180);
-}
-routeTriggers.forEach(el=>{
-  el.setAttribute('aria-controls','route-detail');
-  el.addEventListener('pointerenter',()=>showRoute(el));el.addEventListener('pointerleave',scheduleRouteClose);
-  el.addEventListener('focus',()=>showRoute(el));el.addEventListener('blur',scheduleRouteClose);
-  el.addEventListener('click',()=>showRoute(el,true));
-  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showRoute(el,true);}});
-});
-panel.addEventListener('pointerenter',()=>clearTimeout(routeTimer));panel.addEventListener('pointerleave',scheduleRouteClose);
-panel.addEventListener('focusin',()=>clearTimeout(routeTimer));panel.addEventListener('focusout',scheduleRouteClose);
-panel.querySelector('.close').onclick=()=>closeRoute(true);
 // Lesson lifecycle. A clock, not the scroll position, steps the stages while the pinned scene is
 // in view, so scroll speed cannot skip one. Until stage 04 has had its dwell, wheel, arrow,
 // PageDown, Space and touch scrolling stop at the end of the pinned travel. The scrollbar, End,
@@ -159,7 +133,7 @@ stageButtons.forEach(b=>{
 lp.addEventListener('pointerenter',()=>clearTimeout(lifeTimer));lp.addEventListener('pointerleave',scheduleLifeRestore);
 lp.addEventListener('focusin',()=>clearTimeout(lifeTimer));lp.addEventListener('focusout',scheduleLifeRestore);
 lp.querySelector('.close').onclick=()=>unpinLife(true);
-document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!panel.hidden){closeRoute(true);return;}if(pinnedIndex!==null||previewIndex!==null)unpinLife(true);});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(pinnedIndex!==null||previewIndex!==null)unpinLife(true);});
 let ticking=false;
 function scrollStage(){if(ticking)return;ticking=true;requestAnimationFrame(()=>{
   const top=life.getBoundingClientRect().top;
@@ -176,15 +150,9 @@ document.addEventListener('visibilitychange',kickClock);
 function updateMotion(){document.body.classList.toggle('paused',reduceMotion.matches||document.hidden);}
 reduceMotion.addEventListener('change',updateMotion);document.addEventListener('visibilitychange',updateMotion);updateMotion();
 const io=new IntersectionObserver(entries=>entries.forEach(e=>e.target.classList.toggle('offscreen',!e.isIntersecting)),{threshold:0});$$('.scene').forEach(scene=>io.observe(scene));
-const mobile=matchMedia('(max-width:600px)'),routeArt=$('.routing-art'),lifeArt=$('.life-art');
-const originals=$$('.root,.file').map(el=>[el,el.getAttribute('transform')]);
+const mobile=matchMedia('(max-width:600px)'),lifeArt=$('.life-art');
 function panLife(){lifeArt.setAttribute('viewBox',mobile.matches?([30,350,710,1080][stage]+' 270 370 430'):'0 0 1440 900');}
-function layout(){
-  if(mobile.matches){routeArt.setAttribute('viewBox','0 0 390 640');$$('.root').forEach((el,i)=>el.setAttribute('transform','translate('+(i?195:10)+' 0) scale(.45)'));$$('.file').forEach((el,i)=>el.setAttribute('transform','translate('+(i%2?205:15)+' '+(200+Math.floor(i/2)*132)+') scale(.68)'));$('.junction').setAttribute('transform','translate(-160 -89) scale(.5)');$('.wires').style.display='none';}
-  else{routeArt.setAttribute('viewBox','0 0 1440 900');originals.forEach(([el,t])=>el.setAttribute('transform',t));$('.junction').removeAttribute('transform');$('.wires').style.display='';}
-  panLife();
-}
-mobile.addEventListener('change',layout);layout();renderStage();scrollStage();
+mobile.addEventListener('change',panLife);panLife();renderStage();scrollStage();
 
 mountMemoryScroll(scrollStage);
 
