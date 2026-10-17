@@ -5,7 +5,7 @@
 // keyboard focus or a touch press arms it, and one canvas plays the "flash": a Bayer-dithered pool of
 // light under the pointer, a scan band, circuit traces growing out of the pins (brightest near the
 // pointer) with packets running in, and two pixel comets orbiting the border. The eyebrow decodes, the
-// command retypes and lands with a "written" beat, and the key tilts toward the pointer. A click
+// command retypes and lands with a "written" beat. A click
 // copies: a shock ring follows the border out from the click point, pixels burst, packets fire back
 // out to light every via, and the label rolls to the copied state.
 //
@@ -63,7 +63,6 @@ export const TUNE = {
   scanDur: 560, scanWidth: 16, scanGain: .95,
   traceGrow: 280, traceStagger: 34, traceAlpha: .45, traceNear: 1, packetPeriod: 820,
   cometLap: 2400, cometTrail: .24,
-  keyTilt: 10,
   typeStep: 24, decodeIn: 360,
   burstCount: 90, burstSpeed: 520, ringDur: 720, ringWidth: 7, flashDur: 520, writeDur: 900,
   bootDelay: 900, bootDur: 1150,
@@ -262,7 +261,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
           <span class="acta-cmd"><span class="acta-cmd-text">${TEXT.command}<span class="acta-cmd-noise"></span></span><span class="acta-caret"></span></span>
         </span>
       </span>
-      <span class="acta-key" aria-hidden="true"><span class="acta-key-face"><span class="acta-key-glyph acta-key-copy">${glyph('copy')}</span><span class="acta-key-glyph acta-key-paste">${glyph('paste')}</span><span class="acta-key-glyph acta-key-check">${glyph('check')}</span></span></span>
+      <span class="acta-key-slot" aria-hidden="true"><span class="acta-key-glow"></span><span class="acta-key"><span class="acta-key-face"><span class="acta-key-glyph acta-key-copy">${glyph('copy')}</span><span class="acta-key-glyph acta-key-paste">${glyph('paste')}</span><span class="acta-key-glyph acta-key-check">${glyph('check')}</span></span></span></span>
     </button>
     <div class="acta-note"><span class="acta-note-text" id="acta-note-${id}">${TEXT.note}</span><span class="acta-note-sep" aria-hidden="true"> · </span><button type="button" class="acta-read" aria-label="${TEXT.read}">${TEXT.read}</button></div>
     <span class="acta-live" role="status"></span>`;
@@ -290,7 +289,7 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
   let particles = [];
   let text = null; // eyebrow decode: {to, start, dur, rolled, tail}
   let armedOn = 0, armScan = -1, noiseAt = -1e9;
-  let eyebrowKind = 'rest', typing = false, copiedTimer = 0, writtenTimer = 0, lastPointer = 'mouse', tilt = '';
+  let eyebrowKind = 'rest', typing = false, copiedTimer = 0, writtenTimer = 0, lastPointer = 'mouse';
 
   // The longest eyebrow line of a kind that fits the eyebrow's current width.
   const fit = (kind) => {
@@ -463,13 +462,6 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
         else setCmd(TEXT.command.slice(0, k), noiseEl.textContent.slice(noiseEl.textContent.length - (TEXT.command.length - k)));
       }
     }
-    // the key leans toward the pointer, measured from its own centre, so it rocks under a pointer on it.
-    // A zero lean drops [data-tilt], and with it the 3D transform (see .acta-key in agent-cta.css).
-    const ly = arm > 0 && W ? +(Math.tanh((pointer.x - keyC.x) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1) : 0;
-    const lx = arm > 0 && W ? +(Math.tanh((keyC.y - pointer.y) / (keyC.r * 2)) * TUNE.keyTilt * arm).toFixed(1) : 0;
-    const lean = ly || lx ? `${ly}deg ${lx}deg` : '';
-    if (lean !== tilt) { tilt = lean; if (lean) { key.style.setProperty('--acta-tilt-y', `${ly}deg`); key.style.setProperty('--acta-tilt-x', `${lx}deg`); key.setAttribute('data-tilt', ''); } else key.removeAttribute('data-tilt'), key.style.removeProperty('--acta-tilt-y'), key.style.removeProperty('--acta-tilt-x'); }
-
     const c = ctx;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, W + 2 * BX, H + 2 * BY);
