@@ -1,6 +1,8 @@
 // Card media for the command cards (card-row.mjs). Each .cmd-card__media[data-art] gets a line
 // drawing of what its command does, animated on one shared frame loop:
-//   dare       one block breaks into four pieces, each piece is tested (one fails and drops out),
+//   deep-plan  four questions in a round, the recommended option first; each pick drops into a
+//              ledger, and only when all four are settled does the gate open and the build go solid
+//   dare      one block breaks into four pieces, each piece is tested (one fails and drops out),
 //              the survivors rebuild a new shape, and the shape is checked against a target
 //   arena      three attempts run in parallel lanes; the strongest becomes the base and one part
 //              from each of the others folds into it
@@ -30,6 +32,61 @@ const move = (element, x, y) => set(element, 'transform', `translate(${x.toFixed
 const loopFade = (u, period) => Math.min(smooth(u / .4), smooth((period - u) / .6));
 const passDots = (x, y) => [0, 1, 2, 3].map(i => `<rect class="pass" x="${x + i * 22}" y="${y}" width="12" height="12"/>`).join('');
 const lightPass = (dots, active) => dots.forEach((dot, i) => { set(dot, 'fill', i === active ? GREEN : 'none'); opacity(dot, i === active ? 1 : .45); });
+
+// deep-plan: one round of four questions. The recommended option (first, in green) is picked
+// three times; the third question goes to the second option, because the user decides. Each pick
+// lands as a ledger row; the gate opens and the dashed build turns solid only after the fourth.
+const DEEP_PLAN = {
+  period: 12,
+  still: 10.8,
+  starts: [.6, 2.4, 4.2, 6],
+  picks: [0, 0, 1, 0],
+  questions: [100, 84, 112, 92],
+  options: [96, 128, 160],
+  rows: [[62, 64], [96, 48], [130, 56], [164, 40]],
+  markup() {
+    return svg(`<path d="M36 30h168v166H36z" fill="#10150f"/>
+    <path class="dp-question" d="M56 58h100" stroke-width="4"/>
+    ${this.options.map((y, i) => `<rect class="dp-option" x="56" y="${y - 8}" width="16" height="16"/><path d="M84 ${y}H180" stroke="${i ? DIM : GREEN}" stroke-width="2"/>`).join('')}
+    <path d="M244 30h120v166H244z" stroke="${DIM}"/>
+    ${this.rows.map(([y, w]) => `<g class="dp-row" opacity="0"><path d="M260 ${y}h${w}" stroke-width="3"/><path d="m336 ${y} 4 4 9-10" stroke="${BRIGHT}"/></g>`).join('')}
+    <rect class="dp-packet" x="-3" y="-3" width="6" height="6" fill="${BRIGHT}" stroke="none" opacity="0"/>
+    <path class="dp-gate" d="M392 30V196" stroke-dasharray="4 5"/>
+    <rect class="dp-build" x="406" y="78" width="50" height="50" fill="#1b3a24" fill-opacity="0" stroke-dasharray="5 5"/>
+    <g class="dp-stamp" opacity="0"><circle cx="431" cy="166" r="14" fill="#10150f"/><path d="m425 166 4 4 9-10" stroke-width="2"/></g>
+    ${passDots(56, 212)}`, 'A loose idea interviewed four questions at a time, recommended answer first; each decision goes into a ledger, and nothing is built until the gate opens');
+  },
+  parts: art => ({question: art.querySelector('.dp-question'), options: [...art.querySelectorAll('.dp-option')], rows: [...art.querySelectorAll('.dp-row')], packet: art.querySelector('.dp-packet'), gate: art.querySelector('.dp-gate'), build: art.querySelector('.dp-build'), stamp: art.querySelector('.dp-stamp'), dots: [...art.querySelectorAll('.pass')]}),
+  frame(p, t) {
+    const u = t % this.period;
+    const fade = loopFade(u, this.period);
+    const asking = u < 7.8;
+    let q = -1;
+    this.starts.forEach((start, i) => { if (u >= start) q = i; });
+    const local = q < 0 ? 0 : u - this.starts[q];
+    set(p.question, 'd', `M56 58h${this.questions[Math.max(q, 0)]}`);
+    opacity(p.question, (asking ? 1 : .4) * fade);
+    p.options.forEach((box, i) => set(box, 'fill', asking && q >= 0 && local > .6 && i === this.picks[q] ? GREEN : 'none'));
+    // The pick travels from its option to its ledger row.
+    const travel = smooth((local - .8) / .7);
+    if (q >= 0 && local > .8 && local < 1.5) {
+      move(p.packet, lerp(204, 244, travel), lerp(this.options[this.picks[q]], this.rows[q][0], travel));
+      opacity(p.packet, fade);
+    } else opacity(p.packet, 0);
+    p.rows.forEach((row, i) => opacity(row, smooth((u - this.starts[i] - 1.5) / .3) * fade));
+    p.dots.forEach((dot, i) => { set(dot, 'fill', i <= q && local > .6 || i < q ? GREEN : 'none'); opacity(dot, (i <= q ? 1 : .45) * fade); });
+    const go = smooth((u - 8) / .4);
+    set(p.gate, 'stroke', go > .5 ? BRIGHT : DIM);
+    set(p.gate, 'stroke-dasharray', go > .5 ? 'none' : '4 5');
+    opacity(p.gate, fade);
+    const built = smooth((u - 8.8) / .6);
+    set(p.build, 'stroke', built > .5 ? BRIGHT : GREEN);
+    set(p.build, 'stroke-dasharray', built > .5 ? 'none' : '5 5');
+    set(p.build, 'fill-opacity', built.toFixed(3));
+    opacity(p.build, fade);
+    opacity(p.stamp, smooth((u - 9.8) / .3) * fade);
+  },
+};
 
 // dare: four fresh passes, three seconds each.
 const DARE = {
@@ -234,7 +291,7 @@ const PERF = {
   },
 };
 
-const ARTS = {dare: DARE, arena: ARENA, lab: LAB, showpiece: SHOWPIECE, 'wow-loop': WOW, 'perf-loop': PERF};
+const ARTS = {'deep-plan': DEEP_PLAN, dare: DARE, arena: ARENA, lab: LAB, showpiece: SHOWPIECE, 'wow-loop': WOW, 'perf-loop': PERF};
 
 export function mountCardArt(root) {
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
