@@ -2,7 +2,8 @@
 // Until the visitor presses play the figure shows its poster (posters/reel.webp, an intro frame made by
 // scripts/skill-reel-posters.mjs) and this file is all that has loaded: ./reel.mjs, the kit and the
 // nine scenes load on first play, or ahead of it when the pointer or focus reaches the play button.
-// Never autoplays and makes no sound. Pauses when less than half of it is on screen or the tab is
+// Never autoplays and makes no sound. A play from the start also opens full screen where the browser
+// allows it. Pauses when less than half of it is on screen or the tab is
 // hidden (a play still loading is cancelled the same way), and stays paused until the visitor presses play again. While it plays (or prepares to) it
 // sends `skill-reel:busy` on document with detail true, and false once it stops, so the card loops
 // below (cards.mjs) hold their frames and the page keeps its frame rate.
@@ -196,11 +197,19 @@ function mount(fig) {
     fig.setAttribute('aria-busy', 'true');
     show();
     const ok = await ensure();
+    // The poster alone has no controls in full screen, so a failed load leaves it, even when the
+    // play was cancelled while loading. The request may still be in flight, so leave once it settles.
+    if (!ok) Promise.resolve(fsRequest).then(() => { if (fsElement() === fig) exitFs(); });
     if (pending !== id) return; // paused while loading
     pending = 0;
     endLoading();
-    if (!ok) { setBusy(false); show(); return; }
+    if (!ok) {
+      setBusy(false);
+      show();
+      return;
+    }
     if (ended || t >= reel.total - 0.01) { t = 0; ended = false; }
+    size(); // the box may have changed while loading (full screen); a no-op when it has not
     playing = true;
     last = null;
     show();
@@ -222,6 +231,31 @@ function mount(fig) {
   }
   const togglePlay = () => (playing || pending ? pause() : play());
 
+  // Full screen needs the press's user activation, so the request runs before play() awaits anything.
+  // A rejected or missing request (iPhone Safari has no element full screen) leaves the reel inline.
+  const canFs = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  // The last request, settled either way, so a failed load can wait for it before leaving full screen.
+  let fsRequest = null;
+  const enterFs = () => {
+    try {
+      const p = (fig.requestFullscreen || fig.webkitRequestFullscreen).call(fig);
+      fsRequest = Promise.resolve(p).catch(() => {});
+    } catch {}
+  };
+  function exitFs() {
+    try {
+      const p = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      if (p && p.catch) p.catch(() => {});
+    } catch {}
+  }
+  // A play from the start (first play, replay, or after a seek to 0:00) opens full screen;
+  // resuming from a pause, a pause, and stopping a load do not.
+  const press = () => {
+    const fresh = !playing && !pending && (ended || t <= 0.01 || (reel && t >= reel.total - 0.01));
+    if (fresh && canFs && !fsElement()) enterFs();
+    togglePlay();
+  };
+
   const seek = async (x) => {
     if (!(await ensure())) return;
     t = Math.max(0, Math.min(reel.total - 1e-3, x));
@@ -236,7 +270,7 @@ function mount(fig) {
   };
 
   // controls
-  for (const b of [start, toggle]) b.addEventListener('click', togglePlay);
+  for (const b of [start, toggle]) b.addEventListener('click', press);
   const prefetch = () => { load(); };
   for (const b of [start, toggle]) {
     b.addEventListener('pointerenter', prefetch, { once: true });
@@ -292,18 +326,14 @@ function mount(fig) {
     const onButton = e.target.closest('button');
     if (e.key === 'k' || e.key === 'K' || (e.code === 'Space' && !onButton)) {
       e.preventDefault();
-      togglePlay();
+      press();
     }
   });
 
-  // full screen: the figure (stage and controls) fills the screen
-  const canFs = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  // full screen: the figure (stage and controls) fills the screen; leaving it keeps the reel playing inline
   if (canFs) {
     fsBtn.hidden = false;
-    fsBtn.addEventListener('click', () => {
-      if (fsElement() === fig) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-      else (fig.requestFullscreen || fig.webkitRequestFullscreen).call(fig);
-    });
+    fsBtn.addEventListener('click', () => (fsElement() === fig ? exitFs() : enterFs()));
     const onFs = () => {
       const on = fsElement() === fig;
       fig.toggleAttribute('data-fullscreen', on);
@@ -323,7 +353,8 @@ function mount(fig) {
   // a settled size change rebuilds the canvas and its prepared layers (one step per frame)
   let resizeTimer = 0;
   new ResizeObserver(() => {
-    if (!reel || !painted) return;
+    // a play that opened full screen can start before the box settles at its full-screen size
+    if (!reel || !(painted || playing)) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       if (!size()) return;

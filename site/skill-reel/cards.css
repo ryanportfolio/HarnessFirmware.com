@@ -85,7 +85,7 @@
 #skills .sr-reel.is-ready .sr-reel-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @media(scripting:none){#skills .sr-reel-caption{margin-top:10px}}
 /* Full screen: the figure fills the screen, stage and controls at the largest 16:9 that fits */
-#skills .sr-reel[data-fullscreen]{display:flex;flex-direction:column;justify-content:center;margin:0;padding:24px 32px 8px;box-sizing:border-box;background:#09100b}
+#skills .sr-reel[data-fullscreen]{display:flex;flex-direction:column;justify-content:center;margin:0;padding:24px 32px 8px;box-sizing:border-box;background:#0f1210}
 #skills .sr-reel[data-fullscreen] .sr-reel-stage,#skills .sr-reel[data-fullscreen] .sr-reel-bar{width:min(100%,calc((100vh - 120px) * 16 / 9));margin-inline:auto}
 /* Narrow: tick marks without names; the current chapter shows beside the time instead */
 @media(max-width:760px){

@@ -12,7 +12,6 @@ const GROUPS = [
   ['Scan band', [['scanDur', 'Duration (ms)', 120, 2000, 10], ['scanWidth', 'Width (px)', 4, 80, 1], ['scanGain', 'Gain', 0, 3, .05]]],
   ['Traces', [['traceGrow', 'Grow (ms)', 40, 1200, 10], ['traceStagger', 'Stagger per pin (ms)', 0, 120, 1], ['traceAlpha', 'Line alpha', 0, 1, .01], ['traceNear', 'Boost near pointer', 0, 3, .05], ['packetPeriod', 'Packet period (ms)', 200, 4000, 20]]],
   ['Comets', [['cometLap', 'Lap (ms)', 400, 8000, 50], ['cometTrail', 'Trail (share of border)', .02, .6, .01]]],
-  ['Key', [['keyTilt', 'Tilt toward pointer (deg)', 0, 30, .5]]],
   ['Text', [['typeStep', 'Command retype step (ms)', 0, 120, 1], ['decodeIn', 'Eyebrow decode (ms)', 0, 1500, 10]]],
   ['Click', [['burstCount', 'Burst particles', 0, 400, 1], ['burstSpeed', 'Burst speed', 0, 1200, 10], ['ringDur', 'Shock ring (ms)', 100, 2000, 10], ['ringWidth', 'Shock ring width (px)', 2, 30, .5], ['flashDur', 'Flash (ms)', 0, 1500, 10], ['writeDur', 'Vias lit after copy (ms)', 0, 3000, 20]]],
   ['Boot', [['bootDelay', 'Hero delay (ms)', 0, 4000, 50], ['bootDur', 'Lap (ms)', 200, 4000, 50]]],
