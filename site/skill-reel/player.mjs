@@ -197,15 +197,15 @@ function mount(fig) {
     fig.setAttribute('aria-busy', 'true');
     show();
     const ok = await ensure();
+    // The poster alone has no controls in full screen, so a failed load leaves it, even when the
+    // play was cancelled while loading. The request may still be in flight, so leave once it settles.
+    if (!ok) Promise.resolve(fsRequest).then(() => { if (fsElement() === fig) exitFs(); });
     if (pending !== id) return; // paused while loading
     pending = 0;
     endLoading();
     if (!ok) {
       setBusy(false);
       show();
-      // The poster alone has no controls in full screen. The request may still be in flight when a
-      // load fails fast, so leave once it settles.
-      Promise.resolve(fsRequest).then(() => { if (fsElement() === fig) exitFs(); });
       return;
     }
     if (ended || t >= reel.total - 0.01) { t = 0; ended = false; }

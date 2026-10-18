@@ -70,4 +70,4 @@
  .site-footer .sf-top{justify-content:space-between}
  .site-footer .sf-bottom{align-items:flex-start;flex-direction:column;gap:16px}
 }
-@media(prefers-reduced-motion:reduce){.site-footer :is(.sf-cta,.sf-cta::after,.sf-cta__arrow){transition:none}.site-footer .sf-h-highlight{display:none;animation:none}.site-footer :is(.sf-track,.sf-sep){animation:none}}
+@media(prefers-reduced-motion:reduce){.site-footer :is(.sf-cta,.sf-cta__arrow),.site-footer .sf-cta::after{transition:none}.site-footer .sf-h-highlight{display:none;animation:none}.site-footer :is(.sf-track,.sf-sep){animation:none}}

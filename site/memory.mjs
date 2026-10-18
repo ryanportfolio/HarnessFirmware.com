@@ -66,7 +66,9 @@ function holdY(){
   return life.getBoundingClientRect().top-(layer?layer.getBoundingClientRect().top:-scrollY)+life.offsetHeight-lifeSticky.offsetHeight;
 }
 let lastInput=0,inputSpan=800,touchY=null,lastScrollY=scrollY;
-const hold=new AbortController(),holding=()=>autoplay()&&pinnedIndex===null;
+// A preview (pointer or focus on a stage) pauses the clock, so it releases the hold too: otherwise a
+// pointer resting on the stage row would hold the page with no clock running to end it.
+const hold=new AbortController(),holding=()=>autoplay()&&pinnedIndex===null&&previewIndex===null;
 function releaseHold(){hold.abort();}
 function heldAt(dy){
   if(dy<=0||!holding())return null;
@@ -100,6 +102,13 @@ addEventListener('touchmove',e=>{
   const h=holdY();if(Math.abs(scrollY-h)<=1)e.preventDefault();
 },{passive:false,signal:hold.signal});
 addEventListener('touchend',()=>{touchY=null;noteInput(2500);},{passive:true,signal:hold.signal});
+// Explicit navigation ends the recent-input window at once, so the scroll it starts is never
+// mistaken for momentum: End and Home, a press on the scrollbar, a focus move, a link click.
+const clearInput=()=>{lastInput=0;};
+addEventListener('keydown',e=>{if(e.key==='End'||e.key==='Home')clearInput();},{capture:true,signal:hold.signal});
+addEventListener('mousedown',e=>{if(e.clientX>=document.documentElement.clientWidth||e.clientY>=document.documentElement.clientHeight)clearInput();},{capture:true,signal:hold.signal});
+addEventListener('focusin',clearInput,{signal:hold.signal});
+addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('a[href]'))clearInput();},{capture:true,signal:hold.signal});
 // Momentum and queued smooth scrolls can still carry past the hold; pull back only when wheel,
 // key or touch input was recent, so scrollbar drags and scripted jumps pass.
 addEventListener('scroll',()=>{
