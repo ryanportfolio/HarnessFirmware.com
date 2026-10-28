@@ -133,6 +133,13 @@ const SKILLS = [
     description: 'Measure, change one thing, and measure again for speed, loading, and resource use',
   },
   {
+    name: 'security-loop',
+    label: 'Security loop',
+    group: 'discipline',
+    recent: true,
+    description: 'Audit a whole repository in independently verified runs, fix the findings you pick, and audit again',
+  },
+  {
     name: 'long-horizon',
     label: 'Long horizon',
     group: 'discipline',
@@ -192,9 +199,16 @@ const SKILLS = [
     name: 'merge',
     label: 'Merge',
     group: 'discipline',
+    recent: true,
+    description: 'After you type /merge, each pull request gets a self-review, the other vendor\'s review loop and CI, then squash-merges',
+  },
+  {
+    name: 'gauntlet',
+    label: 'Gauntlet',
+    group: 'discipline',
     runtime: 'claude',
     recent: true,
-    description: 'After you type /merge, each pull request goes through a Codex review loop and CI, then squash-merges',
+    description: 'On /gauntlet, run a draft through DARE, a fresh reviewer and a blind Arena, then commit and wait for /merge',
   },
   {
     name: 'claude-review',
@@ -227,6 +241,20 @@ const SKILLS = [
     label: 'Showpiece',
     group: 'specialist',
     description: 'Push a page, deck, or document past the generic look',
+  },
+  {
+    name: 'ui-quality',
+    label: 'UI quality',
+    group: 'specialist',
+    recent: true,
+    description: 'Build every state of a screen, and audit the rendered page with axe-core, focus, reflow and contrast checks',
+  },
+  {
+    name: 'conversion-ux',
+    label: 'Conversion UX',
+    group: 'specialist',
+    recent: true,
+    description: 'Walk sign-up, pricing and checkout flows through seven stages and make each decision easier, without dark patterns',
   },
   {
     name: 'arena',
@@ -263,6 +291,20 @@ const SKILLS = [
     description: 'Generate an image asset through Codex\'s image tool, on your ChatGPT subscription',
   },
   {
+    name: 'motion-design',
+    label: 'Motion design',
+    group: 'specialist',
+    recent: true,
+    description: 'Story, timing and craft rules for explainers, trailers and UI motion, checked by watching it play in a browser',
+  },
+  {
+    name: 'product-walkthrough',
+    label: 'Product walkthrough',
+    group: 'specialist',
+    recent: true,
+    description: 'Build an onboarding tour from short chapters that replay real product screens, with a cursor or mascot acting on them',
+  },
+  {
     name: 'advocate',
     label: 'Change advocate',
     group: 'specialist',
@@ -272,7 +314,7 @@ const SKILLS = [
     name: 'why',
     label: 'Challenge recommendation',
     group: 'specialist',
-    description: 'Stress-test the assistant\'s immediately prior recommendation',
+    description: 'Stress-test a recommendation with one fresh reviewer, on request or before a pick that is hard to undo',
   },
   {
     name: 'enhance-prompt',
@@ -330,6 +372,13 @@ const SKILLS = [
     group: 'specialist',
     recent: true,
     description: 'Cache unchanged assets long and keep each release fresh, checked on a real revisit',
+  },
+  {
+    name: 'seo-loop',
+    label: 'SEO loop',
+    group: 'specialist',
+    recent: true,
+    description: 'Fix crawl, indexing and AI-readiness findings in measured rounds against your production build',
   },
 ];
 

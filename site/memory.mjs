@@ -1,5 +1,5 @@
 import {mountMemoryScroll} from './memory-scroll.mjs';
-const stages=[["Find the cause","Find the cause. Verify the fix."],["Save with evidence","Save lasting lessons with permission and evidence."],["Reuse in context","Read the relevant lesson before starting the next task."],["Amend what changed","Update the lesson when the code or evidence changes."]];
+const stages=[["Find the cause","Find the cause. Verify the fix."],["Save with evidence","Save pitfalls without asking; other lessons with permission."],["Reuse in context","Read the relevant lesson before starting the next task."],["Amend what changed","Update the lesson when the code or evidence changes."]];
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 // Routing: a task tab marks the topic files its route reads. The file tree, its count and the
 // route line are static markup for the default task (Fix a bug); CSS animates the row states.

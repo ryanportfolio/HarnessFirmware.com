@@ -1,6 +1,6 @@
 {
   "repository": "ryanportfolio/Harness-Firmware",
-  "commit": "a23ca0f21c27456a8f69122f539ea8c2a8c2d564",
+  "commit": "0cade8958059867271ad451f78ab13bf4025cc61",
   "claude": [
     "addskill",
     "adopt-repo",
@@ -18,6 +18,7 @@
     "codex-fullreview",
     "codex-image-gen",
     "codex-review",
+    "conversion-ux",
     "coordinate",
     "dare",
     "deep-plan",
@@ -25,6 +26,7 @@
     "enhance-prompt",
     "fable-mode",
     "forge-repo-ui-skill",
+    "gauntlet",
     "handoff-audit",
     "impartial-review",
     "init-project",
@@ -32,15 +34,20 @@
     "long-horizon",
     "long-horizon-workflows",
     "merge",
+    "motion-design",
     "optimize-context",
     "perf-loop",
+    "product-walkthrough",
     "recall",
     "redesign-concepts",
     "refine",
+    "security-loop",
+    "seo-loop",
     "servers",
     "session-hub",
     "showpiece",
     "sync-starter",
+    "ui-quality",
     "why",
     "wow-loop",
     "wrapup",
@@ -61,6 +68,7 @@
     "caveman",
     "claude-review",
     "codex-review",
+    "conversion-ux",
     "dare",
     "deep-plan",
     "design-prototypes",
@@ -73,16 +81,22 @@
     "init-project",
     "lab",
     "long-horizon",
+    "merge",
+    "motion-design",
     "optimize-context",
     "opus-fullreview",
     "perf-loop",
+    "product-walkthrough",
     "recall",
     "redesign-concepts",
     "refine",
+    "security-loop",
+    "seo-loop",
     "servers",
     "session-hub",
     "showpiece",
     "sync-starter",
+    "ui-quality",
     "why",
     "wow-loop",
     "wrapup",
@@ -122,12 +136,14 @@
         "dare",
         "deep-plan",
         "external-review",
+        "gauntlet",
         "impartial-review",
         "long-horizon",
         "long-horizon-workflows",
         "merge",
         "opus-fullreview",
         "perf-loop",
+        "security-loop",
         "writing-plans"
       ]
     },
@@ -142,6 +158,7 @@
         "cache-loop",
         "caveman",
         "codex-image-gen",
+        "conversion-ux",
         "coordinate",
         "design-prototypes",
         "enhance-prompt",
@@ -149,9 +166,13 @@
         "forge-repo-ui-skill",
         "handoff-audit",
         "lab",
+        "motion-design",
+        "product-walkthrough",
         "redesign-concepts",
+        "seo-loop",
         "session-hub",
         "showpiece",
+        "ui-quality",
         "why",
         "wow-loop",
         "writing"
@@ -181,18 +202,41 @@
       "codex-review": [
         "external-review"
       ],
+      "conversion-ux": [
+        "ui-quality"
+      ],
       "deep-plan": [
         "why"
       ],
       "design-prototypes": [
         "codex-image-gen"
       ],
+      "gauntlet": [
+        "addskill",
+        "arena",
+        "dare",
+        "merge",
+        "why",
+        "writing"
+      ],
       "merge": [
+        "claude-review",
         "codex-fullreview",
-        "codex-review"
+        "codex-review",
+        "opus-fullreview"
       ],
       "opus-fullreview": [
         "impartial-review"
+      ],
+      "product-walkthrough": [
+        "motion-design"
+      ],
+      "security-loop": [
+        "claude-review",
+        "codex-review"
+      ],
+      "seo-loop": [
+        "writing"
       ],
       "wrapup": [
         "servers"

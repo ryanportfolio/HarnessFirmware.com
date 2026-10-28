@@ -25,7 +25,7 @@ Skills and project notes load only when a task needs them.
 Brainstorm, write the plan, and test alternatives before building.
 
 - `/dare`: Takes the problem apart from first principles in four fresh passes: break it down, test each assumption, rebuild, check the result against reality.
-- `/arena`: Runs several attempts in parallel, has a blind judge pick the strongest as the base, and folds in the best parts of the rest.
+- `/arena`: Runs several attempts in parallel. A blind judge recommends a base; the manager picks one and may fold in ideas from the rest.
 - `/lab`: Builds a live prototype with controls, so you tune motion and layout by feel before anything is final.
 
 ### Audited
@@ -40,7 +40,7 @@ A second model reviews the work before you approve it.
 
 Decisions and pitfalls carry into the next session.
 
-- `pitfalls.md` (auto-saved): A mistake that cost a retry gets written down, so the next session avoids it.
+- `pitfalls.md` (auto-saved): A confirmed mistake that cost a retry, a backed-out change or a user correction gets written down.
 - `architecture.md` (auto-loaded): How the system fits together, in a plain file the agent reads before it changes an unfamiliar area.
 
 ### Production-ready
@@ -54,9 +54,9 @@ Long tasks run in audited rounds. Finished work gets polished and measured befor
 
 ### Self-improving
 
-When a workflow stumbles, the fix goes into the skill itself.
+When a workflow stumbles, the cause gets the smallest fix, or none.
 
-- `/refine`: Traces the stumble to its cause and edits the skill, so the next run starts from the fix. Preferences you state become rules the same way.
+- `/refine`: Traces the stumble to its cause and makes the smallest change that would have prevented it, or none. Preferences you state become rules the same way.
 
 ## Get started
 
