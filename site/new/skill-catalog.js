@@ -200,7 +200,7 @@ const SKILLS = [
     label: 'Merge',
     group: 'discipline',
     recent: true,
-    description: 'After you type /merge, each pull request gets a self-review, the other vendor\'s review loop and CI, then squash-merges',
+    description: 'After you type /merge ($merge in Codex), each pull request gets a self-review, the other vendor\'s review loop and CI, then squash-merges',
   },
   {
     name: 'gauntlet',

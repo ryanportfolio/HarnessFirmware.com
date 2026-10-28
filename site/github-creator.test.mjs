@@ -273,8 +273,8 @@ test('picker and server agree on the merge dependency', () => {
   const all = new Set(HARNESS_SKILL_CATALOG.map((skill) => skill.name));
   const disabledFrom = (enabled) => HARNESS_SKILL_CATALOG.filter((skill) => !enabled.has(skill.name)).map((skill) => skill.name);
 
-  // merge stays ticked: unticking either review it runs is refused on both sides.
-  for (const need of ['codex-review', 'codex-fullreview']) {
+  // merge stays ticked: unticking any review it runs is refused on both sides.
+  for (const need of ['codex-review', 'codex-fullreview', 'claude-review', 'opus-fullreview']) {
     let enabled = all;
     for (const dependent of ['gauntlet', 'security-loop', 'astra-review', 'astra-fullreview']) enabled = toggleHarnessSkill(enabled, dependent, false).enabled;
     const result = toggleHarnessSkill(enabled, need, false);

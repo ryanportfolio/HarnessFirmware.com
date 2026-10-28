@@ -2,7 +2,7 @@
 
 What this repository (`ryanportfolio/HarnessFirmware.com`) is, what its pages claim, how it builds and deploys, how the `/new` creator works, and how to keep it in step with the template. Product facts: `product.md`. Skill catalog: `product-skills.md`.
 
-**Sources.** Site facts come from `main` at `2969a4a`, checked 2026-10-01. Page claims were first read from the `lab-threejs-scene` worktree and then rechecked on main for `about.html`, `new.html`, `skills.html`, `index.html`, `memory.html` and `long-horizon.html`; `arena.html` was not rechecked. On 2026-10-27 the statements this sync changed in the pages-and-claims rows for `/`, `/skills`, `/memory`, `/new`, `/arena` and `/long-horizon`, the catalog files section and the checklist counts were rechecked against the site files after the catalog sync to template `0cade89`. Unchanged statements in those rows keep their older readings. Template facts come from `ryanportfolio/Harness-Firmware` at `bbd0b5f`; the skill catalog and its counts were updated to `0cade8958059867271ad451f78ab13bf4025cc61` on 2026-10-27 (template main has since moved to `c1a8845`, which shortened 25 Codex skill descriptions and added an opt-in `live-local` check to `security-loop`, with no change to skill names, groups or counts). Sections not named here keep their older pins.
+**Sources.** Site facts come from `main` at `2969a4a`, checked 2026-10-01. Page claims were first read from the `lab-threejs-scene` worktree and then rechecked on main for `about.html`, `new.html`, `skills.html`, `index.html`, `memory.html` and `long-horizon.html`; `arena.html` was not rechecked. On 2026-10-27 the statements the sync to `0cade89` changed in the pages-and-claims rows for `/`, `/skills`, `/memory`, `/new`, `/arena` and `/long-horizon`, the catalog files section and the checklist counts were rechecked against the site files after the catalog sync to template `0cade89`. Unchanged statements in those rows keep their older readings. Template facts come from `ryanportfolio/Harness-Firmware` at `bbd0b5f`; the skill catalog and its counts were updated to `0cade8958059867271ad451f78ab13bf4025cc61` on 2026-10-27 (template main has since moved to `c1a8845`: `8c84a7e` shortened 25 Codex skill descriptions and `c1a8845` added an opt-in `live-local` check to `security-loop`, with no change to skill names, groups or counts). Sections not named here keep their older pins.
 
 ## What the website is for
 
@@ -93,12 +93,12 @@ When the template releases, a skill changes, or a claim changes, check every pla
 
 1. `site/new/skill-catalog.js`: hand-edit entries, groups, runtimes, descriptions (53 entries).
 2. `node scripts/refresh-upstream-skills.mjs` to regenerate `site/new/upstream-skills.json` and `site/new/skill-rules.js`; never hand-edit them. Run `node --test site/github-creator.test.mjs`.
-3. `site/skills.html`: 53 entries, "14 shown", categories, model pins (`gpt-6.1-sol` high, `gpt-6-astra` medium), "at most three" (merge reruns), "three fix pushes", runtime caveats (Claude Max, Codex only).
+3. `site/skills.html`: 53 entries, "14 shown", categories, model pins (`gpt-6.1-sol` high, `gpt-6-astra` medium), "at most three" (merge reruns), "three fix pushes", runtime caveats (Claude Max, Codex only, Claude Code only).
 4. `site/new.html`: static "53 enabled" text and the matching `aria-label`.
 5. `site/about.html` and `site/field-log.mjs`: "36 skills", the 87,000 / 3,400 / 4,100 / 2,160 / 9,700 token figures, every field-log number. `site/about-film.mjs`: captions and the 77 s chapter timings (the page title says "77-second film").
 6. `site/index.html`: skill groups, FAQ answers (plugin vs template, auto-apply), install CTAs, the illustrative pitfall. `site/explainer.mjs`: beat captions and timings.
 7. `site/memory.html`: the six topics, save tests, audit-coverage caveat.
-8. `site/arena.html`, `site/long-horizon.html`, `site/skill-pages.mjs`: demo copy and invocations.
+8. `site/arena.html`, `site/long-horizon.html`, `site/skill-pages.mjs`: demo copy and invocations. `site/skill-features.mjs` and `site/card-art.mjs`: feature-card copy and illustration labels.
 9. `site/hero-pillars.mjs`: pillars, lede, tagline. It feeds the README.
 10. README: after editing any of the five inputs, run `node scripts/readme/build.mjs`; run `node scripts/readme/social.mjs` by hand when the social SVG changes.
 11. These reference files: update counts, pins and the pinned commit in `product.md`, `product-skills.md` and this file.
