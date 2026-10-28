@@ -57,7 +57,7 @@ export const DEFAULT_PILLARS = [
   { word: 'production-ready', line: 'Long tasks run in audited rounds. Finished work gets polished and measured before it ships.', stage: 'human',
     // the two long-horizon runtimes end the branch, one above the other
     skills: [skill('/wow-loop'), skill('/perf-loop'), skill('/long-horizon'), skill('/long-horizon-workflows')] },
-  { word: 'self-improving', line: 'When a workflow stumbles, the fix goes into the skill itself.', stage: 'integrate',
+  { word: 'self-improving', line: 'When a workflow stumbles, the cause gets the smallest fix, or none.', stage: 'integrate',
     skills: [skill('/refine')] },
 ];
 

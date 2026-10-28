@@ -4,8 +4,8 @@
 //              ledger, and only when all four are settled does the gate open and the build go solid
 //   dare      one block breaks into four pieces, each piece is tested (one fails and drops out),
 //              the survivors rebuild a new shape, and the shape is checked against a target
-//   arena      three attempts run in parallel lanes; the strongest becomes the base and one part
-//              from each of the others folds into it
+//   arena      three attempts run in parallel lanes; a judge recommends a base, the manager picks
+//              one, and in this illustration one part from each of the others folds into it
 //   lab        three sliders move and a live preview (an easing curve, a moving dot, a block)
 //              follows them
 //   showpiece  a scan passes over a generic page and leaves a composed layout behind it
@@ -144,7 +144,7 @@ const ARENA = {
     <path class="arena-part arena-part-a" d="M0 0H40" stroke="${BRIGHT}" stroke-width="3" opacity="0"/>
     <path class="arena-part arena-part-c" d="M0 0H40" stroke="${BRIGHT}" stroke-width="3" opacity="0"/>
     <g class="arena-best" opacity="0"><path d="M356 96h78v60h-78z" stroke="${BRIGHT}"/><path d="M362 108h52m-52 12h52" stroke-width="3"/></g>
-    <g class="arena-stamp" opacity="0"><circle cx="434" cy="160" r="14" fill="#10150f"/><path d="m428 160 4 4 9-10" stroke-width="2"/></g>`, 'Three attempts run in parallel; the strongest becomes the base and takes the best part of each of the others'),
+    <g class="arena-stamp" opacity="0"><circle cx="434" cy="160" r="14" fill="#10150f"/><path d="m428 160 4 4 9-10" stroke-width="2"/></g>`, 'Three attempts run in parallel; a judge recommends a base, the manager picks one, and it may take a part from each of the others'),
   parts: art => ({lanes: [...art.querySelectorAll('.arena-lane')], frames: [...art.querySelectorAll('.arena-frame')], packets: [...art.querySelectorAll('.arena-packet')], partA: art.querySelector('.arena-part-a'), partC: art.querySelector('.arena-part-c'), best: art.querySelector('.arena-best'), stamp: art.querySelector('.arena-stamp')}),
   frame(p, t) {
     const u = t % this.period;

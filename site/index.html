@@ -91,7 +91,7 @@
 <button type="button" class="memory-caption" data-node="memory" aria-expanded="false" aria-controls="system-detail">Lessons return ↗<small>A finding becomes a saved lesson</small></button>
 </div>
 <div class="system-bottom"><span>Illustrative system · choose skills for the task</span><div class="system-controls"><button id="system-replay" hidden>Replay ↺</button><a href="/skills">Explore skills ↗</a></div></div>
-<noscript><p class="system-static">Recall → Plan → Execute → Audit → Integrate → Human approval. Findings return to Execute and a fresh Audit. Authorized lessons return to project memory. <a href="#audit-details">Read about auditing ↗</a></p></noscript>
+<noscript><p class="system-static">Recall → Plan → Execute → Audit → Integrate → Human approval. Findings return to Execute and a fresh Audit. Confirmed pitfalls and approved lessons return to project memory. <a href="#audit-details">Read about auditing ↗</a></p></noscript>
 </section>
 <section class="explainer motion-block" id="explainer" aria-labelledby="explainer-title" data-beat="9">
 <h2 class="ex-title" id="explainer-title">The same agent, with a repository that <em>remembers and checks</em></h2>
@@ -132,7 +132,7 @@
 <li class="ex-beat" data-beat="3" data-layout="example"><small class="ex-step">03 / Recall</small><h3>Before unfamiliar work, the agent reads the project's own pitfalls</h3><div class="ex-lines"><p class="ex-line ex-note">per pitfalls.md <span class="ex-nowrap">(2026-03-14):</span> reset the test database first</p><p class="ex-line">A fact that changes an action is cited with its file and date, so you can correct a stale one in one reply.</p><p class="ex-line">Skills cost one index line until a task calls the full playbook.</p></div></li>
 <li class="ex-beat" data-beat="4" data-layout="rows"><small class="ex-step">04 / Plan</small><h3>Big tasks run against a written contract</h3><ul class="ex-lines"><li class="ex-line"><span class="ex-key">Checks:</span> Numbered acceptance checks, never weakened to make a round pass</li><li class="ex-line"><span class="ex-key">Steps:</span> Each sized for one fresh context</li><li class="ex-line"><span class="ex-key">Memory:</span> Progress and dead ends saved to a file that survives compaction</li><li class="ex-line"><span class="ex-key">Stalls:</span> A step that fails twice must change approach</li></ul></li>
 <li class="ex-beat" data-beat="5" data-layout="sequence"><small class="ex-step">05 / Checked apart</small><h3>In audited rounds, the builder never grades its own work</h3><ol class="ex-lines"><li class="ex-line">The auditor's brief is written before the builder exists</li><li class="ex-line">A content-hash baseline shows exactly what changed</li><li class="ex-line">The auditor runs the checks itself</li><li class="ex-line">Only complete, clean and aligned counts as progress</li></ol></li>
-<li class="ex-beat" data-beat="6" data-layout="checklist"><small class="ex-step">06 / Review and your call</small><h3>Reviews check every finding against the code before you see it</h3><ul class="ex-lines"><li class="ex-line">On request, the other vendor's model reviews the diff</li><li class="ex-line">Dismissed findings stay listed, so you can overrule them</li><li class="ex-line">Running a skill never authorizes a merge, release or deploy</li></ul></li>
+<li class="ex-beat" data-beat="6" data-layout="checklist"><small class="ex-step">06 / Review and your call</small><h3>Reviews check every finding against the code before you see it</h3><ul class="ex-lines"><li class="ex-line">On every PR, the other vendor's model reviews the diff</li><li class="ex-line">Dismissed findings stay listed, so you can overrule them</li><li class="ex-line">Skills merge or deploy only on your go, such as /merge</li></ul></li>
 <li class="ex-beat" data-beat="7" data-layout="checklist"><small class="ex-step">07 / Refine</small><h3>Rules change on evidence, never on a one-off slip</h3><ul class="ex-lines"><li class="ex-line">Three checks must tie a failure to a rule; zero changes is valid</li><li class="ex-line">Only your own words count as a preference</li><li class="ex-line">An audit flags never-read notes and never-used skills to prune</li></ul></li>
 <li class="ex-beat" data-beat="8" data-layout="statement"><small class="ex-step">08 / Next project</small><h3>With your approval, one project's fix improves the template</h3><div class="ex-lines"><p class="ex-line"><code>/sync-starter</code> sends back only fixes that can be made generic, and you pick what moves; keeping a lesson local stays the default.</p></div></li>
 <li class="ex-beat" data-beat="9" data-layout="outcome"><small class="ex-step">09 / Next session</small><h3>The next session starts from what the project has learned</h3><ul class="ex-lines"><li class="ex-line">Decisions and pitfalls, read before unfamiliar work</li><li class="ex-line">In audited rounds, "done" means an independent check passed</li><li class="ex-line">Plain files, MIT licensed, read by Claude Code and Codex</li></ul></li>
@@ -162,7 +162,7 @@
         <div class="always-grid">
           <article><span class="always-tag">always on</span><h3>caveman</h3><p>Replies drop filler and pleasantries and keep every technical detail.</p></article>
           <article><span class="always-tag">automatic</span><h3>recall</h3><p>Before unfamiliar work, the agent reads the project notes that apply and skips the rest.</p></article>
-          <article><span class="always-tag">auto-saved</span><h3>pitfalls.md</h3><p>A mistake that cost a retry gets written down, so the next session avoids it.</p></article>
+          <article><span class="always-tag">auto-saved</span><h3>pitfalls.md</h3><p>A confirmed mistake that cost a retry, a backed-out change or a user correction gets written down.</p></article>
         </div>
       </section>
       <div id="planned" class="card-row motion-block" data-wipe="#F3F3EC"><section class="card-row__section" aria-labelledby="planned-title"><div class="card-row__pin"><div class="card-row__inner">
@@ -170,7 +170,7 @@
 <div class="card-row__cards">
 <article class="cmd-card"><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><div class="cmd-card__glow" aria-hidden="true"><span class="cmd-card__sweep"></span></div><div class="cmd-card__media" data-art="deep-plan"></div><div class="cmd-card__body"><div class="cmd-card__head"><h3 class="cmd-card__title"><code>/deep-plan</code></h3><span class="cmd-card__index" aria-hidden="true">[01]</span></div><p class="cmd-card__text">Turns a loose idea into decisions you make: at most four questions a round, recommended answer first, and nothing gets built until you say go.</p></div></article>
 <article class="cmd-card"><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><div class="cmd-card__glow" aria-hidden="true"><span class="cmd-card__sweep"></span></div><div class="cmd-card__media" data-art="dare"></div><div class="cmd-card__body"><div class="cmd-card__head"><h3 class="cmd-card__title"><code>/dare</code></h3><span class="cmd-card__index" aria-hidden="true">[02]</span></div><p class="cmd-card__text">Takes the problem apart from first principles in four fresh passes: break it down, test each assumption, rebuild, check the result against reality.</p></div></article>
-<article class="cmd-card"><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><div class="cmd-card__glow" aria-hidden="true"><span class="cmd-card__sweep"></span></div><div class="cmd-card__media" data-art="arena"></div><div class="cmd-card__body"><div class="cmd-card__head"><h3 class="cmd-card__title"><code>/arena</code></h3><span class="cmd-card__index" aria-hidden="true">[03]</span></div><p class="cmd-card__text">Runs several attempts in parallel, has a blind judge pick the strongest as the base, and folds in the best parts of the rest.</p></div></article>
+<article class="cmd-card"><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><div class="cmd-card__glow" aria-hidden="true"><span class="cmd-card__sweep"></span></div><div class="cmd-card__media" data-art="arena"></div><div class="cmd-card__body"><div class="cmd-card__head"><h3 class="cmd-card__title"><code>/arena</code></h3><span class="cmd-card__index" aria-hidden="true">[03]</span></div><p class="cmd-card__text">Runs several attempts in parallel. A blind judge recommends a base; the manager picks one and may fold in ideas from the rest.</p></div></article>
 <article class="cmd-card"><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><span class="cmd-card__pin" aria-hidden="true"></span><div class="cmd-card__glow" aria-hidden="true"><span class="cmd-card__sweep"></span></div><div class="cmd-card__media" data-art="lab"></div><div class="cmd-card__body"><div class="cmd-card__head"><h3 class="cmd-card__title"><code>/lab</code></h3><span class="cmd-card__index" aria-hidden="true">[04]</span></div><p class="cmd-card__text">Builds a live prototype with controls, so you tune motion and layout by feel before anything is final.</p></div></article>
 </div>
 </div></div></section></div>
@@ -181,7 +181,7 @@
         <div class="audit-detail-grid">
           <article><span>01</span><h3>Inspect</h3><p>A fresh reviewer gets the change, its scope and the checks it must pass.</p></article>
           <article><span>02</span><h3>Repair</h3><p>Each finding is checked against the actual code before anything changes. Confirmed gaps get fixed, then reviewed again.</p></article>
-          <article><span>03</span><h3>Decide</h3><p>You get the evidence. Nothing merges, publishes or ships without your approval.</p></article>
+          <article><span>03</span><h3>Decide</h3><p>You get the evidence. Skills merge, publish or ship only on your go.</p></article>
         </div>
         <ul class="command-row" aria-label="Review commands">
           <li><code class="cmd">/codex-review</code><p>A different model family, OpenAI's Codex, reviews the diff.</p></li>
@@ -212,7 +212,7 @@
 </div></div></section></div>
       <section class="self-improving" id="self-improving" aria-labelledby="self-improving-title">
         <h2 class="pillar-word" id="self-improving-title">Self-improving</h2>
-        <p class="pillar-sub">When a workflow stumbles, <code class="cmd">/refine</code> finds the cause and puts the fix into the skill itself. Preferences you state become rules the same way.</p>
+        <p class="pillar-sub">When a workflow stumbles, <code class="cmd">/refine</code> finds the cause and makes the smallest change that would have prevented it, or none. Preferences you state become rules the same way.</p>
         <a class="cv-cta" href="/skills" aria-label="Browse the skills"><span class="cv-cta-label">Browse the skills</span><span class="cv-cta-icon" aria-hidden="true"><span class="cv-cta-front"><svg viewBox="0 0 12 12" focusable="false"><path fill="currentColor" d="M.4 5.35h1.3v1.3H.4zM1.9 5.35h1.3v1.3H1.9zM3.4 5.35h1.3v1.3H3.4zM4.9 5.35h1.3v1.3H4.9zM6.4 5.35h1.3v1.3H6.4zM7.9 5.35h1.3v1.3H7.9zM9.4 5.35h1.3v1.3H9.4zM7.9 3.85h1.3v1.3H7.9zM6.4 2.35h1.3v1.3H6.4zM7.9 6.85h1.3v1.3H7.9zM6.4 8.35h1.3v1.3H6.4z"/></svg></span><span class="cv-cta-back"><svg viewBox="0 0 25 12" focusable="false"><path fill="currentColor" d="M1 1.1h1.8v1.8H1zM3 3.1h1.8v1.8H3zM5 5.1h1.8v1.8H5zM3 7.1h1.8v1.8H3zM1 9.1h1.8v1.8H1zM9 1.1h1.8v1.8H9zM11 3.1h1.8v1.8H11zM13 5.1h1.8v1.8H13zM11 7.1h1.8v1.8H11zM9 9.1h1.8v1.8H9zM17 1.1h1.8v1.8H17zM19 3.1h1.8v1.8H19zM21 5.1h1.8v1.8H21zM19 7.1h1.8v1.8H19zM17 9.1h1.8v1.8H17z"/></svg></span></span></a>
       </section>
       <section class="start-section dark" id="start" aria-labelledby="start-title">
@@ -263,7 +263,7 @@
               </span>
             </summary>
             <p>
-              Memory lives in project files. Agents can read those files and record approved, useful lessons. What gets retained depends on your workflow and instructions.
+              Memory lives in project files. Agents read those files, save confirmed pitfalls without asking, and save other lessons with your permission. What gets retained depends on your workflow and instructions.
             </p>
           </details>
           <details>
@@ -289,7 +289,7 @@
               </span>
             </summary>
             <p>
-              The skills-only plugin works with Claude Code in an existing repository. For a new project or Codex support, use the full template. See the
+              The skills-only plugin works with Claude Code in an existing repository. For the full firmware or Codex support there, run the apply-firmware skill: it adds what the project is missing and shows a preview before it writes anything. For a new project, use the full template. See the
               <a href="https://github.com/ryanportfolio/Harness-Firmware#quickstart">
                 setup instructions
               </a>
