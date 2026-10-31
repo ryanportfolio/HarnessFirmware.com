@@ -1,9 +1,12 @@
 #skills{--ss-lime:#53db76;--ss-ivory:#f1f0df;--ss-muted:#acb19e;background:#09100b;color:var(--ss-ivory);padding:76px 3.1% 88px;position:relative;isolation:isolate;overflow:hidden}
 #skills *{box-sizing:border-box}
-#skills:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 22% 19%,#22422a1c,transparent 48%),url('assets/grain.png');opacity:.09;animation:ss-grain .27s steps(1,end) infinite}
-/* Moves only the grain layer; the tint stays put. Offsets match grain-jitter in styles.css. */
-@keyframes ss-grain{0%{background-position:0 0,0 0}11.1%{background-position:0 0,-97px 43px}22.2%{background-position:0 0,61px -128px}33.3%{background-position:0 0,-23px -71px}44.4%{background-position:0 0,117px 89px}55.5%{background-position:0 0,-139px 17px}66.6%{background-position:0 0,29px 113px}77.7%{background-position:0 0,-67px -37px}88.8%{background-position:0 0,83px -101px}}
-@media(prefers-reduced-motion:reduce){#skills:before{animation:none}}
+/* Grain under a still tint, blended as one 9% layer (.ss-texture, skills.html). The grain tile sits on an
+   oversized ::before and moves by transform on grain-jitter (styles.css), so the compositor runs the jitter. */
+#skills .ss-texture{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;opacity:.09}
+#skills .ss-texture:before,#skills .ss-texture:after{content:"";position:absolute}
+#skills .ss-texture:before{inset:-140px;background:url('assets/grain.png') 140px 140px;animation:grain-jitter .27s steps(1,end) infinite}
+#skills .ss-texture:after{inset:0;background:radial-gradient(ellipse at 22% 19%,#22422a1c,transparent 48%)}
+@media(prefers-reduced-motion:reduce){#skills .ss-texture:before{animation:none}}
 #skills .ss-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:26px}
 #skills h2{font:var(--display-weight) clamp(38px,4.1vw,62px)/1.06 var(--font-display);letter-spacing:var(--display-track);margin:0 0 10px}
 #skills .ss-heading p{margin:0;font:13px/1.5 var(--font-mono);color:var(--ss-muted)}

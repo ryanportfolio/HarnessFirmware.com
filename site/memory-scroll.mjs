@@ -3,7 +3,13 @@ import {mountSmoothScroll} from './smooth-scroll.mjs';
 // Share the homepage spring; translate the sticky scene with the rendered scroll.
 // It runs for every visitor; if it fails to mount, CSS sticky pins the scene on native scroll (under reduced
 // motion the scene sits in the flow).
+//   mountMemoryScroll(onFrame) -> geometry()
+//     onFrame     called after each rendered spring position, and once on restore
+//     geometry()  {lifeTop, stickyTop, stickyHeight}: viewport px of .lifecycle and .life-sticky, from the
+//                 cached layout and the rendered offset, so a per-frame reader needs no layout read;
+//                 null while the spring is not mounted (measure the elements instead)
 export function mountMemoryScroll(onFrame) {
+  let geometry = null;
   function mount() {
     if (!mountSmoothScroll) return;
     const main = document.querySelector('main');
@@ -22,7 +28,7 @@ export function mountMemoryScroll(onFrame) {
     const events = new AbortController();
     let controller, unsubscribe;
     function restore() {
-      events.abort(); unsubscribe?.(); controller?.destroy();
+      events.abort(); unsubscribe?.(); controller?.destroy(); geometry = null;
       sticky.style.transform = ''; sticky.style.position = '';
       layer.before(main, footer); layer.remove(); spacer.remove();
       delete window.harnessScroll; delete document.documentElement.dataset.smoothScroll;
@@ -33,18 +39,23 @@ export function mountMemoryScroll(onFrame) {
       controller = mountSmoothScroll(layer, spacer, '100%');
       window.harnessScroll = controller;
       sticky.style.position = 'relative';
-      // Geometry is read on resize only, so this update adds no layout read to the frame (onFrame's
-      // scene checks in memory.mjs still make one). The layer's height changes with anything above
-      // the scene.
-      let start = 0, travel = 0;
+      // Geometry is read on resize only, so neither this update nor geometry() adds a layout read to the
+      // frame. The layer's height changes with anything above the scene.
+      let start = 0, travel = 0, stickyHeight = 0;
+      const shift = y => Math.max(0, Math.min(travel, -y - start));
       const update = () => {
-        sticky.style.transform = `translateY(${Math.max(0, Math.min(travel, -controller.y.get() - start))}px)`;
+        sticky.style.transform = `translateY(${shift(controller.y.get())}px)`;
         onFrame();
       };
       const measure = () => {
         start = lifecycle.getBoundingClientRect().top - layer.getBoundingClientRect().top;
-        travel = Math.max(0, lifecycle.offsetHeight - sticky.offsetHeight);
+        stickyHeight = sticky.offsetHeight;
+        travel = Math.max(0, lifecycle.offsetHeight - stickyHeight);
         update();
+      };
+      geometry = () => {
+        const y = controller.y.get();
+        return {lifeTop: start + y, stickyTop: start + y + shift(y), stickyHeight};
       };
       unsubscribe = controller.y.on('change', update);
       const observer = new ResizeObserver(measure);
@@ -85,4 +96,5 @@ export function mountMemoryScroll(onFrame) {
     }
   }
   mount();
+  return () => geometry?.() ?? null;
 }
