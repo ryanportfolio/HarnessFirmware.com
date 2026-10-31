@@ -77,7 +77,7 @@ button.memory-caption{background:none;border:0;color:inherit;font-family:inherit
    bottom padding until the slot arrives; above, the heading is absolute and the field's top margin
    grows where the upper feed (labels, travelling skill chips) would come within 18px of the button
    (measured at 1101-2560px). Heights match .acta-btn in agent-cta.css (80px; 96px on phones). */
-.living-system>.agent-cta-slot--hero{position:absolute;visibility:hidden}
+.living-system>.agent-cta-slot--hero{position:absolute;visibility:hidden}.living-heading>.agent-cta-slot--hero.is-waiting{visibility:hidden}
 @media(scripting:none){.agent-cta-slot--hero{display:none}}
 @media(scripting:enabled){
  .living-system{--hero-cta-h:80px;--hero-cta-gap:26px;--hero-cta-room:calc(var(--hero-cta-h) + var(--hero-cta-gap))}

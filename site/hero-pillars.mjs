@@ -590,9 +590,10 @@ function mount(root, o, restore) {
         });
       }
     }
+    const subAt = t2 + 120;
     if (subs[to].textContent) {
       on(subs[to]);
-      subIn(subs[to], t2 + 120, t, anims);
+      subIn(subs[to], subAt, t, anims);
     }
 
     shown1 = b1;
@@ -613,15 +614,16 @@ function mount(root, o, restore) {
     // The host can run its own motion as part of this change: `play` works like the
     // component's (paused, resumed, finished and dropped with it) and `after` runs at cleanup,
     // where the host puts its resting state in place. `mid` is when the arriving word's
-    // average glyph starts; timings are in ms, distances in em of the animated element.
+    // average glyph starts and `sub` when the sub-line starts rising in (on `soft`, for 0.95 D);
+    // timings are in ms, distances in em of the animated element.
     // `from(el)` is el's opacity, transform and filter as a change that Replay cut short left
     // them, if that change animated it (else null), so the host's leavers can start from there
     // too; `gone` and `shows` are how long a leaver takes to fall below faint ink and an
     // arriver to rise past it.
     o.onPillar?.(stageName, {
-      index: to, pillar: to < n ? pillars[to] : null, mid: t2 + ((b2.w || 0) / 2) * t.V, intro: from < 0,
+      index: to, pillar: to < n ? pillars[to] : null, mid: t2 + ((b2.w || 0) / 2) * t.V, sub: subAt, intro: from < 0,
       timing: { D: t.D, inkD: t.inkD, outD: t.outD, fadeD: t.fadeD, gone: t.gone, shows: t.shows, rise: RISE, lift: LIFT, blur: t.blur,
-        ease: t.ease, ink: css(C.ink), exitMove: css(C.exitMove), exitFade: css(C.exitFade) },
+        ease: t.ease, ink: css(C.ink), soft: css(C.soft), exitMove: css(C.exitMove), exitFade: css(C.exitFade) },
       play: (target, frames, opts) => { const a = play(target, frames, opts); anims.push(a); return a; },
       after: (f) => after.push(f),
       from: (e) => was?.get(e) ?? null,
