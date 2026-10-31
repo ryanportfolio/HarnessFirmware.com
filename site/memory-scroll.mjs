@@ -4,10 +4,11 @@ import {mountSmoothScroll} from './smooth-scroll.mjs';
 // It runs for every visitor; if it fails to mount, CSS sticky pins the scene on native scroll (under reduced
 // motion the scene sits in the flow).
 //   mountMemoryScroll(onFrame) -> geometry()
-//     onFrame     called after each rendered spring position, and once on restore
-//     geometry()  {lifeTop, stickyTop, stickyHeight}: viewport px of .lifecycle and .life-sticky, from the
-//                 cached layout and the rendered offset, so a per-frame reader needs no layout read;
-//                 null while the spring is not mounted (measure the elements instead)
+//     onFrame     called (no arguments) after each rendered spring position, after each layout measure
+//                 (mount, resize, fonts ready), and once on restore
+//     geometry()  {lifeTop, stickyTop, stickyHeight}: viewport tops of .lifecycle and .life-sticky and the
+//                 sticky's height, CSS px, from the cached layout and the rendered offset, so a per-frame
+//                 reader needs no layout read; null while the spring is not mounted (measure instead)
 export function mountMemoryScroll(onFrame) {
   let geometry = null;
   function mount() {
@@ -49,7 +50,7 @@ export function mountMemoryScroll(onFrame) {
       };
       const measure = () => {
         start = lifecycle.getBoundingClientRect().top - layer.getBoundingClientRect().top;
-        stickyHeight = sticky.offsetHeight;
+        stickyHeight = sticky.getBoundingClientRect().height;
         travel = Math.max(0, lifecycle.offsetHeight - stickyHeight);
         update();
       };
