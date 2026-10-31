@@ -5,25 +5,26 @@ import {mountStatementBlock} from './statement-block.mjs';
 import {mountConverge} from './converge.mjs';
 import {bindScramble} from './text-effects.mjs';
 
-// Homepage motion boot: film grain, the hooks for the scroll-driven sections (.statement-block,
-// #converge-block, .card-row), and anchor/focus handling that keeps targets clear of the fixed header.
-// Reduced motion keeps native scroll; otherwise smooth-scroll.mjs drives the layer.
+// Homepage motion boot: smooth-scroll.mjs drives the layer for every visitor, with anchor/focus
+// handling that keeps targets clear of the fixed header. Film grain is skipped under reduced motion, and
+// each scroll-driven section hook (.statement-block, #converge-block, .card-row) leaves its section static.
 export function initializeMotion(preference) {
   const fragments=restoreIncomingFragments();
-  // Reduced motion keeps the static sections; the command cards still get their art as a still frame.
-  if (preference.matches) {mountCardArt(document.querySelector('main'));fragments.layout();return;}
+  const reduced=preference.matches;
   const layer=document.querySelector('[data-scroll-layer]');
   const spacer=document.querySelector('[data-scroll-spacer]');
   const events=new AbortController();
   const disposers=[];
 
   // Full-viewport grain at .05, faded in after the first frame.
-  const grain=document.createElement('div');
-  grain.className='grain-overlay';
-  grain.setAttribute('aria-hidden','true');
-  document.body.append(grain);
-  requestAnimationFrame(()=>{grain.style.opacity='.05';});
-  disposers.push(()=>grain.remove());
+  if (!reduced) {
+    const grain=document.createElement('div');
+    grain.className='grain-overlay';
+    grain.setAttribute('aria-hidden','true');
+    document.body.append(grain);
+    requestAnimationFrame(()=>{grain.style.opacity='.05';});
+    disposers.push(()=>grain.remove());
+  }
 
   if (mountSmoothScroll) {
     try {
@@ -40,7 +41,8 @@ export function initializeMotion(preference) {
     }
   }
 
-  // Scroll-driven sections render into these roots; each helper attaches once its DOM exists.
+  // Scroll-driven sections render into these roots; each helper attaches once its DOM exists. Under
+  // reduced motion each leaves its section static (card art draws a still frame).
   for (const root of document.querySelectorAll('.statement-block')) disposers.push(mountStatementBlock(root));
   disposers.push(mountConverge(document.querySelector('#converge-block')));
   disposers.push(mountCardArt(document.querySelector('main')));
@@ -77,7 +79,7 @@ export function initializeMotion(preference) {
     if(rect.top<105 || rect.bottom>innerHeight) window.scrollTo({top:Math.max(0,anchorTop(event.target)),behavior:'smooth'});
   },{signal:events.signal});
   preference.addEventListener('change',()=>{
-    // Re-enter through the readable native document when the OS preference changes.
+    // The sections differ between the two modes: reload into the other one when the OS preference changes.
     events.abort();
     for(const dispose of disposers.reverse())try{dispose();}catch{}
     location.reload();
