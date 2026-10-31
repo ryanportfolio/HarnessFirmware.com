@@ -1378,7 +1378,8 @@ html[data-smooth-scroll] .hero {padding-top:130px;}
    The half-pixel shift resamples the tile, softening the overlay grain by about a quarter.
    The tile sits on an oversized ::before that moves by transform, so the compositor runs the
    jitter; animating background-position repainted the whole viewport on the main thread. Steps
-   are multiples of 4 px, whole device pixels at 1.25x to 2x, so no step resamples the tile. */
+   are multiples of 4 px, whole device pixels at 1.25x to 2x, so no step resamples the tile. The hero
+   mirrors these steps as grain-jitter-mirror (living-system.css). */
 .grain-overlay {position:fixed;inset:0;z-index:12;pointer-events:none;overflow:hidden;opacity:0;transform:translateX(.5px);transition:opacity .5s ease-in-out;}
 .grain-overlay::before {content:"";position:absolute;inset:-140px;background:url("assets/grain.png") 140px 140px repeat;animation:grain-jitter .27s steps(1,end) infinite;}
 @keyframes grain-jitter {

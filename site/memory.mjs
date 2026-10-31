@@ -43,8 +43,12 @@ function renderStage(){
   $$('.progress i').forEach((p,i)=>p.classList.toggle('active',i===n));
   setFill();panLife();
 }
+// While the spring runs, memory-scroll.mjs gives the scene's place from cached layout and the rendered
+// offset, so the per-frame checks below read no layout; without it they measure the elements.
+let sceneGeometry=()=>null;
 function sceneInView(){
-  const r=lifeSticky.getBoundingClientRect(),seen=Math.min(r.bottom,innerHeight)-Math.max(r.top,0);
+  const g=sceneGeometry(),r=g?{top:g.stickyTop,bottom:g.stickyTop+g.stickyHeight,height:g.stickyHeight}:lifeSticky.getBoundingClientRect();
+  const seen=Math.min(r.bottom,innerHeight)-Math.max(r.top,0);
   return seen>=Math.min(r.height,innerHeight)*.6;
 }
 const clockRuns=()=>autoplay()&&pinnedIndex===null&&previewIndex===null&&!document.hidden&&sceneInView();
@@ -145,7 +149,7 @@ lp.querySelector('.close').onclick=()=>unpinLife(true);
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(pinnedIndex!==null||previewIndex!==null)unpinLife(true);});
 let ticking=false;
 function scrollStage(){if(ticking)return;ticking=true;requestAnimationFrame(()=>{
-  const top=life.getBoundingClientRect().top;
+  const top=sceneGeometry()?.lifeTop??life.getBoundingClientRect().top;
   if(lastSceneTop!==null&&Math.abs(top-lastSceneTop)>.1){
     scrollSettling=true;clearTimeout(scrollSettleTimer);
     scrollSettleTimer=setTimeout(()=>{scrollSettling=false;},220);
@@ -163,5 +167,5 @@ const mobile=matchMedia('(max-width:600px)'),lifeArt=$('.life-art');
 function panLife(){lifeArt.setAttribute('viewBox',mobile.matches?([30,350,710,1080][stage]+' 270 370 430'):'0 0 1440 900');}
 mobile.addEventListener('change',panLife);panLife();renderStage();scrollStage();
 
-mountMemoryScroll(scrollStage);
+sceneGeometry=mountMemoryScroll(scrollStage);
 
