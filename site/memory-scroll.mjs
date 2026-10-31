@@ -35,8 +35,9 @@ export function mountMemoryScroll(onFrame) {
       controller = mountSmoothScroll(layer, spacer, '100%');
       window.harnessScroll = controller;
       sticky.style.position = 'relative';
-      // Geometry is read on resize only: a layout read in the per-frame update would force a style
-      // pass after each layer write. The layer's height changes with anything above the scene.
+      // Geometry is read on resize only, so this update adds no layout read to the frame (onFrame's
+      // scene checks in memory.mjs still make one). The layer's height changes with anything above
+      // the scene.
       let start = 0, travel = 0;
       const update = () => {
         sticky.style.transform = `translateY(${Math.max(0, Math.min(travel, -controller.y.get() - start))}px)`;
