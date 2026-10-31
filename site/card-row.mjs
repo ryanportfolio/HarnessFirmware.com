@@ -204,7 +204,7 @@ export function mountCardRow(root) {
   // Holds (lead block, last card): at, how far past the section top the box holds still, in the
   // scroll it would show without the holds; len, for how long. intro: all of them together.
   const leadBlock = head.previousElementSibling;
-  let top = 0, length = 0, height = 0, lead = 0, hold = 0, titleAt = 0, pinState = '', held = false;
+  let top = 0, length = 0, height = 0, lead = 0, hold = 0, titleAt = 0, pinState = '', held = false, riding = false;
   let trim = 0, footTrim = 0, intro = 0, holds = [];
   const measure = () => {
     const headAt = inner.offsetTop + cardList.offsetTop - parseFloat(getComputedStyle(head).marginBottom) - head.offsetHeight;
@@ -322,6 +322,9 @@ export function mountCardRow(root) {
     if (engine) pin.style.transform = offset + still ? `translate3d(0,${offset + still}px,0)` : '';
     const state = scrolled >= end ? 'after' : offset > 0 ? 'pinned' : 'before';
     if (state !== pinState) root.dataset.pin = pinState = state;
+    // The box rides with the scroll while pinned and through the holds before the pin.
+    const ride = state === 'pinned' || (still > 0 && still < intro);
+    if (ride !== riding) root.classList.toggle('is-riding', riding = ride);
     const from = wide.matches ? WIPE_FROM.wide : WIPE_FROM.narrow;
     wipe.render((offset / span - from) / (1 - from));
   };
@@ -363,7 +366,7 @@ export function mountCardRow(root) {
     cards.forEach(card => card.style.removeProperty('--card-delay'));
     for (const name of ['--card-pin-top', '--card-round', '--card-pin-h', '--card-wipe-top', '--card-head-top', '--card-band', '--card-fade', '--card-media-h', '--card-foot-trim', '--card-tail', '--card-intro']) root.style.removeProperty(name);
     root.removeAttribute('data-trim');
-    root.classList.remove('is-revealed', 'is-held');
+    root.classList.remove('is-revealed', 'is-held', 'is-riding');
     delete root.dataset.motion;
     delete root.dataset.pin;
   };

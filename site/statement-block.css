@@ -11,6 +11,8 @@
 .statement-block[data-motion] .statement-container{background:#53DB76;pointer-events:auto}
 .statement-block[data-motion="native"] .statement-container{position:sticky;top:var(--statement-top,0px)}
 .statement-block[data-pin="after"] .statement-container{visibility:hidden}
+/* Spring scroll moves the pinned panel every frame: promote it while it moves. */
+.statement-block[data-motion="spring"][data-pin="pinned"] .statement-container{will-change:transform}
 .statement-block .statement-grid{z-index:0}
 .statement-block .statement-wipe{z-index:20}
 

@@ -257,3 +257,9 @@ ancestor of the remote branch, then reset the local branch to `origin/<branch>` 
 ## Page scrollbar reads body::-webkit-scrollbar (2026-10-17)
 
 In Chrome 152 the page (viewport) scrollbar ignored `html::-webkit-scrollbar{width:12px}` and kept the 8px global rule; `body::-webkit-scrollbar` set it. `site/scrollbar.css` names both. Also: Chromium 121+ drops every `::-webkit-scrollbar` rule on an element whose `scrollbar-color` or `scrollbar-width` is set, and `scrollbar-color` inherits, so set the standard properties only for Firefox. Gate them with `@supports (-moz-appearance:none)`, never `@supports not selector(::-webkit-scrollbar)`: Firefox accepts unknown `::-webkit-` pseudo-elements as valid, so that test passed there and Firefox kept its default bar (user report, 2026-10-17).
+
+## Grain keyframes are shared across files; perf A/B needs counts (2026-10-31)
+
+`grain-jitter` in `site/styles.css` also drives `.living-system:after` in `site/living-system.css` (minified, one line). Changing the keyframes from `background-position` to `transform` overrode that rule's `transform:scaleX(-1)` and slid its `inset:0` box off the hero edges; a review caught it and the hero got its own mirrored keyframes. Grep every `@keyframes` name across `site/` before changing it. `#skills:before` still runs its own `ss-grain` `background-position` steps.
+
+Measuring the spring scroll on this machine: wall-clock frame-time sums from repeated runs of the same build drifted 2.2 to 4.3 s with other sessions' load, which hid 10-30% changes. Chrome trace counts (Paint, `PaintArtifactCompositor::Update`, `RasterTask`, layer style writes) of an in-page scripted scroll repeat within 1% and resolved them; Firefox needed paired Gecko profiles in ABBA order.

@@ -35,15 +35,22 @@ export function mountMemoryScroll(onFrame) {
       controller = mountSmoothScroll(layer, spacer, '100%');
       window.harnessScroll = controller;
       sticky.style.position = 'relative';
+      // Geometry is read on resize only, so this update adds no layout read to the frame (onFrame's
+      // scene checks in memory.mjs still make one). The layer's height changes with anything above
+      // the scene.
+      let start = 0, travel = 0;
       const update = () => {
-        const start = lifecycle.getBoundingClientRect().top - layer.getBoundingClientRect().top;
-        const travel = Math.max(0, lifecycle.offsetHeight - sticky.offsetHeight);
         sticky.style.transform = `translateY(${Math.max(0, Math.min(travel, -controller.y.get() - start))}px)`;
         onFrame();
       };
+      const measure = () => {
+        start = lifecycle.getBoundingClientRect().top - layer.getBoundingClientRect().top;
+        travel = Math.max(0, lifecycle.offsetHeight - sticky.offsetHeight);
+        update();
+      };
       unsubscribe = controller.y.on('change', update);
-      const observer = new ResizeObserver(update);
-      observer.observe(lifecycle); observer.observe(sticky);
+      const observer = new ResizeObserver(measure);
+      observer.observe(lifecycle); observer.observe(sticky); observer.observe(layer);
       events.signal.addEventListener('abort', () => observer.disconnect());
       const reveal = (target, immediate = false) => {
         const top = Math.max(0, target.getBoundingClientRect().top - layer.getBoundingClientRect().top - 90);
@@ -73,8 +80,8 @@ export function mountMemoryScroll(onFrame) {
         if (target) reveal(target, true);
       };
       window.addEventListener('hashchange', fragment, {signal:events.signal});
-      document.fonts.ready.then(() => {if (!events.signal.aborted) {fragment(); update();}});
-      update();
+      document.fonts.ready.then(() => {if (!events.signal.aborted) {measure(); fragment();}});
+      measure();
     } catch (error) {
       restore(); console.warn('Memory motion unavailable; native scrolling restored.', error);
     }

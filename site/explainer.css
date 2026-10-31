@@ -21,6 +21,8 @@
 html[data-smooth-scroll] .explainer::after{content:"";display:block;order:3;height:150vh;height:150svh}
 html[data-smooth-scroll] .explainer:not(.is-live)::after{animation:ex-hold-off 0s 8s forwards}
 @keyframes ex-hold-off{to{height:0}}
+/* The hold moves every rider each spring frame (explainer.mjs hold()); promote them while it does. */
+.explainer.is-holding>*{will-change:transform}
 .explainer :where(h2,h3,p,ol,li,small){margin:0;padding:0}
 .explainer :focus-visible{outline:2px solid #5fb775;outline-offset:4px}
 
