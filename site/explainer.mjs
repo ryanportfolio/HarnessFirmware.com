@@ -655,8 +655,7 @@ function mount(root) {
 // Once the page reaches the reading position, the title, stage and controls ride with the rendered spring
 // offset for that length of scroll, so the block holds still on screen, then scroll on from the bottom of
 // the section. It reads position only: no input is cancelled, and wheel, touch, keys, links, the scrollbar
-// and scripts all scroll through it the same way, in either direction. Native scroll (reduced motion, or no
-// layer) has no hold.
+// and scripts all scroll through it the same way, in either direction. Native scroll (no layer) has no hold.
 function hold(root) {
   const engine = window.harnessScroll;
   const layer = document.querySelector('[data-scroll-layer]');

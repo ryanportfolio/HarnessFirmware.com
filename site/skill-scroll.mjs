@@ -1,15 +1,14 @@
 import {mountSmoothScroll} from './smooth-scroll.mjs';
 
-// Skill pages and /about share the homepage's smooth scroll without its homepage-only scenes.
-// Reduced motion keeps these pages on native scroll.
-const preference = matchMedia('(prefers-reduced-motion: reduce)');
+// Skill pages and /about share the homepage's smooth scroll, for every visitor, without its
+// homepage-only scenes.
 const header = document.querySelector('.site-header');
 const main = document.querySelector('main');
 const footer = document.querySelector('body > footer');
 let teardown;
 
 function mount() {
-  if (preference.matches || !mountSmoothScroll || teardown || !main || !header) return;
+  if (!mountSmoothScroll || teardown || !main || !header) return;
   const layer = document.createElement('div');
   const spacer = document.createElement('div');
   const headerSpace = document.createElement('div');
@@ -89,4 +88,3 @@ function mount() {
 }
 
 mount();
-preference.addEventListener('change', () => {teardown?.();mount();});

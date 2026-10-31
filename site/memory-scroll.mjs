@@ -1,12 +1,10 @@
 import {mountSmoothScroll} from './smooth-scroll.mjs';
 
 // Share the homepage spring; translate the sticky scene with the rendered scroll.
-// Reduced motion keeps the page native and CSS sticky pins the scene.
+// It runs for every visitor; if it fails to mount, CSS sticky pins the scene on native scroll.
 export function mountMemoryScroll(onFrame) {
-  const preference = matchMedia('(prefers-reduced-motion: reduce)');
-  let teardown;
   function mount() {
-    if (preference.matches || !mountSmoothScroll) return;
+    if (!mountSmoothScroll) return;
     const main = document.querySelector('main');
     const header = document.querySelector('body > header');
     const footer = document.querySelector('body > footer');
@@ -27,9 +25,8 @@ export function mountMemoryScroll(onFrame) {
       sticky.style.transform = ''; sticky.style.position = '';
       layer.before(main, footer); layer.remove(); spacer.remove();
       delete window.harnessScroll; delete document.documentElement.dataset.smoothScroll;
-      teardown = undefined; onFrame();
+      onFrame();
     }
-    teardown = restore;
     try {
       document.documentElement.dataset.smoothScroll = '';
       controller = mountSmoothScroll(layer, spacer, '100%');
@@ -87,5 +84,4 @@ export function mountMemoryScroll(onFrame) {
     }
   }
   mount();
-  preference.addEventListener('change', () => {teardown?.(); mount();});
 }
