@@ -253,11 +253,16 @@ async function leaveFallback(h){if(reduced.matches||+getComputedStyle(h).opacity
 // The agent prompt button sits after the heading in the markup and moves under the lede once the headline
 // has mounted, so the fallback heading's exit and the headline's mount never touch it. Under the animated
 // headline it waits hidden for the intro, then rises and inks in just after the lede, on the lede's curve
-// and through the headline's own play(), so it pauses and finishes with it (ctaIn, from onPillar). Static
-// mode or a failed headline shows it at once.
-function heroCta(h,wait){const slot=$('.agent-cta-slot--hero');if(!slot)return;if(slot.parentNode!==h)h.append(slot);slot.classList.toggle('is-waiting',!!wait&&!reduced.matches);}
+// and through the headline's own play(), so it pauses and finishes with it (ctaIn, from onPillar); keyboard
+// focus landing on it ends the entrance. Static mode or a failed headline shows it at once. The markup marks
+// the slot data-entering, and ctaShown clears it and fires acta:shown, which starts the button's own
+// border lap (agent-cta.mjs) once the button is fully drawn.
+function ctaShown(slot){if(slot.hasAttribute('data-entering')){slot.removeAttribute('data-entering');slot.dispatchEvent(new Event('acta:shown'));}}
+function heroCta(h,wait){const slot=$('.agent-cta-slot--hero');if(!slot)return;if(slot.parentNode!==h)h.append(slot);const hold=!!wait&&!reduced.matches;slot.classList.toggle('is-waiting',hold);if(!hold)ctaShown(slot);}
 function ctaIn(c){const slot=$('.living-heading>.agent-cta-slot--hero.is-waiting');if(!slot)return;slot.classList.remove('is-waiting');
- if(c?.intro)c.play(slot,[{transform:'translateY(10px)',opacity:0,filter:'blur(4px)'},{transform:'translateY(0)',opacity:1,filter:'blur(0px)'}],{duration:c.timing.D*.95,delay:c.sub+150,easing:c.timing.soft});}
+ if(!c?.intro){ctaShown(slot);return;}
+ const a=c.play(slot,[{transform:'translateY(10px)',opacity:0,filter:'blur(4px)'},{transform:'translateY(0)',opacity:1,filter:'blur(0px)'}],{duration:c.timing.D*.95,delay:c.sub+150,easing:c.timing.soft});
+ const finish=()=>a.finish();slot.addEventListener('focusin',finish);a.finished.then(()=>{},()=>{}).then(()=>{slot.removeEventListener('focusin',finish);ctaShown(slot);});}
 function heroFailed(err){const h=$('.living-heading');h.getAnimations({subtree:true}).forEach(a=>a.cancel());heroCta(h);h.style.opacity='1';driven=false;restBranch();render();schedule();reportError(err);}// the static heading shows at once; the loop runs its own story
 (async()=>{const {mountHeroPillars}=await import('./hero-pillars.mjs');const h=$('.living-heading');await leaveFallback(h);
  headline=mountHeroPillars(h,{titleId:'hero-title',onPillar});heroCta(h,true);})().catch(heroFailed);

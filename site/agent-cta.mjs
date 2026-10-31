@@ -434,11 +434,16 @@ export function mountAgentCta(host, { variant = host.dataset.agentCta || 'hero' 
     bootAt = now(); scanAt = bootAt + 160; scanGain = 1; start();
   }
 
-  // First time the button scrolls into view: one comet lap draws the border and a scan crosses.
+  // First time the button scrolls into view: one comet lap draws the border and a scan crosses. A host
+  // that brings the button in with its own entrance marks it data-entering and fires acta:shown when
+  // the button is fully drawn (living-system.mjs, the hero); the lap waits for that.
   new IntersectionObserver(([entry], io) => {
     if (!entry.isIntersecting) return;
     io.disconnect();
-    setTimeout(boot, variant === 'hero' || variant === 'skills' ? TUNE.bootDelay : 120);
+    setTimeout(() => {
+      if (host.hasAttribute('data-entering')) host.addEventListener('acta:shown', () => setTimeout(boot, 120), { once: true });
+      else boot();
+    }, variant === 'hero' || variant === 'skills' ? TUNE.bootDelay : 120);
   }, { threshold: .6 }).observe(btn);
 
   // ---- frame ----
