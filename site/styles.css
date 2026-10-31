@@ -1375,18 +1375,21 @@ html[data-smooth-scroll] .hero {padding-top:130px;}
 .motion-fallback p {font-size:22px;max-width:700px;}
 /* Film grain. assets/grain.png comes from generate-grain.mjs; nine stepped tile offsets
    every 30 ms read as moving grain. effects.mjs adds the fixed overlay on the homepage.
-   The half-pixel shift resamples the tile, softening the overlay grain by about a quarter. */
-.grain-overlay {position:fixed;inset:0;z-index:12;pointer-events:none;background:url("assets/grain.png") repeat;opacity:0;transform:translateX(.5px);transition:opacity .5s ease-in-out;animation:grain-jitter .27s steps(1,end) infinite;}
+   The half-pixel shift resamples the tile, softening the overlay grain by about a quarter.
+   The tile sits on an oversized ::before that moves by transform, so the compositor runs the
+   jitter; animating background-position repainted the whole viewport on the main thread. */
+.grain-overlay {position:fixed;inset:0;z-index:12;pointer-events:none;overflow:hidden;opacity:0;transform:translateX(.5px);transition:opacity .5s ease-in-out;}
+.grain-overlay::before {content:"";position:absolute;inset:-140px;background:url("assets/grain.png") 140px 140px repeat;animation:grain-jitter .27s steps(1,end) infinite;}
 @keyframes grain-jitter {
-  0% {background-position:0 0}
-  11.1% {background-position:-97px 43px}
-  22.2% {background-position:61px -128px}
-  33.3% {background-position:-23px -71px}
-  44.4% {background-position:117px 89px}
-  55.5% {background-position:-139px 17px}
-  66.6% {background-position:29px 113px}
-  77.7% {background-position:-67px -37px}
-  88.8% {background-position:83px -101px}
+  0% {transform:translate(0,0)}
+  11.1% {transform:translate(-97px,43px)}
+  22.2% {transform:translate(61px,-128px)}
+  33.3% {transform:translate(-23px,-71px)}
+  44.4% {transform:translate(117px,89px)}
+  55.5% {transform:translate(-139px,17px)}
+  66.6% {transform:translate(29px,113px)}
+  77.7% {transform:translate(-67px,-37px)}
+  88.8% {transform:translate(83px,-101px)}
 }
-@media (prefers-reduced-motion:reduce) {.grain-overlay {animation:none;}}
+@media (prefers-reduced-motion:reduce) {.grain-overlay::before {animation:none;}}
 

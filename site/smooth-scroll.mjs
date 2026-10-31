@@ -35,6 +35,10 @@ const fast = -a / 2 - spread;
 // retarget is still moving the layer.
 const REST_OFFSET = 0.001; // px
 const REST_SPEED = -slow * REST_OFFSET * 10; // px/s
+// Smallest move worth a frame. The end of a decay moves the layer under 0.1 px a frame for over
+// a second; writing each of those steps repaints the page for no visible change, so the layer
+// catches up in 0.1 px steps instead (0.3 device px at 3x) and lands exactly on the target.
+const MIN_STEP = 0.1; // px
 
 // Exact state after dt seconds for offset x (px from target) and velocity v (px/s). Exact for
 // any dt, so a long frame or a background tab cannot destabilise it.
@@ -53,6 +57,7 @@ export function mountSmoothScroll(layer, spacer, width = '100vw') {
   const listeners = new Set();
   const events = new AbortController();
   let position = 0; // rendered offset, px
+  let state = 0; // spring offset, px; reaches the layer once it is MIN_STEP from position
   let velocity = 0; // px/s
   let target = 0;
   let native = 0;
@@ -77,7 +82,7 @@ export function mountSmoothScroll(layer, spacer, width = '100vw') {
     const dt = lastTime ? (now - lastTime) / 1000 : 0;
     lastTime = now;
     let offset;
-    [offset, velocity] = advance(position - target, velocity, dt);
+    [offset, velocity] = advance(state - target, velocity, dt);
     if (Math.abs(offset) < REST_OFFSET && Math.abs(velocity) < REST_SPEED) {
       offset = 0;
       velocity = 0;
@@ -85,15 +90,15 @@ export function mountSmoothScroll(layer, spacer, width = '100vw') {
     } else {
       frame = requestAnimationFrame(tick);
     }
-    const next = target + offset;
-    if (next !== position) {
-      position = next;
+    state = target + offset;
+    if (state !== position && (!frame || Math.abs(state - position) >= MIN_STEP)) {
+      position = state;
       render();
     }
   };
   const retarget = value => {
     target = clampTarget(value);
-    if (!frame && (target !== position || velocity)) frame = requestAnimationFrame(tick);
+    if (!frame && (target !== state || velocity)) frame = requestAnimationFrame(tick);
   };
   const follow = value => {
     native = value;
@@ -114,7 +119,7 @@ export function mountSmoothScroll(layer, spacer, width = '100vw') {
   measure();
   // Mounting mid-page (reload, restored history) starts at rest on the current position.
   native = scrollY;
-  target = position = clampTarget(-native);
+  target = position = state = clampTarget(-native);
   if (position || start) render();
 
   const resizeObserver = new ResizeObserver(measure);
@@ -155,7 +160,7 @@ export function mountSmoothScroll(layer, spacer, width = '100vw') {
     jump(value) {
       velocity = 0;
       lastTime = 0;
-      position = value;
+      position = state = value;
       render();
       retarget(target);
     },

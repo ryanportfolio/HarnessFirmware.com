@@ -17,6 +17,8 @@
 .card-row[data-motion="native"] .card-row__section::after{height:calc(var(--card-tail,150vh) + var(--card-round,0px) + var(--card-pin-h,0px));height:calc(var(--card-tail,150svh) + var(--card-round,0px) + var(--card-pin-h,0px))}
 .card-row[data-motion="native"] .card-row__pin{position:sticky;top:var(--card-pin-top,0px)}
 .card-row[data-motion="native"] .card-row__head{position:sticky;top:var(--card-head-top,0px)}
+/* Spring scroll moves the pinned box and the held headline every frame: promote them while they move. */
+.card-row[data-motion="spring"][data-pin="pinned"] .card-row__pin,.card-row[data-motion="spring"].is-held .card-row__head{will-change:transform}
 .card-row .card-row__inner{position:relative;display:flex;flex-direction:column;padding:var(--card-pad) var(--card-pad) 40px}
 .card-row .card-row__head{position:relative;z-index:2;display:flex;flex-direction:column;gap:clamp(16px,2vw,28px);margin:0 0 clamp(56px,9vh,110px);margin:0 0 clamp(56px,9svh,110px)}
 .card-row .card-row__title{margin:0}

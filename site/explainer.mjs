@@ -696,6 +696,8 @@ function hold(root) {
     if (next === shift) return;
     shift = next;
     for (const el of riders) el.style.transform = shift ? `translate3d(0,${shift}px,0)` : '';
+    // Promote the riders only while the hold moves them; at either end their transform is fixed.
+    root.classList.toggle('is-holding', shift > 0 && shift < len);
   };
 
   engine.y.on('change', y => update(-y));
