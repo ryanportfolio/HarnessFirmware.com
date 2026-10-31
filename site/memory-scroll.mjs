@@ -1,7 +1,8 @@
 import {mountSmoothScroll} from './smooth-scroll.mjs';
 
 // Share the homepage spring; translate the sticky scene with the rendered scroll.
-// It runs for every visitor; if it fails to mount, CSS sticky pins the scene on native scroll.
+// It runs for every visitor; if it fails to mount, CSS sticky pins the scene on native scroll (under reduced
+// motion the scene sits in the flow).
 export function mountMemoryScroll(onFrame) {
   function mount() {
     if (!mountSmoothScroll) return;

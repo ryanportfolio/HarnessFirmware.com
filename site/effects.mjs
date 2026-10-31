@@ -6,9 +6,8 @@ import {mountConverge} from './converge.mjs';
 import {bindScramble} from './text-effects.mjs';
 
 // Homepage motion boot: smooth-scroll.mjs drives the layer for every visitor, with anchor/focus
-// handling that keeps targets clear of the fixed header. Film grain and the hooks for the scroll-driven
-// sections (.statement-block, #converge-block, .card-row) wait for motion: reduced motion keeps the
-// static sections.
+// handling that keeps targets clear of the fixed header. Film grain is skipped under reduced motion, and
+// each scroll-driven section hook (.statement-block, #converge-block, .card-row) leaves its section static.
 export function initializeMotion(preference) {
   const fragments=restoreIncomingFragments();
   const reduced=preference.matches;
