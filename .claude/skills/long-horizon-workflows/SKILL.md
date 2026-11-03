@@ -1,456 +1,276 @@
 ---
-description: 'Long-horizon rounds run through the Workflow tool: fresh executor, inspector, and judges per round with schema verdicts and a run journal. Use on /long-horizon-workflows or to run a big task in Workflow-audited rounds. Claude Code only.'
+description: "Long-horizon rounds via Workflow tool: 1 script per batch, fresh baseline, candidate executors, blind pick, independent judges each round, schema verdicts, run journal. Use: /long-horizon-workflows, big task in Workflow-audited rounds. Claude Code only."
 disable-model-invocation: true
 ---
 
 # long-horizon-workflows: audited rounds on the Workflow engine
 
-Manager, Executor, Auditor. You (this context) are the Manager: hold the goal, keep the state
-file true, and delegate every round. Executors and auditors are fresh subagents; a fresh context
-per round separates implementation from independent evidence. Discussing or editing this skill
-does not activate it.
+Manager, Executor, Auditor. You (this ctx) = Manager: hold goal, keep state file true,
+delegate every round. Executors/auditors = fresh subagents; fresh ctx per round separates
+impl from independent evidence. Discussing/editing this skill ≠ activating it.
 
-This is the `long-horizon` contract with one change: when the `Workflow` tool is exposed, each
-round's Baseline, Execute and Audit run as one script, which enforces the context boundary by
-construction, forces verdicts into enums, and journals every agent's exact input and output.
-Claude Code only; Codex sessions use `long-horizon`. If the tool is absent in a Claude session,
-the same steps run as fresh `Agent` calls and the contract does not change.
+`long-horizon` contract, one change: `Workflow` tool exposed → every round of a batch runs
+inside one script: baseline, candidate executors, blind pick, graft, audit. Ctx boundary
+enforced by construction, verdicts forced into enums, every agent's exact input/output
+journaled. Claude Code only; Codex sessions use `long-horizon`. Tool absent in Claude session
+→ same steps as fresh `Agent` calls, contract unchanged.
+
+Parallelism lives at three levels, all chosen at Plan and recorded in the state file:
+
+- Batch: every ready step with disjoint write scope runs as its own round, all in one call.
+- Candidates: a round may build its step N times in N workspaces from different angles; a
+  blind panel picks the base and names ideas to graft from the others.
+- Judges: the audit of a round's result is one inspector plus independent judges.
+
+One writer per workspace stays absolute. Attribution comes from diffing a workspace against
+its baseline; two writers in one workspace make the delta nobody's. More parallelism = more
+workspaces, never more agents in one.
+
+## Guardrails
+
+- Honor explicit user model choices + required quality floors; else inherit configured
+  session model. Check actual exposure before dispatch; requested model/floor unavailable →
+  disclose; never silently downgrade or claim it ran.
+- Size step so one fresh ctx finishes it: one slice, one migration, one bug. Split
+  independent work into separate steps → parallel rounds.
+- Audit independence = the point: verdicts from auditor's own inspection in fresh subagent,
+  never this Manager ctx.
+- Executors + auditors use fable-mode discipline inside round; fable-mode governs one ctx,
+  this skill governs work spanning many.
+- Under ~3 dependent steps: skip harness, run fable-mode directly.
+- At `max(5, 2 * initial step count)` rounds: reassess strategy + remaining work before
+  continuing. This default = reassessment threshold, not completion or abandonment rule. At reassessment: tag every Remaining item continue, reserve, or close w/ one-line reason; reserved item reopens only
+  via final auditor's failed checks or user instruction. Track executor attempts, auditor
+  calls, retries separately. Explicit user round/time/cost limits binding; checkpoint before
+  exceeding, report unfinished checks. Budget zero → inspection allowed, no budgeted
+  execution.
+- Unavailable required check blocks that step + dependents; finish independent authorized
+  work, ask only for missing user-owned decisions or authority. Invocation doesn't authorize
+  publication, installation, deployments, or external messages.
 
 ## State file
 
 `.tmp/long-horizon/<task-slug>/state.md` (gitignored scratch), created before round one:
 
-```markdown
-# Contract  (original retained; explicit user changes recorded as amendments)
-Goal: <one paragraph>
-Acceptance: <the checks that prove it done, as a numbered list>
-Version: <current contract version>
+Template: [state-file-template.md](references/state-file-template.md); read it before creating or rebuilding the file or writing a Current batch or Current round block.
 
-# Amendments
-- <version, explicit user instruction, changed checks, affected steps and claims>
+Only audit-passed results enter **Verified progress**. Resume from existing state file;
+reconcile w/ real workspace + latest user instructions. Before resuming run this session
+didn't start, check if another session still manages it: state file changed in last 30 minutes,
+or `Workers:` lists still-running worker/workflow run → ask user: take over (they stop other
+session first) or stay out. Two Managers on one state file corrupt it.
 
-# Verified progress
-- <claim>: contract version <version>; evidence: <file/command/output the auditor saw>
+Preserve original contract. Explicit user changes → versioned amendments; reassess affected
+steps, invalidate affected claims before using them as prerequisites. Never weaken acceptance
+just to pass a round. Amendment mid-round → reconcile its workers before further execution,
+preserve baseline + old briefs, write new versioned brief from amended contract + raw
+artifacts, no executor assessments. Only audit vs current contract accepts affected work.
 
-# Remaining
-1. <step sized for one fresh context>
-
-# Current round  (scope and checks fixed at Plan, except for explicit user amendments)
-Round: <N>   Phase: planned | executing | awaiting-audit | audited
-Contract version: <version used for this round>
-Engine: workflow | agent
-Workers: <workflow runId + transcript dir, or agent IDs; role; last observed status>
-Step: <the one Remaining step this round works>
-Done-check: <commands, cwd, and the expected result; the auditor runs them itself>
-Write scope: <paths the executor may change; test and gate definitions only if the step is about them>
-Judges: <total verdict count including the inspector, and the one-line reason for that number>
-Baseline: <manifest path> + <git ref>  (see Plan; the auditor diffs against this, never HEAD)
-Executor brief: <path>  (written at Plan)
-Auditor brief: <path>  (written at Plan, dispatched byte for byte)
-Residue: <paths a failed earlier round left changed, and whether they were reverted or kept>
-
-# Dead ends  (approaches that failed audit; do not retry without new evidence)
-- <approach>: <why it failed, one line>
-
-# Audit log
-- round N: <step>: <status>/<integrity>/<contract>, <one-line evidence>, <runId or agent IDs>
-```
-
-Only audit-passed results enter **Verified progress**. Resume from the existing state file
-and reconcile it with the actual workspace and latest user instructions.
-A state file marked `Swarm: on` also follows the `long-horizon-swarm` skill.
-
-Preserve the original contract. Explicit user changes become versioned amendments; reassess
-affected steps and invalidate affected claims before using them as prerequisites. Never weaken
-acceptance merely to make a round pass. If an amendment arrives during a round, reconcile its
-workers before further execution, preserve the baseline and old briefs, and prepare a new
-versioned brief from the amended contract and raw artifacts, without executor assessments.
-Only an audit against the current contract can accept affected work.
-
-Dead ends are memory too. A failed approach that never gets written down gets re-proposed a
-few rounds later, and re-walking it costs a full round.
+Dead ends = memory too. Unrecorded failed approach gets re-proposed rounds later; re-walking
+costs full round.
 
 ## Context boundary
 
-Fresh means the round receives no Manager conversation history. The state file, workspace and
-a standalone brief carry every fact the round needs. Give the executor only its bounded brief;
-give the auditor only its prewritten brief. The auditor never receives the executor's turns
-or report.
+Fresh = no Manager conversation history. State file, workspace, standalone brief carry every
+needed fact. Executor gets only its bounded brief; auditor only its prewritten brief. Auditor
+never gets executor's turns or report.
 
-The leak that matters is not the executor's file list, which the auditor recovers from the
-workspace anyway; it is the executor's narrative ("works, checked X, Y was out of scope"),
-which the Manager has read by the time it would write the auditor brief and can paraphrase
-without noticing. So the auditor brief is not written then. It is pre-registered: written at Plan, before the
-executor exists, from the current contract version's acceptance checks, the Current round
-block and the workspace root, saved to the path recorded in the block, and dispatched
-unchanged. A Manager that wants to add something after Execute has found a defect in the Plan,
-not in the brief; it goes into the next round, except for an explicit user amendment handled
-as above. Provenance is checkable; "do not paraphrase" is not.
+Real leak ≠ executor's file list (auditor recovers it from workspace). It's executor's
+narrative ("works, checked X, Y was out of scope"): Manager has read it by auditor-brief time,
+can paraphrase unnoticed. So auditor brief pre-registered: written at Plan, before executor
+exists, from current contract version's acceptance checks, Current round block, workspace
+root; saved to block's recorded path; dispatched unchanged. Manager wants to add to brief after Execute → that's Plan defect, not brief defect → next round (exception: explicit user amendment,
+handled above). Provenance checkable; "do not paraphrase" isn't.
 
-Inspect exposed tools and capacity before dispatch. Use fresh context and never
-`subagent_type: fork` or an option that inherits Manager history for an auditor. If fresh
-independent context is unavailable, record the gap; inherited context or self-review cannot
-establish the audit gate. Continue useful authorized work that does not depend on it.
-Count Manager and other active workers against capacity; sequential fresh rounds are valid.
+Inspect exposed tools + capacity before dispatch. Auditor: fresh ctx; never
+`subagent_type: fork` or any option inheriting Manager history. No fresh independent ctx →
+record gap; inherited ctx or self-review can't establish audit gate. Continue useful
+authorized work not depending on it.
 
-The workspace belongs to the executor for the duration of a round. Edits from anyone else
-between Baseline and Audit make attribution impossible; the auditor reports integrity
-`suspect` rather than guessing whose change it was.
-
-## Round engine: Workflow
-
-Invoking this skill is the user's opt-in to the `Workflow` tool for its rounds and nothing
-else. Engine choice is made once, at task start, from tool exposure, and recorded under
-`Engine:` in the Current round block. Switching mid-task is allowed only when the tool
-disappears, and the switch goes into the Audit log.
-
-What a script buys: agents it spawns never inherit Manager history, so the context boundary
-holds by construction; `schema` forces the three verdicts into enums instead of prose; the run
-persists its script and a journal with every agent's exact input and return value, which is
-provenance the state file alone cannot give; `resumeFromRunId` replays a finished executor
-from cache after a crash instead of running it twice.
-
-What stays with the Manager: Plan and Integrate. The script has no filesystem, no clock and no
-user in the loop, so it cannot pick the step, freeze the done-check, weigh dead ends, decide
-residue or absorb an amendment. One round per workflow call. Rework after a failed audit is
-the next round, planned inline, never a retry loop inside the script.
-
-Agent count per round is three fixed roles plus a variable number of judges, chosen at Plan:
-
-- Fixed: baseline, executor, inspector. Baseline and inspector are the mechanical roles the
-  contract already requires. The executor is one agent because a round is one step in one
-  fresh context, and parallel executors in one workspace make the manifest diff
-  unattributable. A step that wants N parallel workers is decomposed wrong: split it into N
-  steps.
-- `Judges:` is the total verdict count including the inspector. Pick it per round and record
-  the reason:
-  - 1 (inspector alone): mechanical step, small write scope, deterministic done-check (tests,
-    build, hash compare).
-  - 2 to 3: normal step; delta spans more than one subsystem, or the done-check needs
-    interpretation (visual result, log inspection, "no regressions").
-  - 4 or more: rework round after a failed audit, step touches test or gate definitions,
-    irreversible side effects, or a stagnation trigger fired.
-  - Extra judges rotate through distinct lenses (scope integrity, check validity, contract
-    drift) rather than running as identical copies.
-
-Rules the script must satisfy:
-
-- Every prompt is built from `args` and constants only. The executor's return value is kept
-  for the Audit log and is never concatenated into an audit prompt.
-  `agent(auditBrief + executorReport)` is the leak this skill exists to prevent, one keystroke
-  away.
-- Briefs travel as paths, not strings. Agents read the file the Manager wrote at Plan; the
-  file on disk is the byte-for-byte record. The wrapper text around the path is a constant in
-  the template, not per-round Manager prose.
-- The inspector's raw artifacts land at paths derived from `args`. Judges get those paths from
-  `args`, never from the inspector's return, and never see its verdict.
-- One agent runs the done-check. Parallel auditors each running it would write files
-  concurrently and contaminate the manifest diff. Judges read the delta and the check output
-  and score them; they do not re-run.
-- No `isolation: 'worktree'` for anyone. A worktree starts from HEAD and loses the executor's
-  uncommitted edits.
-- `agent()` returns `null` when the user skips it or the API dies. Null is `blocked` with
-  integrity `suspect`, never `complete`.
-- Pass no `model`. Agents inherit the session model, which is how the quality floor holds.
-  `effort: 'low'` is acceptable for the baseline agent only.
-- Under a `+Nk` budget directive, `agent()` throws once the ceiling is hit. Catch it, return
-  `blocked: budget`, checkpoint.
-- A pass requires unanimity: every status `complete`, every integrity `clean`, every contract
-  `aligned`. Any `blocked` verdict blocks the round. Disagreement is `suspect`.
-
-Template. The Manager writes the Current round block and both briefs first, then calls
-Workflow with `args`:
-
-```js
-export const meta = {
-  name: 'long-horizon-round',
-  description: 'One long-horizon round: baseline, executor, inspector, independent judges',
-  phases: [{ title: 'Baseline' }, { title: 'Execute' }, { title: 'Audit' }],
-}
-// args: { taskSlug, round, roundDir, writeScope, executorBrief, auditorBrief, judges }
-// roundDir = .tmp/long-horizon/<slug>/round-<N>. Briefs are absolute paths written at Plan.
-// judges = total verdict count including the inspector, from the Current round block.
-const VERDICT = {
-  type: 'object',
-  properties: {
-    status: { enum: ['complete', 'incomplete', 'blocked'] },
-    blockedReason: { type: 'string' },
-    integrity: { enum: ['clean', 'suspect', 'violation'] },
-    contract: { enum: ['aligned', 'drifted'] },
-    contractVersion: { type: 'string' },
-    evidence: { type: 'string' },
-    deltaPaths: { type: 'array', items: { type: 'string' } },
-    // On incomplete only: yes = mechanical fault from the auditor's own check run, no = the
-    // approach failed. Judges read the raw check output, never the executor's report.
-    // diagnostic is the fault as seen in that output; empty on complete or blocked.
-    repairable: { enum: ['yes', 'no', 'n/a'] },
-    diagnostic: { type: 'string' },
-  },
-  required: ['status', 'integrity', 'contract', 'contractVersion', 'evidence', 'repairable', 'diagnostic'],
-}
-const BASELINE = {
-  type: 'object',
-  properties: {
-    manifestPath: { type: 'string' },
-    gitRef: { type: 'string' },
-    fileCount: { type: 'integer' },
-    uncovered: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['manifestPath', 'gitRef', 'fileCount'],
-}
-const LENSES = ['scope integrity', 'check validity', 'contract drift']
-const a = args
-const manifest = `${a.roundDir}/baseline-manifest.json`
-const delta = `${a.roundDir}/audit/delta.md`
-const checkOut = `${a.roundDir}/audit/check-output.txt`
-const artifacts = { manifest, delta, checkOut }
-const blocked = (reason) => ({
-  status: 'blocked', blockedReason: reason, integrity: 'suspect',
-  contract: 'aligned', contractVersion: 'n/a', evidence: reason, repairable: 'n/a', diagnostic: '',
-})
-// Stage results live outside the try so a throw mid-round still returns what was collected.
-let base = null, executorReport = null, executed = false, inspector = null, judges = []
-
-try {
-  phase('Baseline')
-  base = await agent(
-    `Take a long-horizon baseline. Write scope: ${JSON.stringify(a.writeScope)}. ` +
-    `Write a manifest to ${manifest}: path and content hash for every file under write scope ` +
-    `(including paths outside the repo), every untracked file, every tracked file with ` +
-    `uncommitted changes, and deleted paths. In a git workspace also run \`git stash create\` ` +
-    `(empty output means clean: use HEAD) and ` +
-    `\`git update-ref refs/long-horizon/${a.taskSlug}/round-${a.round} <sha>\`. ` +
-    `Change nothing else. List coverage you could not take under uncovered.`,
-    { schema: BASELINE, effort: 'low' })
-  if (!base) return { verdict: blocked('baseline agent returned null'), executed, executorReport, artifacts }
-
-  phase('Execute')
-  executed = true
-  executorReport = await agent(
-    `Read ${a.executorBrief} and do exactly what it says. Apply fable-mode discipline. ` +
-    `Return what changed and how to check it.`)
-  // Kept for the Audit log only. Never passed to an audit agent.
-  // Null means skipped or died, possibly after partial edits: the Manager reconciles this as
-  // an interrupted execution against the baseline; the workspace is never audited as complete.
-  if (executorReport === null) {
-    return { verdict: blocked('executor returned null; reconcile as interrupted execution'), executed, executorReport, baseline: base, artifacts }
-  }
-
-  phase('Audit')
-  inspector = await agent(
-    `Read ${a.auditorBrief} and follow it. Work in this order. ` +
-    `1: rebuild the manifest with the same coverage as ${manifest}, diff it (added, modified, ` +
-    `deleted), append \`git diff ${base.gitRef} --stat\`, and write the result to ${delta}. ` +
-    `2: run the done-check from the recorded cwd and write the complete raw output to ${checkOut}. ` +
-    `3: return your verdicts with evidence.`,
-    { schema: VERDICT, phase: 'Audit' })
-  if (!inspector) return { verdict: blocked('inspector returned null'), executed, executorReport, baseline: base, artifacts }
-
-  const judgeCount = Math.max(0, (a.judges ?? 1) - 1)
-  judges = (await parallel(Array.from({ length: judgeCount }, (_, i) => () => agent(
-    `Independent audit judge ${i + 1}, lens: ${LENSES[i % LENSES.length]}. ` +
-    `Read ${a.auditorBrief}, then read ${delta} and ${checkOut}. ` +
-    `Do not run anything and do not modify files. Return your own verdicts. ` +
-    `Default to incomplete or suspect when the evidence is unclear.`,
-    { schema: VERDICT, phase: 'Audit' })))).filter(Boolean)
-  if (judges.length < judgeCount) log(`${judgeCount - judges.length} judge(s) returned null; integrity capped at suspect`)
-
-  const all = [inspector, ...judges]
-  const blockedVote = all.find(v => v.status === 'blocked')
-  const verdict = blockedVote ? blockedVote : {
-    status: all.every(v => v.status === 'complete') ? 'complete' : 'incomplete',
-    integrity: all.some(v => v.integrity === 'violation') ? 'violation'
-      : (judges.length === judgeCount && all.every(v => v.integrity === 'clean')) ? 'clean' : 'suspect',
-    contract: all.every(v => v.contract === 'aligned') ? 'aligned' : 'drifted',
-    contractVersion: inspector.contractVersion,
-    evidence: all.map((v, i) => `[${i === 0 ? 'inspector' : `judge ${i}`}] ${v.evidence}`).join('\n'),
-    deltaPaths: inspector.deltaPaths ?? [],
-    // Any judge calling the failure unrepairable wins; a repairable claim needs everyone,
-    // plus a non-empty inspector diagnostic, since the recovery brief has to carry it.
-    repairable: all.every(v => v.status === 'complete') ? 'n/a'
-      : all.some(v => v.repairable === 'no') ? 'no'
-      : (all.every(v => v.repairable === 'yes') && (inspector.diagnostic ?? '').trim()) ? 'yes' : 'no',
-    diagnostic: inspector.diagnostic ?? '',
-  }
-  return { verdict, votes: all, executed, executorReport, baseline: base, artifacts }
-} catch (error) {
-  // agent() throws at the +Nk budget ceiling and on runtime faults. Return what exists so the
-  // Manager can checkpoint; the executor may already have changed files.
-  const reason = `blocked: agent() threw (budget ceiling or runtime error): ${error && error.message ? error.message : String(error)}`
-  log(reason)
-  return { verdict: blocked(reason), votes: [inspector, ...judges].filter(Boolean), executed, executorReport, baseline: base, artifacts }
-}
-```
-
-After the call returns: record the runId and transcript directory under Workers, copy
-`verdict` and `votes` into the Audit log, then Integrate as below. A `blocked` verdict with
-`executed: true` means the executor ran, or may have, before the round stopped (null return,
-budget ceiling, runtime fault): reconcile it as an interrupted execution against the recorded
-baseline, never as a clean round. A cached return on resume
-is not evidence until `journal.jsonl` in the transcript directory shows the agent's actual
-output.
+Workspace = executor's for round duration. Anyone else's edits between Baseline and Audit →
+attribution impossible; auditor reports integrity `suspect`, no guessing whose change.
 
 ## Round loop
 
-1. **Plan**: read the state file, pick ONE remaining step, decide the judge count, and write
-   the Current round block into the state file, phase `planned`, before anything is spawned.
-   Then write the auditor brief to its recorded path, and write the executor brief: contract
-   excerpt, the Current round block, only the verified facts that step needs, and every dead
-   end that touches this step. The done-check is frozen from this point; one that turns out
-   wrong is fixed in the next round's Plan, never after reading the executor's report.
+1. **Plan**: read state file. Both engines: pin the batch base (never HEAD), take main's
+   manifest and size the batch per [batch-workspaces.md](references/batch-workspaces.md),
+   read first. Split Remaining to the finest safe grain (Parallel rounds);
+   pick batch (every ready step the rules allow; each round works ONE step); set each
+   round's candidate count, judge count and serial-candidates flag; write the Current batch block
+   and each Current round block to state file, phase `planned`, before spawning anything.
+   Then per round: auditor brief → its recorded path; executor brief = contract excerpt,
+   Current round block, only verified facts step needs, every dead end touching step, Method
+   notes. Done-check frozen from here; wrong one fixed in next batch's Plan, never after
+   reading an executor's report.
 
-   The Baseline is what the workspace looked like before this executor ran. Rounds do not
-   commit between themselves, so HEAD is the wrong reference: it would attribute every
-   earlier round's verified edits, and any pre-existing user changes, to this executor. Take
-   it as a manifest file under the task's `.tmp` directory: path and content hash for every
-   file under Write scope (including paths outside the repo), every untracked file, and every
-   tracked file with uncommitted changes. In a git workspace also pin a tracked snapshot:
-   `git stash create` (touches neither tree nor index; empty output means clean, use HEAD)
-   and `git update-ref refs/long-horizon/<task-slug>/round-<N> <sha>` so gc cannot prune it
-   across sessions. An equivalent immutable snapshot plus content manifest is valid when
-   these Git operations are unavailable. Include relevant ignored generated artifacts
-   explicitly; name unavailable coverage rather than calling it clean. Record deleted paths
-   too. Sizes and mtimes are not a baseline; hashes are. Under the workflow engine the
-   baseline agent takes it as the script's first stage, at the manifest path and ref name the
-   Current round block already records; under the agent engine, take it inline before
-   spawning the executor.
-2. **Execute**: set phase `executing`. Workflow engine: call the round script; the executor
-   is its second stage. Agent engine: spawn a fresh subagent with the brief alone and no
-   Manager conversation history. Either way record the run or agent ID as soon as dispatch
-   returns. The executor does the step and reports what changed and how to check it. Confirm
-   it has stopped writing, record its status, and set phase `awaiting-audit`.
-3. **Audit**: confirm all writers to the scope have finished or stopped. Workflow engine: the
-   inspector and judges are the script's third stage and run only after the executor agent
-   has returned. Agent engine: spawn a second fresh subagent with the prewritten auditor
-   brief and nothing else, and record its ID. The audit works in this order, because its own
-   done-check run writes files too:
-   1. Rebuild the manifest now and diff it against the Baseline (added, modified, deleted),
-      plus `git diff <ref> --stat` for tracked files. This delta is the executor's work.
-   2. Run the done-check from the recorded cwd and compare with the expected result.
-   3. Return three verdicts with evidence:
-   - status: complete / incomplete / blocked, from its own run of the done-check. Evidence
-     it did not produce this round counts only if it fetched it itself from an authenticated
-     source (a CI run by URL, a receipt from the external system); executor-produced logs and
-     test output are claims. If the check itself is broken, say `blocked: invalid check`, which
-     is a Plan defect, not a Dead end. On `incomplete`, add `repairable: yes` or
-     `repairable: no` with the diagnostic from the inspector's own done-check run (the raw
-     check output under the round directory). Yes means a mechanical fault the approach
-     survives (build error, missing dependency, harness or resource failure); no means the
-     approach itself failed. A diagnostic that exists only in the executor's report is a
-     claim and does not make a step repairable. With several judges, any `no` is `no`.
-   - integrity: clean / suspect / violation. Clean only when the step-1 delta touches nothing
-     outside Write scope and every artifact the step promised exists. A delta that reaches
-     test or gate definitions the step did not own is `suspect` at best: a passing check
-     proves nothing if the executor could edit the check. Unclear evidence = suspect.
-   - contract: aligned / drifted, with the inspected contract version and acceptance checks.
-   The executor's report is a claim; the auditor's inspection is the evidence. Only
-   complete + clean + aligned enters Verified progress. Set phase `audited`.
-4. **Integrate**: pass: move the step into Verified progress with the auditor's evidence, the
-   round's brief paths, baseline ref and runId, so the round can be re-examined later. Fail:
-   preserve unaffected Verified progress and mark affected claims stale; append the audit
-   findings, record the delta's paths under Residue with a decision to revert or keep each,
-   and schedule the next round by the combined `repairable` verdict. `yes`: one recovery
-   round on the same approach, its brief carrying the inspector's diagnostic, counted as the
-   step's second attempt under Stagnation. `no`: the approach goes to Dead ends now and the
-   next brief changes approach. `invalid check` is a Plan defect and goes to neither. One
-   recovery per step: a failed recovery is the step's second failure, and Stagnation then
-   forces a new approach whatever the second diagnostic says. Either way, archive the
-   Current round block into the Audit log and clear it; a stale one would feed the next
-   auditor the wrong done-check.
+   Hours-long execution or done-check → before briefs freeze it, run the draft review in [draft-review.md](references/draft-review.md). Cheap rounds skip.
 
-Update the state file every round. Three rounds without a state-file write means drift: stop
-and rebuild the file from the real workspace.
+   Before writing the state file or any brief: [briefs.md](references/briefs.md).
 
-After compaction or restart, read state, reconcile the workspace and latest user instructions,
-and inspect recorded workers before touching the round. Confirm old writers have finished or
-stopped before auditing or replacing them. Missing IDs or lost handles do not prove completion;
-if writer status cannot be established, pause affected work and record the recovery needed.
-A round that ran under the workflow engine resumes with `resumeFromRunId`, the same script
-and the same `args`: finished agents replay from cache, so a completed executor is not run
-twice. Read the run's `journal.jsonl` before trusting any cached return.
+   Baseline = workspace before its executor ran, never HEAD. Before taking or validating one: [baseline.md](references/baseline.md).
+2. **Execute**: phase `executing`. Workflow engine: call the batch script; executors = stage
+   2 of every round. Agent engine: fresh subagent per candidate w/ brief alone, no Manager
+   conversation history; angle line per index. Either way record run/agent IDs as soon as
+   dispatch returns. Executor does step, reports what changed + how to check. Confirm it
+   stopped writing, record status, phase `awaiting-audit`.
+3. **Pick** (rounds with several candidates): [candidates-blinding.md](references/candidates-blinding.md). No candidate passes its own check → round fails on the base's inspection, audit skipped.
+4. **Audit**: confirm all writers to the base workspace finished/stopped. Workflow engine:
+   inspector + judges = last stage, run only after the executor and grafter returned. Agent
+   engine: fresh subagent w/ prewritten auditor brief, nothing else; record its ID. Order
+   fixed b/c its own done-check run writes files too:
+   1. Rebuild manifest now, diff vs Baseline (added, modified, deleted) + `git diff <ref> --stat`
+      for tracked files. After a pick inspection: executor delta from its pre-check diff,
+      grafter delta from its post-check manifest; a path the check alone changed and nothing
+      touched since is a check artifact, not a delta.
+   2. Run done-check from recorded cwd; compare w/ expected result.
+   3. Return three verdicts w/ evidence:
+   - status: complete / incomplete / blocked, from own done-check run. Evidence the auditor
+     didn't produce this round counts only if it fetched it itself from authenticated source (CI run by
+     URL, receipt from external system); executor-produced logs/test output = claims. Check
+     itself broken → `blocked: invalid check` = Plan defect, not Dead end. On `incomplete`:
+     add `repairable: yes` or `repairable: no` w/ diagnostic from inspector's own done-check
+     run (raw check output under round dir). Yes = mechanical fault; approach survives it (build
+     error, missing dep, harness/resource failure); no = approach itself failed. Diagnostic
+     only in executor's report = claim, can't make step repairable. Several judges: any `no`
+     is `no`.
+   - integrity: clean / suspect / violation. Clean only if step-1 delta touches nothing
+     outside Write scope AND every promised artifact exists. Delta reaching test/gate
+     definitions step didn't own = `suspect` at best: passing check proves nothing if
+     executor could edit it. Unclear evidence = suspect.
+   - contract: aligned / drifted, w/ inspected contract version + acceptance checks.
+   Executor report = claim; auditor inspection = evidence. Only complete + clean + aligned
+   enters Verified progress. Phase `audited`.
+5. **Integrate**: batches follow Parallel rounds order. Pass: step → Verified progress w/
+   auditor's evidence, round's brief paths, baseline refs, runId (re-examinable later); copy
+   cited result files outside task dir into its `evidence/round-<N>/` (workspaces vanish).
+   Fail: keep unaffected Verified progress, mark affected claims stale; append audit
+   findings; delta's paths → Residue, revert-or-keep decision each; next round per combined
+   `repairable`. `yes`: one recovery round, same approach, brief carries inspector's
+   diagnostic, candidates ≥3 (in-place: 1); counts as step's second attempt under Stagnation. `no`:
+   approach → Dead ends now; next brief changes approach. `invalid check` = Plan defect →
+   neither. `brief gap` = Plan defect too; fix the brief, no attempt consumed. One recovery
+   per step: failed recovery = step's second failure → Stagnation forces new approach
+   whatever second diagnostic says. Either way: archive Current round block into Audit log,
+   clear it (stale block feeds next auditor wrong done-check). Rules for later rounds stated
+   in an executor's report → Method notes, unconfirmed until later done-check covers them.
 
-Validate the baseline manifest and Git ref in every phase. Recover missing pieces only from
-trusted pre-execution artifacts. If execution may have started and recovery fails, preserve
-partial edits and record integrity as `suspect` with attribution unavailable. Do not replace
-the old baseline with current content or accept the round as clean.
+Update state file every batch. 3 batches w/o state-file write = drift: stop, rebuild file
+from real workspace.
 
-Then reconcile phase:
-- `planned`: if no execution occurred and no work is present, finish or rebuild Plan before
-  dispatch. If execution may have occurred, preserve the original baseline and reconcile it
-  as an interrupted execution.
-- `executing` or `awaiting-audit`: once writers are stopped and the baseline is valid, audit
-  the existing work; do not repeat execution or overwrite its baseline.
-- `audited`: integrate only if the inspected content and contract version still apply;
-  otherwise invalidate affected evidence and re-audit.
+Round building/changing verification tool (harness, probe, diff or measurement script) later
+rounds use as evidence → one cross-vendor code review of tool after it passes audit, before
+any later done-check depends on it: `codex-review`, or `codex-fullreview` if tool large, run
+between rounds on uncommitted work holding it. Audit judged step, not whether tool measures
+correctly. Confirmed tool findings → next round's step; others → Remaining.
 
-Record recovery actions and pending checks before continuing.
+End of each phase (contract milestone, or unit user asked to ship as one PR):
+`codex-fullreview` on phase diff, or `codex-review` if diff small. Surviving findings fixed in
+audited round before merge, never patched by Manager directly. Other pre-merge reviews repo
+requires still run. One PR per phase requested → phase ends after last audited round: commit,
+open PR, run these reviews, record `Waiting: merge of <PR>` in state file. Next phase plans
+first batch in fresh workspace from merged default branch; base taken there.
+
+After compaction/restart or resuming a run: follow [recovery.md](references/recovery.md) before touching a round.
+
+Validate baseline manifests + Git refs in every phase. Recover missing pieces only from trusted
+pre-execution artifacts. Execution may have started + recovery fails → keep partial edits,
+integrity `suspect`, attribution unavailable. Never replace old baseline w/ current content
+or accept round as clean.
 
 ## Stagnation
 
-A round count alone cannot resolve a stalled run. Watch for repeated failures directly:
+Round count alone can't resolve stall. Watch repeated failures directly:
 
-- Same step fails audit twice in a row: the next brief must change approach, not retry the
-  old one. Move the failed approach to Dead ends first.
-- Three rounds with nothing new entering Verified progress: stop spawning and rewrite
-  Remaining. The decomposition itself is the suspect, not the executor. Preserve consumed
-  attempts; a new decomposition does not reset a user budget.
+- Same step fails audit twice in a row: next brief must change approach, not retry. Move
+  failed approach to Dead ends first; next round runs with candidates ≥3 (in-place: 1,
+  new approach in the brief), angles clear of every Dead end.
+- 3 batches in a row w/ nothing new in Verified progress: stop spawning, rewrite Remaining.
+  Decomposition is suspect, not executor. Keep consumed attempts; new decomposition doesn't
+  reset user budget.
 
-Count both triggers from the Audit log, never from memory; a recovery round is an attempt.
-A rewrite of Remaining may route the stuck step through `arena` (parallel candidates, pick,
-graft), and arena then runs inside the executor agent: the Manager never reads candidates,
-picks or grafts, and the inspector sees only the workspace result. Candidates need the state
-file's Contract and Dead ends copied in, and a worktree starts from HEAD, so use `.tmp/arena-*`
-copies or commit a WIP first; otherwise earlier rounds' uncommitted edits are lost.
+Count both triggers from Audit log, never memory; recovery round = attempt. The Candidates
+stage is the arena for a stuck step; a standalone `arena` run is unnecessary and would start
+its worktrees from HEAD, losing earlier rounds' uncommitted edits.
 
-Either trigger optionally escalates to a cross-vendor supervisor. Manager, executor, and
-auditor are all Claude, so they share blindspots, and a shared blindspot is exactly what a
-plateau looks like from the inside. Codex is a different model family that never saw this
-session:
+Either trigger may escalate to a cross-vendor supervisor: read [supervisor-consult.md](references/supervisor-consult.md) first. Its answer = opinion: check vs current contract version + acceptance checks before it rewrites Remaining.
 
-```bash
-codex login status
-```
-
-Logged in, or a `model_provider` gateway set in `config.toml` in `$CODEX_HOME` (default `~/.codex`): one `codex exec` run (custom prompt, no scope selector) carrying the contract, the
-audit log, and Dead ends, asking for a plateau diagnosis and a different strategy. See the
-`codex-review` skill for current local preflight, CLI mechanics, and run identity. Its answer
-is an opinion: check the proposal against the current contract version and acceptance checks
-before it rewrites Remaining, and drop anything that drifts. Neither, or the run fails:
-skip it, the rewrite rules above stand on their own.
-
-One consult per trigger. Each run bills the user's Codex subscription, which is why this hangs
-off a stagnation trigger instead of running every round.
+One consult per trigger. Each run bills user's Codex subscription → stagnation-triggered
+only, not every round.
 
 ## Completion
 
-Per-round verdicts prove each step against the workspace as it was then; a later round can
-regress an earlier one. So before reporting, spawn one last fresh auditor with the current
-contract, its amendments, and the workspace root. Have it run every current acceptance check
-against the final workspace. Under the workflow engine this is one more script call with a
-final-audit brief and no executor stage. Anything that fails moves back to Remaining.
+Per-round verdicts prove each step vs workspace as it was then; later round can regress
+earlier one. So before reporting: one last fresh auditor w/ current contract, amendments,
+workspace root runs every current acceptance check vs final workspace. Workflow engine: one
+more script call with `rounds: []` and `finalAudit` set, final-audit brief, no executor
+stage. Failures → back to Remaining.
 
-Then answer from Verified progress alone. Unfinished is a valid report: state what is verified
-and what remains, including missing independent checks. Bind final evidence to the
-inspected revision and content manifest; later relevant changes require revalidation.
+Then answer from Verified progress alone. Unfinished = valid report: state verified +
+remaining, incl. missing independent checks. Bind final evidence to inspected revision +
+content manifest; later relevant changes → revalidate.
 
-## Guardrails
+## Parallel rounds
 
-- Honor explicit user model choices and required quality floors. Otherwise inherit the
-  configured session model. Check actual exposure before dispatch; if a requested model or
-  floor is unavailable, disclose it rather than silently downgrading or claiming it ran.
-- Size each step so one fresh context finishes it: one slice, one migration, one bug.
-- Audit independence is the point: verdicts come from the auditor's own inspection in a
-  fresh subagent, never from this Manager context.
-- Executors and auditors follow fable-mode discipline inside their round; fable-mode governs
-  one context, this skill governs work spanning many.
-- Under ~3 dependent steps: skip the harness, run fable-mode directly.
-- At `max(5, 2 * initial step count)` rounds, reassess strategy and remaining work before
-  continuing. This default is a reassessment threshold, not a completion or abandonment
-  rule. At reassessment, tag every Remaining item continue, reserve, or close with a one-line
-  reason; a reserved item reopens only through the final auditor's failed checks or a user
-  instruction. Track executor attempts, auditor calls, and retries separately. Explicit user
-  round, time, or cost limits are binding; checkpoint before exceeding them and report
-  unfinished checks. A budget of zero permits inspection but no budgeted execution.
-- An unavailable required check blocks that step and its dependents; complete independent
-  authorized work and ask only for missing user-owned decisions or authority. Invocation
-  does not authorize publication, installation, deployments, or external messages.
+Max safe concurrency. Each Plan: every ready step able to run beside others → own round, all
+dispatched as one batch. Ready step waits for later batch only if rule below forbids; note
+rule in its Remaining entry. A batch of one needs the forbidding rule, or "no other step
+ready", written on the `Batch of one because:` line. Before picking the batch, split any
+Remaining step whose write scope partitions into disjoint parts with their own done-checks;
+a step wanting N parallel workers is N steps.
+
+Ready = all dependencies in Verified progress. Ready steps share batch only if:
+
+- write scopes don't overlap; neither reads path other writes;
+- no two executions/done-checks contend for one resource: port, dev server, browser profile,
+  DB, GPU, or timing/perf measurement parallel load would skew. A round whose own candidates
+  contend that way sets `Serial candidates: yes` (its executors and candidate checks run one at a time) and
+  shares a batch only with rounds that never touch that resource;
+- capacity covers them, counting Manager + every agent of every running round, candidates
+  and judges included;
+- every Write scope path inside workspace root. Step writing outside → runs alone, in main
+  workspace, one candidate: separate checkout can't isolate outside path, edits reach main
+  env whatever audit says. In-place round skips batch integration steps 1-4 (nothing to copy;
+  its edits already differ from Baseline by design) → normal Integrate on its own audit.
+
+Each round keeps whole contract: own Current round block, workspaces, Baselines, briefs,
+executors, audit. Workspaces never shared: one writer's edits land in another's manifest
+diff → both audits `suspect`.
+
+Batch base, candidate workspaces, capacity: read [batch-workspaces.md](references/batch-workspaces.md) at Plan before pinning the batch base, sizing a batch or building workspaces (both engines), and again before integrating.
+
+Workflow engine: one call per batch, `args.rounds` holding every round; the script runs the
+rounds side by side and each round's stages in order. Agent engine: all executors in one msg;
+each auditor once its executor stops. Integrate after whole batch audited:
+follow steps 1-4 in [batch-workspaces.md](references/batch-workspaces.md). No round enters Verified progress before step 4's fresh auditor run in main.
+
+## Candidates
+
+`arena` inside the round, as a stage of the script: N executors build the same step in N
+workspaces from different angles; N inspectors run the done-check, one per workspace; a blind
+panel picks the base and names ideas to graft; one grafter rewrites those ideas into the base;
+the normal audit then judges the base. Set `Candidates:` per round, record the reason:
+
+- 1: mechanical step with an obvious shape and a deterministic done-check (tests, build,
+  hash compare, a migration with one correct form). Candidates would converge; the panel
+  would pick at random.
+- 3 (default when unsure): design-shaped step, several plausible approaches, done-check that
+  needs interpretation, or a step whose area already holds a Dead end.
+- 3 or more, mandatory: rework round after a failed audit, or a Stagnation trigger. Angles
+  must differ from every Dead end touching the step. In-place rounds are the one exception:
+  they always run one candidate, because nothing isolates a write outside the workspace, so
+  their rework round changes approach through the brief instead of fanning out.
+
+Angles, blinding, grafting, cost: read [candidates-blinding.md](references/candidates-blinding.md) before any multi-candidate round.
+
+## Round engine: Workflow
+
+Invoking skill = user opt-in to `Workflow` tool for its rounds, nothing else. Engine chosen
+once at task start from tool exposure, recorded under `Engine:` in Current batch block.
+Mid-task switch only if tool disappears; log switch in Audit log.
+
+Manager keeps Plan + Integrate. Script has no filesystem, clock, or user → can't pick steps,
+freeze done-checks, weigh dead ends, decide residue, absorb amendments. One batch per call.
+Rework after failed audit = next round in the next batch, planned inline; never a retry loop
+in script.
+
+Before writing `args` or calling Workflow, read [workflow-script.md](references/workflow-script.md): script rules, template, handling its return.
