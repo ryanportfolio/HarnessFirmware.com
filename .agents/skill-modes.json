@@ -54,6 +54,7 @@
     "servers": "native",
     "ui-quality": "native",
     "wow-animation": "native",
-    "wrapup": "native"
+    "wrapup": "native",
+    "climb-loop": "native"
   }
 }
